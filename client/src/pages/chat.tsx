@@ -296,7 +296,7 @@ export default function ChatPage() {
                                     Chart View
                                   </TabsTrigger>
                                   <TabsTrigger value="data" data-testid="tab-data">
-                                    Raw Data
+                                    Data Table
                                   </TabsTrigger>
                                 </TabsList>
 
@@ -316,25 +316,76 @@ export default function ChatPage() {
                                   <Card>
                                     <CardHeader>
                                       <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg">Raw Data</CardTitle>
+                                        <CardTitle className="text-lg">Data Table</CardTitle>
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() =>
-                                            copyToClipboard(JSON.stringify(message.response?.data, null, 2))
-                                          }
+                                          onClick={() => {
+                                            const data = message.response?.data || [];
+                                            if (data.length > 0) {
+                                              const headers = Object.keys(data[0]);
+                                              const csv = [
+                                                headers.join(','),
+                                                ...data.map((row: any) => 
+                                                  headers.map(h => JSON.stringify(row[h] ?? '')).join(',')
+                                                )
+                                              ].join('\n');
+                                              copyToClipboard(csv);
+                                            }
+                                          }}
                                           data-testid="button-copy-data"
                                         >
                                           {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                          <span className="ml-2">{copied ? "Copied" : "Copy"}</span>
+                                          <span className="ml-2">{copied ? "Copy CSV" : "Copy CSV"}</span>
                                         </Button>
                                       </div>
                                     </CardHeader>
                                     <CardContent>
                                       <ScrollArea className="h-96">
-                                        <pre className="text-xs font-mono p-4 rounded-lg bg-muted overflow-x-auto">
-                                          {JSON.stringify(message.response.data, null, 2)}
-                                        </pre>
+                                        <div className="relative w-full overflow-auto">
+                                          <table className="w-full caption-bottom text-sm">
+                                            <thead className="[&_tr]:border-b">
+                                              <tr className="border-b transition-colors hover:bg-muted/50">
+                                                {message.response.data && message.response.data.length > 0 && 
+                                                  Object.keys(message.response.data[0]).map((key) => (
+                                                    <th 
+                                                      key={key}
+                                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                                                    >
+                                                      {key}
+                                                    </th>
+                                                  ))
+                                                }
+                                              </tr>
+                                            </thead>
+                                            <tbody className="[&_tr:last-child]:border-0">
+                                              {message.response.data && message.response.data.map((row: any, idx: number) => (
+                                                <tr 
+                                                  key={idx}
+                                                  className="border-b transition-colors hover:bg-muted/50"
+                                                  data-testid={`table-row-${idx}`}
+                                                >
+                                                  {Object.values(row).map((value: any, colIdx: number) => (
+                                                    <td 
+                                                      key={colIdx}
+                                                      className="p-4 align-middle"
+                                                    >
+                                                      {typeof value === 'number' 
+                                                        ? value.toLocaleString() 
+                                                        : String(value ?? '')
+                                                      }
+                                                    </td>
+                                                  ))}
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
+                                          {(!message.response.data || message.response.data.length === 0) && (
+                                            <div className="text-center py-8 text-muted-foreground">
+                                              No data available
+                                            </div>
+                                          )}
+                                        </div>
                                       </ScrollArea>
                                     </CardContent>
                                   </Card>
