@@ -31,11 +31,8 @@ export default function ChatPage() {
 
   const queryMutation = useMutation({
     mutationFn: async (question: string) => {
-      return apiRequest<QueryResponse>("/api/query", {
-        method: "POST",
-        body: JSON.stringify({ question }),
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await apiRequest("POST", "/api/query", { question });
+      return res.json() as Promise<QueryResponse>;
     },
     onSuccess: (data, question) => {
       const botMessage: Message = {
