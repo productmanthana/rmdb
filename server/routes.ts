@@ -61,6 +61,78 @@ export function registerRoutes(app: Express): Express {
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // AI ANALYSIS ENDPOINT
+  // ═══════════════════════════════════════════════════════════════
+
+  app.post("/api/ai-analysis", async (req, res) => {
+    try {
+      const { question, queryData } = req.body;
+
+      if (!question || !queryData) {
+        return res.status(400).json({
+          success: false,
+          error: "invalid_request",
+          message: "Please provide a question and query data",
+        });
+      }
+
+      const openaiClient = new AzureOpenAIClient({
+        endpoint:
+          process.env.AZURE_OPENAI_ENDPOINT ||
+          "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/",
+        apiKey:
+          process.env.AZURE_OPENAI_KEY ||
+          "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU",
+        apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
+        deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
+      });
+
+      // Create context from query data
+      const dataContext = `
+Original Question: ${queryData.originalQuestion}
+Number of Results: ${queryData.rowCount}
+Summary Statistics: ${JSON.stringify(queryData.summary, null, 2)}
+Sample Data (first 5 rows): ${JSON.stringify(queryData.data.slice(0, 5), null, 2)}
+      `.trim();
+
+      const response = await openaiClient.chat([
+        {
+          role: "system",
+          content: `You are a data analyst helping users understand their project data. 
+Provide clear, actionable insights in plain language. Focus on:
+- Key patterns and trends
+- Notable outliers or exceptions
+- Actionable recommendations
+- Answer the user's specific question directly
+
+Keep responses concise (2-3 paragraphs max) and conversational.`,
+        },
+        {
+          role: "user",
+          content: `Based on this query result data:
+${dataContext}
+
+User's question: ${question}
+
+Please provide a helpful analysis.`,
+        },
+      ]);
+
+      res.json({
+        success: true,
+        analysis: response,
+      });
+    } catch (error) {
+      console.error("Error generating AI analysis:", error);
+      res.status(500).json({
+        success: false,
+        error: "internal_error",
+        message: "Failed to generate analysis",
+      });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // DATABASE CONNECTION TEST
   // ═══════════════════════════════════════════════════════════════
 

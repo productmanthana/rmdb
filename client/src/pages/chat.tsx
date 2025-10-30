@@ -43,12 +43,19 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+interface AIAnalysisMessage {
+  id: string;
+  type: "user" | "assistant";
+  content: string;
+}
+
 interface Message {
   id: string;
   type: "user" | "bot";
   content: string;
   timestamp: Date;
   response?: QueryResponse;
+  aiAnalysisMessages?: AIAnalysisMessage[];
 }
 
 const exampleQueries = [
@@ -98,6 +105,8 @@ export default function ChatPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
+  const [aiAnalysisInputs, setAiAnalysisInputs] = useState<Record<string, string>>({});
+  const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   // Fetch chat history
@@ -253,6 +262,65 @@ export default function ChatPage() {
       description: "Data copied to clipboard",
     });
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAIAnalysis = async (messageId: string, question: string) => {
+    if (!question.trim()) return;
+
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !message.response) return;
+
+    // Add user question to AI analysis messages
+    const userMsg: AIAnalysisMessage = {
+      id: Date.now().toString(),
+      type: "user",
+      content: question,
+    };
+
+    setMessages(prev => prev.map(m => 
+      m.id === messageId 
+        ? { ...m, aiAnalysisMessages: [...(m.aiAnalysisMessages || []), userMsg] }
+        : m
+    ));
+
+    // Clear input for this message
+    setAiAnalysisInputs(prev => ({ ...prev, [messageId]: "" }));
+    setAiAnalysisLoading(prev => ({ ...prev, [messageId]: true }));
+
+    try {
+      const res = await apiRequest("POST", "/api/ai-analysis", {
+        question,
+        queryData: {
+          originalQuestion: message.response.question,
+          data: message.response.data,
+          summary: message.response.summary,
+          rowCount: message.response.row_count,
+        },
+      });
+
+      const data = await res.json();
+
+      // Add assistant response
+      const assistantMsg: AIAnalysisMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: data.analysis || "Unable to generate analysis",
+      };
+
+      setMessages(prev => prev.map(m => 
+        m.id === messageId 
+          ? { ...m, aiAnalysisMessages: [...(m.aiAnalysisMessages || []), assistantMsg] }
+          : m
+      ));
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "Unable to generate AI analysis",
+      });
+    } finally {
+      setAiAnalysisLoading(prev => ({ ...prev, [messageId]: false }));
+    }
   };
 
   return (
@@ -518,21 +586,21 @@ export default function ChatPage() {
 
                                 {/* Data Display */}
                                 {message.response.success && (
-                                  <Tabs defaultValue="chart" className="w-full">
+                                  <Tabs defaultValue="data" className="w-full">
                                     <TabsList className="glass border-0">
-                                      <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input" data-testid="tab-chart">
-                                        Chart
-                                      </TabsTrigger>
                                       <TabsTrigger value="data" className="text-white data-[state=active]:glass-input" data-testid="tab-data">
                                         Table
                                       </TabsTrigger>
-                                      <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input" data-testid="tab-logs">
-                                        <FileText className="h-4 w-4 mr-1" />
-                                        Logs
+                                      <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input" data-testid="tab-chart">
+                                        Chart
                                       </TabsTrigger>
                                       <TabsTrigger value="analysis" className="text-white data-[state=active]:glass-input" data-testid="tab-analysis">
                                         <Brain className="h-4 w-4 mr-1" />
                                         AI Analysis
+                                      </TabsTrigger>
+                                      <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input" data-testid="tab-logs">
+                                        <FileText className="h-4 w-4 mr-1" />
+                                        Logs
                                       </TabsTrigger>
                                     </TabsList>
 
@@ -681,59 +749,81 @@ export default function ChatPage() {
                                       <div className="glass rounded-xl p-6">
                                         <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                                           <Brain className="h-5 w-5" />
-                                          AI Classification & Analysis
+                                          AI Analysis - Ask Questions About Your Data
                                         </h3>
 
-                                        {/* Function Name */}
-                                        <div className="mb-4">
-                                          <p className="text-xs text-white/70 mb-2">Query Type:</p>
-                                          <div className="glass-dark rounded-lg px-4 py-2">
-                                            <p className="text-white font-mono text-sm">{message.response.function_name || "Unknown"}</p>
-                                          </div>
-                                        </div>
-
-                                        {/* AI Extracted Parameters */}
-                                        <div className="mb-4">
-                                          <p className="text-xs text-white/70 mb-2">Extracted Parameters:</p>
-                                          <div className="glass-dark rounded-lg p-4">
-                                            <pre className="text-sm text-cyan-400 font-mono">
-                                              {JSON.stringify(message.response.arguments || {}, null, 2)}
-                                            </pre>
-                                          </div>
-                                        </div>
-
-                                        {/* Summary Statistics */}
-                                        {message.response.summary && (
-                                          <div>
-                                            <p className="text-xs text-white/70 mb-2">Summary Statistics:</p>
-                                            <div className="grid grid-cols-2 gap-3">
-                                              {message.response.summary.total_records !== undefined && (
-                                                <div className="glass-dark rounded-lg p-3">
-                                                  <p className="text-xs text-white/70 mb-1">Total Records</p>
-                                                  <p className="text-lg font-bold text-white">{message.response.summary.total_records}</p>
+                                        {/* AI Analysis Chat History */}
+                                        <div className="mb-4 space-y-3">
+                                          {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 ? (
+                                            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                                              {message.aiAnalysisMessages.map((msg) => (
+                                                <div
+                                                  key={msg.id}
+                                                  className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}
+                                                >
+                                                  <div
+                                                    className={`rounded-lg p-3 max-w-[80%] ${
+                                                      msg.type === "user"
+                                                        ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
+                                                        : "glass-dark border border-white/10"
+                                                    }`}
+                                                  >
+                                                    <p className="text-sm text-white whitespace-pre-wrap">{msg.content}</p>
+                                                  </div>
                                                 </div>
-                                              )}
-                                              {message.response.summary.total_value !== undefined && (
-                                                <div className="glass-dark rounded-lg p-3">
-                                                  <p className="text-xs text-white/70 mb-1">Total Value</p>
-                                                  <p className="text-lg font-bold text-white">${(message.response.summary.total_value / 1e6).toFixed(1)}M</p>
-                                                </div>
-                                              )}
-                                              {message.response.summary.avg_fee !== undefined && (
-                                                <div className="glass-dark rounded-lg p-3">
-                                                  <p className="text-xs text-white/70 mb-1">Average Fee</p>
-                                                  <p className="text-lg font-bold text-white">${(message.response.summary.avg_fee / 1e6).toFixed(1)}M</p>
-                                                </div>
-                                              )}
-                                              {message.response.summary.avg_win_rate !== undefined && (
-                                                <div className="glass-dark rounded-lg p-3">
-                                                  <p className="text-xs text-white/70 mb-1">Avg Win Rate</p>
-                                                  <p className="text-lg font-bold text-white">{message.response.summary.avg_win_rate.toFixed(1)}%</p>
-                                                </div>
-                                              )}
+                                              ))}
                                             </div>
-                                          </div>
-                                        )}
+                                          ) : (
+                                            <div className="glass-dark rounded-lg p-4 text-center">
+                                              <p className="text-white/70 text-sm">
+                                                Ask any question about the data above. For example:
+                                              </p>
+                                              <div className="mt-3 space-y-2 text-xs text-white/60">
+                                                <p>• "What are the key insights from this data?"</p>
+                                                <p>• "Which projects should I focus on first?"</p>
+                                                <p>• "What trends do you see in the results?"</p>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        {/* AI Analysis Input */}
+                                        <div className="glass-input rounded-xl p-1">
+                                          <form
+                                            onSubmit={(e) => {
+                                              e.preventDefault();
+                                              handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                            }}
+                                            className="flex items-end gap-2"
+                                          >
+                                            <Textarea
+                                              value={aiAnalysisInputs[message.id] || ""}
+                                              onChange={(e) =>
+                                                setAiAnalysisInputs((prev) => ({
+                                                  ...prev,
+                                                  [message.id]: e.target.value,
+                                                }))
+                                              }
+                                              placeholder="Ask a question about the data..."
+                                              className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                              disabled={aiAnalysisLoading[message.id]}
+                                              data-testid={`input-ai-analysis-${message.id}`}
+                                            />
+                                            <Button
+                                              type="submit"
+                                              size="icon"
+                                              className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
+                                              disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
+                                              data-testid={`button-submit-ai-analysis-${message.id}`}
+                                            >
+                                              {aiAnalysisLoading[message.id] ? (
+                                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                              ) : (
+                                                <Send className="h-4 w-4 text-white" />
+                                              )}
+                                            </Button>
+                                          </form>
+                                        </div>
                                       </div>
                                     </TabsContent>
                                   </Tabs>
