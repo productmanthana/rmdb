@@ -67,7 +67,30 @@ export const QueryResponseSchema = z.object({
 export type QueryResponse = z.infer<typeof QueryResponseSchema>;
 
 // ═══════════════════════════════════════════════════════════════
-// QUERY HISTORY (In-Memory Storage)
+// CHAT HISTORY (Full conversations with messages)
+// ═══════════════════════════════════════════════════════════════
+
+export const ChatHistorySchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  created_at: z.date(),
+  updated_at: z.date(),
+});
+
+export const ChatMessageSchema = z.object({
+  id: z.string(),
+  chat_id: z.string(),
+  type: z.enum(["user", "bot"]),
+  content: z.string(),
+  timestamp: z.date(),
+  response: QueryResponseSchema.optional(),
+});
+
+export type ChatHistory = z.infer<typeof ChatHistorySchema>;
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
+// ═══════════════════════════════════════════════════════════════
+// QUERY HISTORY (In-Memory Storage - Legacy)
 // ═══════════════════════════════════════════════════════════════
 
 export interface QueryHistoryItem {

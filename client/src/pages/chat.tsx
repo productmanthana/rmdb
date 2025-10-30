@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { QueryResponse } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { QueryResponse, ChatHistory } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,8 +9,24 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
 import { ChartVisualization } from "@/components/ChartVisualization";
-import { Send, Copy, Check, AlertCircle, Sparkles, TrendingUp, Calendar, Tag, Building } from "lucide-react";
+import {
+  Send,
+  Copy,
+  Check,
+  AlertCircle,
+  Sparkles,
+  TrendingUp,
+  Calendar,
+  Tag,
+  Building,
+  Trash2,
+  Search,
+  Plus,
+  MessageSquare,
+  X,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -28,8 +44,8 @@ const exampleQueries = [
     queries: [
       "Show me all mega sized projects starting in the next ten months",
       "Top 10 projects in last 6 months",
-      "Projects completed in 2024"
-    ]
+      "Projects completed in 2024",
+    ],
   },
   {
     icon: TrendingUp,
@@ -37,8 +53,8 @@ const exampleQueries = [
     queries: [
       "Top 5 largest projects",
       "Smallest 3 active projects",
-      "Biggest projects in California"
-    ]
+      "Biggest projects in California",
+    ],
   },
   {
     icon: Tag,
@@ -46,8 +62,8 @@ const exampleQueries = [
     queries: [
       "Projects with sustainability and innovation tags",
       "Transportation related projects",
-      "Show all energy sector projects"
-    ]
+      "Show all energy sector projects",
+    ],
   },
   {
     icon: Building,
@@ -55,23 +71,37 @@ const exampleQueries = [
     queries: [
       "Compare revenue between OPCOs",
       "Projects with Rail and Transit tags",
-      "Win rate by company"
-    ]
-  }
+      "Win rate by company",
+    ],
+  },
 ];
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
+  // Fetch chat history
+  const { data: chatHistory = [] } = useQuery<ChatHistory[]>({
+    queryKey: ["/api/chats"],
+  });
+
+  // Filter chats based on search
+  const filteredChats = chatHistory.filter((chat) =>
+    chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Query mutation
   const queryMutation = useMutation({
     mutationFn: async (question: string) => {
       const res = await apiRequest("POST", "/api/query", { question });
       return res.json() as Promise<QueryResponse>;
     },
-    onSuccess: (data, question) => {
+    onSuccess: async (data, question) => {
       const botMessage: Message = {
         id: Date.now().toString(),
         type: "bot",
@@ -81,6 +111,20 @@ export default function ChatPage() {
       };
 
       setMessages((prev) => [...prev, botMessage]);
+
+      // Save chat if it doesn't exist
+      if (!currentChatId) {
+        try {
+          const chatRes = await apiRequest("POST", "/api/chats", {
+            title: question.slice(0, 50) + (question.length > 50 ? "..." : ""),
+          });
+          const chatData = await chatRes.json();
+          setCurrentChatId(chatData.id);
+          queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+        } catch (error) {
+          console.error("Failed to save chat:", error);
+        }
+      }
 
       if (!data.success) {
         toast({
@@ -96,6 +140,43 @@ export default function ChatPage() {
         title: "Error",
         description: String(error),
       });
+    },
+  });
+
+  // Delete chat mutation
+  const deleteChatMutation = useMutation({
+    mutationFn: async (chatId: string) => {
+      const res = await apiRequest("DELETE", `/api/chats/${chatId}`, null);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+      toast({
+        title: "Chat deleted",
+        description: "Successfully deleted the chat",
+      });
+      if (currentChatId && selectedChats.has(currentChatId)) {
+        handleNewChat();
+      }
+    },
+  });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (chatIds: string[]) => {
+      const res = await apiRequest("POST", "/api/chats/bulk-delete", {
+        chat_ids: chatIds,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
+      setSelectedChats(new Set());
+      toast({
+        title: "Chats deleted",
+        description: `Successfully deleted ${selectedChats.size} chats`,
+      });
+      handleNewChat();
     },
   });
 
@@ -117,7 +198,7 @@ export default function ChatPage() {
 
   const handleExampleClick = (query: string) => {
     if (queryMutation.isPending) return;
-    
+
     const userMessage: Message = {
       id: Date.now().toString(),
       type: "user",
@@ -127,6 +208,26 @@ export default function ChatPage() {
 
     setMessages((prev) => [...prev, userMessage]);
     queryMutation.mutate(query);
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    setCurrentChatId(null);
+  };
+
+  const handleSelectChat = (chatId: string) => {
+    const newSelected = new Set(selectedChats);
+    if (newSelected.has(chatId)) {
+      newSelected.delete(chatId);
+    } else {
+      newSelected.add(chatId);
+    }
+    setSelectedChats(newSelected);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedChats.size === 0) return;
+    bulkDeleteMutation.mutate(Array.from(selectedChats));
   };
 
   const copyToClipboard = async (text: string) => {
@@ -140,44 +241,156 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Header */}
-      <header className="border-b px-4 py-3 flex items-center justify-between">
+    <div className="flex h-screen flex-col gradient-purple-blue overflow-hidden">
+      {/* Glassmorphic Header */}
+      <header className="glass-dark px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-            <Sparkles className="h-5 w-5 text-primary-foreground" />
+          <div className="h-10 w-10 rounded-xl gradient-purple flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold" data-testid="text-app-title">
-              Database Query Assistant
+            <h1 className="text-lg font-semibold text-white" data-testid="text-app-title">
+              AI Database Assistant
             </h1>
-            <p className="text-xs text-muted-foreground">Ask anything about your data</p>
+            <p className="text-xs text-white/70">Natural language queries</p>
           </div>
         </div>
+        <Button
+          onClick={handleNewChat}
+          size="sm"
+          className="glass text-white hover:glass-hover"
+          data-testid="button-new-chat"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          New Chat
+        </Button>
       </header>
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        <ScrollArea className="flex-1 px-4">
-          <div className="max-w-4xl mx-auto py-8">
-            {messages.length === 0 ? (
-              /* Welcome Screen with Examples */
-              <div className="space-y-8">
-                <div className="text-center space-y-3 py-8">
-                  <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-                    <Sparkles className="h-8 w-8 text-primary" />
-                  </div>
-                  <h2 className="text-2xl font-bold">Welcome to Database Query Assistant</h2>
-                  <p className="text-muted-foreground max-w-md mx-auto">
-                    Ask questions about your data in plain English. I'll analyze and visualize the results for you.
-                  </p>
-                </div>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Glassmorphic Sidebar */}
+        <aside className="w-80 glass-dark border-r border-white/10 flex flex-col">
+          {/* Search */}
+          <div className="p-3 border-b border-white/10">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search chats..."
+                className="pl-9 glass-input text-white placeholder:text-white/50 border-0"
+                data-testid="input-search-chats"
+              />
+            </div>
+          </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  {exampleQueries.map((group, idx) => (
-                    <Card key={idx} className="hover-elevate transition-all">
-                      <CardContent className="p-5 space-y-3">
-                        <div className="flex items-center gap-2 text-primary">
+          {/* Bulk Actions */}
+          {selectedChats.size > 0 && (
+            <div className="p-3 glass border-white/10 border-y flex items-center justify-between">
+              <span className="text-sm text-white">{selectedChats.size} selected</span>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-white hover:bg-white/10"
+                  onClick={() => setSelectedChats(new Set())}
+                  data-testid="button-clear-selection"
+                >
+                  Clear
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="glass-dark text-white"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleteMutation.isPending}
+                  data-testid="button-bulk-delete"
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Chat List */}
+          <ScrollArea className="flex-1 p-3">
+            <div className="space-y-2">
+              {filteredChats.length === 0 && (
+                <div className="text-center py-8 text-white/50 text-sm">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  {searchQuery ? "No chats found" : "No saved chats yet"}
+                </div>
+              )}
+
+              {filteredChats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`group relative glass rounded-lg p-3 transition-all cursor-pointer ${
+                    selectedChats.has(chat.id) ? "ring-2 ring-white/30" : ""
+                  } glass-hover`}
+                  onClick={() => handleSelectChat(chat.id)}
+                  data-testid={`chat-item-${chat.id}`}
+                >
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={selectedChats.has(chat.id)}
+                      onChange={() => handleSelectChat(chat.id)}
+                      className="mt-1"
+                      onClick={(e) => e.stopPropagation()}
+                      data-testid={`checkbox-chat-${chat.id}`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white truncate font-medium">
+                        {chat.title}
+                      </p>
+                      <p className="text-xs text-white/50 mt-1">
+                        {new Date(chat.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteChatMutation.mutate(chat.id);
+                      }}
+                      data-testid={`button-delete-${chat.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+        </aside>
+
+        {/* Main Chat Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 px-4">
+            <div className="max-w-4xl mx-auto py-8">
+              {messages.length === 0 ? (
+                /* Welcome Screen */
+                <div className="space-y-8">
+                  <div className="text-center space-y-3 py-8">
+                    <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl glass">
+                      <Sparkles className="h-8 w-8 text-white" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white">
+                      Welcome to AI Database Assistant
+                    </h2>
+                    <p className="text-white/70 max-w-md mx-auto">
+                      Ask questions about your data in plain English. I'll analyze and visualize the
+                      results for you.
+                    </p>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {exampleQueries.map((group, idx) => (
+                      <div key={idx} className="glass rounded-xl p-5 space-y-3 transition-all">
+                        <div className="flex items-center gap-2 text-white">
                           <group.icon className="h-4 w-4" />
                           <h3 className="font-semibold text-sm">{group.category}</h3>
                         </div>
@@ -186,253 +399,244 @@ export default function ChatPage() {
                             <button
                               key={qIdx}
                               onClick={() => handleExampleClick(query)}
-                              className="w-full text-left px-3 py-2 rounded-lg text-sm hover-elevate active-elevate-2 border border-border/50 transition-all"
+                              className="w-full text-left px-3 py-2 rounded-lg text-sm text-white/90 glass-input transition-all hover:glass-hover"
                               data-testid={`button-example-${idx}-${qIdx}`}
                             >
                               {query}
                             </button>
                           ))}
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              /* Chat Messages */
-              <div className="space-y-6 pb-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={message.type === "user" ? "flex justify-end" : "flex justify-start"}
-                  >
-                    <div className={message.type === "user" ? "max-w-2xl" : "max-w-full w-full"}>
-                      {message.type === "user" ? (
-                        <div className="inline-block bg-primary text-primary-foreground rounded-2xl px-5 py-3">
-                          <p className="text-sm" data-testid={`text-user-message-${message.id}`}>
-                            {message.content}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="inline-block bg-muted rounded-2xl px-5 py-3 max-w-2xl">
-                            <p className="text-sm" data-testid={`text-bot-message-${message.id}`}>
+              ) : (
+                /* Chat Messages */
+                <div className="space-y-6 pb-4">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={message.type === "user" ? "flex justify-end" : "flex justify-start"}
+                    >
+                      <div className={message.type === "user" ? "max-w-2xl" : "max-w-full w-full"}>
+                        {message.type === "user" ? (
+                          <div className="glass-input rounded-2xl px-5 py-3 inline-block">
+                            <p className="text-sm text-white" data-testid={`text-user-message-${message.id}`}>
                               {message.content}
                             </p>
                           </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="glass rounded-2xl px-5 py-3 inline-block max-w-2xl">
+                              <p className="text-sm text-white" data-testid={`text-bot-message-${message.id}`}>
+                                {message.content}
+                              </p>
+                            </div>
 
-                          {message.response && (
-                            <div className="space-y-4">
-                              {/* Summary Stats */}
-                              {message.response.summary && message.response.success && (
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                  {message.response.summary.total_records !== undefined && (
-                                    <Card>
-                                      <CardContent className="p-4">
-                                        <p className="text-xs text-muted-foreground mb-1">Records</p>
-                                        <p className="text-xl font-bold" data-testid="text-total-records">
+                            {message.response && (
+                              <div className="space-y-4">
+                                {/* Summary Stats */}
+                                {message.response.summary && message.response.success && (
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                    {message.response.summary.total_records !== undefined && (
+                                      <div className="glass rounded-xl p-4">
+                                        <p className="text-xs text-white/70 mb-1">Records</p>
+                                        <p className="text-xl font-bold text-white" data-testid="text-total-records">
                                           {message.response.summary.total_records}
                                         </p>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                  {message.response.summary.total_value !== undefined && (
-                                    <Card>
-                                      <CardContent className="p-4">
-                                        <p className="text-xs text-muted-foreground mb-1">Total Value</p>
-                                        <p className="text-xl font-bold" data-testid="text-total-value">
+                                      </div>
+                                    )}
+                                    {message.response.summary.total_value !== undefined && (
+                                      <div className="glass rounded-xl p-4">
+                                        <p className="text-xs text-white/70 mb-1">Total Value</p>
+                                        <p className="text-xl font-bold text-white" data-testid="text-total-value">
                                           ${(message.response.summary.total_value / 1e6).toFixed(1)}M
                                         </p>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                  {message.response.summary.avg_fee !== undefined && (
-                                    <Card>
-                                      <CardContent className="p-4">
-                                        <p className="text-xs text-muted-foreground mb-1">Avg Fee</p>
-                                        <p className="text-xl font-bold" data-testid="text-avg-fee">
+                                      </div>
+                                    )}
+                                    {message.response.summary.avg_fee !== undefined && (
+                                      <div className="glass rounded-xl p-4">
+                                        <p className="text-xs text-white/70 mb-1">Avg Fee</p>
+                                        <p className="text-xl font-bold text-white" data-testid="text-avg-fee">
                                           ${(message.response.summary.avg_fee / 1e6).toFixed(1)}M
                                         </p>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                  {message.response.summary.avg_win_rate !== undefined && (
-                                    <Card>
-                                      <CardContent className="p-4">
-                                        <p className="text-xs text-muted-foreground mb-1">Avg Win Rate</p>
-                                        <p className="text-xl font-bold" data-testid="text-avg-win-rate">
+                                      </div>
+                                    )}
+                                    {message.response.summary.avg_win_rate !== undefined && (
+                                      <div className="glass rounded-xl p-4">
+                                        <p className="text-xs text-white/70 mb-1">Avg Win Rate</p>
+                                        <p className="text-xl font-bold text-white" data-testid="text-avg-win-rate">
                                           {message.response.summary.avg_win_rate.toFixed(1)}%
                                         </p>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Error Display */}
-                              {!message.response.success && (
-                                <Alert variant="destructive" data-testid="alert-error">
-                                  <AlertCircle className="h-4 w-4" />
-                                  <AlertDescription>
-                                    {message.response.message || "An error occurred"}
-                                  </AlertDescription>
-                                </Alert>
-                              )}
-
-                              {/* Data Display */}
-                              {message.response.success && (
-                                <Tabs defaultValue="chart" className="w-full">
-                                  <TabsList className="grid w-full max-w-md grid-cols-2">
-                                    <TabsTrigger value="chart" data-testid="tab-chart">
-                                      Chart
-                                    </TabsTrigger>
-                                    <TabsTrigger value="data" data-testid="tab-data">
-                                      Table
-                                    </TabsTrigger>
-                                  </TabsList>
-
-                                  <TabsContent value="chart" className="space-y-4">
-                                    {message.response.chart_config ? (
-                                      <ChartVisualization config={message.response.chart_config} />
-                                    ) : (
-                                      <Card>
-                                        <CardContent className="pt-6 text-center text-muted-foreground">
-                                          No chart available
-                                        </CardContent>
-                                      </Card>
+                                      </div>
                                     )}
-                                  </TabsContent>
+                                  </div>
+                                )}
 
-                                  <TabsContent value="data" className="space-y-4">
-                                    <Card>
-                                      <CardContent className="p-6">
+                                {/* Error Display */}
+                                {!message.response.success && (
+                                  <Alert variant="destructive" className="glass-dark border-red-500/50" data-testid="alert-error">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <AlertDescription className="text-white">
+                                      {message.response.message || "An error occurred"}
+                                    </AlertDescription>
+                                  </Alert>
+                                )}
+
+                                {/* Data Display */}
+                                {message.response.success && (
+                                  <Tabs defaultValue="chart" className="w-full">
+                                    <TabsList className="glass border-0">
+                                      <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input" data-testid="tab-chart">
+                                        Chart
+                                      </TabsTrigger>
+                                      <TabsTrigger value="data" className="text-white data-[state=active]:glass-input" data-testid="tab-data">
+                                        Table
+                                      </TabsTrigger>
+                                    </TabsList>
+
+                                    <TabsContent value="chart" className="space-y-4 mt-4">
+                                      {message.response.chart_config ? (
+                                        <div className="glass rounded-xl p-6">
+                                          <ChartVisualization config={message.response.chart_config} />
+                                        </div>
+                                      ) : (
+                                        <div className="glass rounded-xl p-6 text-center text-white/70">
+                                          No chart available
+                                        </div>
+                                      )}
+                                    </TabsContent>
+
+                                    <TabsContent value="data" className="space-y-4 mt-4">
+                                      <div className="glass rounded-xl p-6">
                                         <div className="flex items-center justify-between mb-4">
-                                          <h3 className="font-semibold">Data Table</h3>
+                                          <h3 className="font-semibold text-white">Data Table</h3>
                                           <Button
                                             size="sm"
-                                            variant="outline"
+                                            className="glass text-white hover:glass-hover"
                                             onClick={() => {
                                               const data = message.response?.data || [];
                                               if (data.length > 0) {
                                                 const headers = Object.keys(data[0]);
                                                 const csv = [
-                                                  headers.join(','),
+                                                  headers.join(","),
                                                   ...data.map((row: any) =>
-                                                    headers.map(h => JSON.stringify(row[h] ?? '')).join(',')
-                                                  )
-                                                ].join('\n');
+                                                    headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
+                                                  ),
+                                                ].join("\n");
                                                 copyToClipboard(csv);
                                               }
                                             }}
                                             data-testid="button-copy-data"
                                           >
-                                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                            {copied ? (
+                                              <Check className="h-4 w-4" />
+                                            ) : (
+                                              <Copy className="h-4 w-4" />
+                                            )}
                                             <span className="ml-2">Copy CSV</span>
                                           </Button>
                                         </div>
                                         <ScrollArea className="h-96">
                                           <div className="relative w-full overflow-auto">
                                             <table className="w-full caption-bottom text-sm">
-                                              <thead className="[&_tr]:border-b">
-                                                <tr className="border-b transition-colors hover:bg-muted/50">
-                                                  {message.response.data && message.response.data.length > 0 &&
+                                              <thead className="border-b border-white/20">
+                                                <tr>
+                                                  {message.response.data &&
+                                                    message.response.data.length > 0 &&
                                                     Object.keys(message.response.data[0]).map((key) => (
                                                       <th
                                                         key={key}
-                                                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                                                        className="h-12 px-4 text-left align-middle font-medium text-white/80"
                                                       >
                                                         {key}
                                                       </th>
-                                                    ))
-                                                  }
+                                                    ))}
                                                 </tr>
                                               </thead>
-                                              <tbody className="[&_tr:last-child]:border-0">
-                                                {message.response.data && message.response.data.map((row: any, idx: number) => (
-                                                  <tr
-                                                    key={idx}
-                                                    className="border-b transition-colors hover:bg-muted/50"
-                                                    data-testid={`table-row-${idx}`}
-                                                  >
-                                                    {Object.values(row).map((value: any, colIdx: number) => (
-                                                      <td
-                                                        key={colIdx}
-                                                        className="p-4 align-middle"
-                                                      >
-                                                        {typeof value === 'number'
-                                                          ? value.toLocaleString()
-                                                          : String(value ?? '')
-                                                        }
-                                                      </td>
-                                                    ))}
-                                                  </tr>
-                                                ))}
+                                              <tbody>
+                                                {message.response.data &&
+                                                  message.response.data.map((row: any, idx: number) => (
+                                                    <tr
+                                                      key={idx}
+                                                      className="border-b border-white/10 hover:bg-white/5"
+                                                      data-testid={`table-row-${idx}`}
+                                                    >
+                                                      {Object.values(row).map((value: any, colIdx: number) => (
+                                                        <td key={colIdx} className="p-4 align-middle text-white/90">
+                                                          {typeof value === "number"
+                                                            ? value.toLocaleString()
+                                                            : String(value ?? "")}
+                                                        </td>
+                                                      ))}
+                                                    </tr>
+                                                  ))}
                                               </tbody>
                                             </table>
                                             {(!message.response.data || message.response.data.length === 0) && (
-                                              <div className="text-center py-8 text-muted-foreground">
-                                                No data available
-                                              </div>
+                                              <div className="text-center py-8 text-white/50">No data available</div>
                                             )}
                                           </div>
                                         </ScrollArea>
-                                      </CardContent>
-                                    </Card>
-                                  </TabsContent>
-                                </Tabs>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                                      </div>
+                                    </TabsContent>
+                                  </Tabs>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {queryMutation.isPending && (
-                  <div className="flex justify-start">
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-48 rounded-2xl" />
-                      <Skeleton className="h-32 w-96 rounded-lg" />
+                  {queryMutation.isPending && (
+                    <div className="flex justify-start">
+                      <div className="space-y-2">
+                        <Skeleton className="h-12 w-48 rounded-2xl glass" />
+                        <Skeleton className="h-32 w-96 rounded-lg glass" />
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+                  )}
+                </div>
+              )}
+            </div>
+          </ScrollArea>
 
-        {/* Input Area */}
-        <div className="border-t bg-background">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <form onSubmit={handleSubmit} className="relative">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about your data... (e.g., Show me all projects from 2024)"
-                className="min-h-[60px] pr-12 resize-none rounded-2xl"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit(e);
-                  }
-                }}
-                data-testid="input-query"
-                disabled={queryMutation.isPending}
-              />
-              <Button
-                type="submit"
-                size="icon"
-                className="absolute right-2 bottom-2 rounded-xl"
-                disabled={!input.trim() || queryMutation.isPending}
-                data-testid="button-submit"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
-            <p className="text-xs text-center text-muted-foreground mt-2">
-              Press Enter to send, Shift + Enter for new line
-            </p>
+          {/* Glassmorphic Input Area */}
+          <div className="glass-dark border-t border-white/10 shrink-0">
+            <div className="max-w-4xl mx-auto px-4 py-4">
+              <form onSubmit={handleSubmit} className="relative">
+                <div className="glass-input rounded-3xl p-1 flex items-end gap-2">
+                  <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Ask anything about your data..."
+                    className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-4 py-3"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit(e);
+                      }
+                    }}
+                    data-testid="input-query"
+                    disabled={queryMutation.isPending}
+                  />
+                  <Button
+                    type="submit"
+                    size="icon"
+                    className="gradient-purple rounded-2xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity"
+                    disabled={!input.trim() || queryMutation.isPending}
+                    data-testid="button-submit"
+                  >
+                    <Send className="h-5 w-5 text-white" />
+                  </Button>
+                </div>
+                <p className="text-xs text-center text-white/50 mt-2">
+                  Press Enter to send, Shift + Enter for new line
+                </p>
+              </form>
+            </div>
           </div>
         </div>
       </div>

@@ -128,6 +128,69 @@ export function registerRoutes(app: Express): Express {
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // CHAT HISTORY MANAGEMENT
+  // ═══════════════════════════════════════════════════════════════
+
+  // In-memory storage for chat history (replace with database later)
+  const chatHistory = new Map<string, any>();
+  let chatIdCounter = 1;
+
+  // Get all chats
+  app.get("/api/chats", (req, res) => {
+    const chats = Array.from(chatHistory.values()).sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+    res.json(chats);
+  });
+
+  // Create new chat
+  app.post("/api/chats", (req, res) => {
+    const { title } = req.body;
+    const chatId = `chat-${chatIdCounter++}`;
+    const chat = {
+      id: chatId,
+      title: title || "New Chat",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    chatHistory.set(chatId, chat);
+    res.json(chat);
+  });
+
+  // Delete single chat
+  app.delete("/api/chats/:id", (req, res) => {
+    const { id } = req.params;
+    if (chatHistory.has(id)) {
+      chatHistory.delete(id);
+      res.json({ success: true, message: "Chat deleted" });
+    } else {
+      res.status(404).json({ success: false, message: "Chat not found" });
+    }
+  });
+
+  // Bulk delete chats
+  app.post("/api/chats/bulk-delete", (req, res) => {
+    const { chat_ids } = req.body;
+    if (!Array.isArray(chat_ids)) {
+      return res.status(400).json({ success: false, message: "Invalid request" });
+    }
+
+    let deletedCount = 0;
+    chat_ids.forEach((id: string) => {
+      if (chatHistory.has(id)) {
+        chatHistory.delete(id);
+        deletedCount++;
+      }
+    });
+
+    res.json({
+      success: true,
+      message: `Deleted ${deletedCount} chats`,
+      deleted_count: deletedCount,
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // EMBEDDING SNIPPET GENERATION
   // ═══════════════════════════════════════════════════════════════
 
