@@ -288,8 +288,13 @@ export default function ChatPage() {
     setAiAnalysisLoading(prev => ({ ...prev, [messageId]: true }));
 
     try {
+      // Combine original question with follow-up question
+      const combinedQuestion = `${message.content.trim()} ${question.trim()}`;
+
       const res = await apiRequest("POST", "/api/ai-analysis", {
-        question,
+        question: combinedQuestion,
+        originalQuestion: message.content,
+        followUpQuestion: question,
         queryData: {
           originalQuestion: message.response.question,
           data: message.response.data,
@@ -589,14 +594,14 @@ export default function ChatPage() {
                                   <Tabs defaultValue="data" className="w-full">
                                     <TabsList className="glass border-0">
                                       <TabsTrigger value="data" className="text-white data-[state=active]:glass-input" data-testid="tab-data">
-                                        Table
+                                        Response
                                       </TabsTrigger>
                                       <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input" data-testid="tab-chart">
                                         Chart
                                       </TabsTrigger>
                                       <TabsTrigger value="analysis" className="text-white data-[state=active]:glass-input" data-testid="tab-analysis">
                                         <Brain className="h-4 w-4 mr-1" />
-                                        AI Analysis
+                                        Follow up questions
                                       </TabsTrigger>
                                       <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input" data-testid="tab-logs">
                                         <FileText className="h-4 w-4 mr-1" />
@@ -749,7 +754,7 @@ export default function ChatPage() {
                                       <div className="glass rounded-xl p-6">
                                         <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                                           <Brain className="h-5 w-5" />
-                                          AI Analysis - Ask Questions About Your Data
+                                          Follow up questions
                                         </h3>
 
                                         {/* AI Analysis Chat History */}

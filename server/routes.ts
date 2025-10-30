@@ -66,7 +66,7 @@ export function registerRoutes(app: Express): Express {
 
   app.post("/api/ai-analysis", async (req, res) => {
     try {
-      const { question, queryData } = req.body;
+      const { question, originalQuestion, followUpQuestion, queryData } = req.body;
 
       if (!question || !queryData) {
         return res.status(400).json({
@@ -89,7 +89,10 @@ export function registerRoutes(app: Express): Express {
 
       // Create context from query data
       const dataContext = `
-Original Question: ${queryData.originalQuestion}
+Original Question: ${originalQuestion}
+Follow-up Question: ${followUpQuestion}
+Combined Query Context: ${question}
+
 Number of Results: ${queryData.rowCount}
 Summary Statistics: ${JSON.stringify(queryData.summary, null, 2)}
 Sample Data (first 5 rows): ${JSON.stringify(queryData.data.slice(0, 5), null, 2)}
@@ -99,11 +102,14 @@ Sample Data (first 5 rows): ${JSON.stringify(queryData.data.slice(0, 5), null, 2
         {
           role: "system",
           content: `You are a data analyst helping users understand their project data. 
-Provide clear, actionable insights in plain language. Focus on:
-- Key patterns and trends
-- Notable outliers or exceptions
+The user originally asked: "${originalQuestion}"
+Now they have a follow-up question: "${followUpQuestion}"
+
+Provide clear, actionable insights in plain language that addresses their follow-up question in the context of their original query. Focus on:
+- Answering the follow-up question directly
+- Providing context from the original query results
+- Key patterns and trends relevant to the question
 - Actionable recommendations
-- Answer the user's specific question directly
 
 Keep responses concise (2-3 paragraphs max) and conversational.`,
         },
@@ -112,9 +118,7 @@ Keep responses concise (2-3 paragraphs max) and conversational.`,
           content: `Based on this query result data:
 ${dataContext}
 
-User's question: ${question}
-
-Please provide a helpful analysis.`,
+Please provide a helpful analysis for the follow-up question.`,
         },
       ]);
 
