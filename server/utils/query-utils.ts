@@ -476,32 +476,29 @@ export class ProjectSizeCalculator {
 
   getSqlCaseStatement(): string {
     if (!this.percentiles) {
-      // Fallback if calculation fails
+      // Fallback if calculation fails - return just category names without ranges
       return `CASE 
-        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 100000 THEN 'Micro (<$100K)'
-        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 1000000 THEN 'Small ($100K-$1M)'
-        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 10000000 THEN 'Medium ($1M-$10M)'
-        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000000 THEN 'Large ($10M-$50M)'
-        ELSE 'Mega (>$50M)'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 100000 THEN 'Micro'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 1000000 THEN 'Small'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 10000000 THEN 'Medium'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000000 THEN 'Large'
+        ELSE 'Mega'
       END`;
     }
 
     const p = this.percentiles;
-    const p20M = (p.p20 / 1e6).toFixed(1);
-    const p40M = (p.p40 / 1e6).toFixed(1);
-    const p60M = (p.p60 / 1e6).toFixed(1);
-    const p80M = (p.p80 / 1e6).toFixed(1);
 
+    // Return category names only (no fee ranges) for WHERE clause matching
     return `CASE 
       WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p20} 
-        THEN 'Micro (<$${p20M}M)'
+        THEN 'Micro'
       WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= ${p.p20} AND CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p40} 
-        THEN 'Small ($${p20M}M-$${p40M}M)'
+        THEN 'Small'
       WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= ${p.p40} AND CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p60} 
-        THEN 'Medium ($${p40M}M-$${p60M}M)'
+        THEN 'Medium'
       WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= ${p.p60} AND CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p80} 
-        THEN 'Large ($${p60M}M-$${p80M}M)'
-      ELSE 'Mega (>$${p80M}M)'
+        THEN 'Large'
+      ELSE 'Mega'
     END`;
   }
 
