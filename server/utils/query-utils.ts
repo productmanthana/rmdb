@@ -445,7 +445,7 @@ export class ProjectSizeCalculator {
         FROM "Sample"
         WHERE "Fee" IS NOT NULL 
         AND "Fee" != ''
-        AND CAST(NULLIF("Fee", '') AS NUMERIC) > 0
+        AND CAST(NULLIF("Fee", '') AS NUMERIC) > 10000
       `;
 
       const result = await dbQuery(sql);
