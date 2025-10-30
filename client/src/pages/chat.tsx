@@ -655,7 +655,7 @@ export default function ChatPage() {
                                           </Button>
                                         </div>
                                         <div className="rounded-lg border border-white/10">
-                                          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+                                          <div className="overflow-x-scroll overflow-y-auto max-h-[400px]">
                                             {message.response.data && message.response.data.length > 0 ? (
                                               <Table>
                                                 <TableHeader className="bg-white/5 sticky top-0 z-10">
@@ -831,7 +831,7 @@ export default function ChatPage() {
                                                       {/* Data Table */}
                                                       {msg.response.data && msg.response.data.length > 0 && (
                                                         <div className="rounded-lg border border-white/10">
-                                                          <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
+                                                          <div className="overflow-x-scroll overflow-y-auto max-h-[300px]">
                                                             <Table>
                                                               <TableHeader className="bg-white/5 sticky top-0 z-10">
                                                                 <TableRow className="hover:bg-transparent border-white/20">
