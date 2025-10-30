@@ -11,6 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -40,6 +46,8 @@ import {
   PanelLeftClose,
   FileText,
   Brain,
+  Maximize2,
+  Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -108,6 +116,7 @@ export default function ChatPage() {
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   const [aiAnalysisInputs, setAiAnalysisInputs] = useState<Record<string, string>>({});
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Record<string, boolean>>({});
+  const [maximizedTable, setMaximizedTable] = useState<{ messageId: string; data: any[] } | null>(null);
   const { toast } = useToast();
 
   // Fetch chat history
@@ -628,34 +637,52 @@ export default function ChatPage() {
                                       <div className="glass rounded-xl p-6">
                                         <div className="flex items-center justify-between mb-4">
                                           <h3 className="font-semibold text-white">Data Table</h3>
-                                          <Button
-                                            size="sm"
-                                            className="glass text-white hover:glass-hover"
-                                            onClick={() => {
-                                              const data = message.response?.data || [];
-                                              if (data.length > 0) {
-                                                const headers = Object.keys(data[0]);
-                                                const csv = [
-                                                  headers.join(","),
-                                                  ...data.map((row: any) =>
-                                                    headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
-                                                  ),
-                                                ].join("\n");
-                                                copyToClipboard(csv);
-                                              }
-                                            }}
-                                            data-testid="button-copy-data"
-                                          >
-                                            {copied ? (
-                                              <Check className="h-4 w-4" />
-                                            ) : (
-                                              <Copy className="h-4 w-4" />
-                                            )}
-                                            <span className="ml-2">Copy CSV</span>
-                                          </Button>
+                                          <div className="flex items-center gap-2">
+                                            <Button
+                                              size="sm"
+                                              className="glass text-white hover:glass-hover"
+                                              onClick={() => {
+                                                const data = message.response?.data || [];
+                                                if (data.length > 0) {
+                                                  const headers = Object.keys(data[0]);
+                                                  const csv = [
+                                                    headers.join(","),
+                                                    ...data.map((row: any) =>
+                                                      headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
+                                                    ),
+                                                  ].join("\n");
+                                                  copyToClipboard(csv);
+                                                }
+                                              }}
+                                              data-testid="button-copy-data"
+                                            >
+                                              {copied ? (
+                                                <Check className="h-4 w-4" />
+                                              ) : (
+                                                <Copy className="h-4 w-4" />
+                                              )}
+                                              <span className="ml-2">Copy CSV</span>
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              className="glass text-white hover:glass-hover"
+                                              onClick={() => {
+                                                if (message.response?.data) {
+                                                  setMaximizedTable({
+                                                    messageId: message.id,
+                                                    data: message.response.data,
+                                                  });
+                                                }
+                                              }}
+                                              data-testid="button-maximize-table"
+                                            >
+                                              <Maximize2 className="h-4 w-4" />
+                                              <span className="ml-2">Maximize</span>
+                                            </Button>
+                                          </div>
                                         </div>
                                         <div className="rounded-lg border border-white/10">
-                                          <div className="overflow-x-scroll overflow-y-auto max-h-[400px]">
+                                          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
                                             {message.response.data && message.response.data.length > 0 ? (
                                               <Table>
                                                 <TableHeader className="bg-white/5 sticky top-0 z-10">
@@ -831,7 +858,7 @@ export default function ChatPage() {
                                                       {/* Data Table */}
                                                       {msg.response.data && msg.response.data.length > 0 && (
                                                         <div className="rounded-lg border border-white/10">
-                                                          <div className="overflow-x-scroll overflow-y-auto max-h-[300px]">
+                                                          <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
                                                             <Table>
                                                               <TableHeader className="bg-white/5 sticky top-0 z-10">
                                                                 <TableRow className="hover:bg-transparent border-white/20">
@@ -1001,6 +1028,96 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Maximized Table Dialog */}
+      <Dialog open={!!maximizedTable} onOpenChange={() => setMaximizedTable(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] glass-dark border-white/20">
+          <DialogHeader>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-white text-xl">Data Table (Full View)</DialogTitle>
+              <Button
+                size="sm"
+                className="glass text-white hover:glass-hover"
+                onClick={() => {
+                  if (maximizedTable?.data && maximizedTable.data.length > 0) {
+                    const headers = Object.keys(maximizedTable.data[0]);
+                    const csv = [
+                      headers.join(","),
+                      ...maximizedTable.data.map((row: any) =>
+                        headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
+                      ),
+                    ].join("\n");
+                    
+                    // Create download link
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `data-export-${Date.now()}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    toast({
+                      title: "CSV Downloaded",
+                      description: "Data exported successfully",
+                    });
+                  }
+                }}
+                data-testid="button-export-csv"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+          </DialogHeader>
+          
+          <div className="rounded-lg border border-white/10 mt-4">
+            <div className="overflow-auto max-h-[calc(95vh-150px)]">
+              {maximizedTable?.data && maximizedTable.data.length > 0 && (
+                <Table>
+                  <TableHeader className="bg-white/5 sticky top-0 z-10">
+                    <TableRow className="hover:bg-transparent border-white/20">
+                      {Object.keys(maximizedTable.data[0]).map((key) => (
+                        <TableHead
+                          key={key}
+                          className="text-white font-semibold h-10 whitespace-nowrap px-4"
+                        >
+                          {key}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {maximizedTable.data.map((row: any, idx: number) => (
+                      <TableRow
+                        key={idx}
+                        className="border-white/10 hover:bg-white/5 transition-colors"
+                      >
+                        {Object.values(row).map((value: any, colIdx: number) => (
+                          <TableCell
+                            key={colIdx}
+                            className="text-white/90 py-2 whitespace-nowrap px-4"
+                          >
+                            {typeof value === "number"
+                              ? value.toLocaleString()
+                              : String(value ?? "")}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-4 text-sm text-white/60 text-center">
+            Total Rows: {maximizedTable?.data?.length || 0}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
