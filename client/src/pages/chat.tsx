@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { QueryResponse, ChatHistory } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -105,6 +105,120 @@ const exampleQueries = [
     ],
   },
 ];
+
+// Component to handle table with external scrollbar
+function TableWithExternalScrollbar({ data, messageId }: { data: any[]; messageId: string }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const scrollbarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const scrollbarContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const scrollbar = scrollbarRef.current;
+    const content = contentRef.current;
+    const scrollbarContent = scrollbarContentRef.current;
+
+    if (!wrapper || !scrollbar || !content || !scrollbarContent) return;
+
+    // Set scrollbar content width to match table width
+    const updateScrollbarWidth = () => {
+      scrollbarContent.style.width = `${content.scrollWidth}px`;
+    };
+    
+    updateScrollbarWidth();
+    // Update on window resize
+    window.addEventListener('resize', updateScrollbarWidth);
+
+    let syncing = false;
+
+    // Sync scrollbar to table
+    const handleScrollbarScroll = () => {
+      if (!syncing) {
+        syncing = true;
+        wrapper.scrollLeft = scrollbar.scrollLeft;
+        requestAnimationFrame(() => {
+          syncing = false;
+        });
+      }
+    };
+
+    // Sync table to scrollbar
+    const handleWrapperScroll = () => {
+      if (!syncing) {
+        syncing = true;
+        scrollbar.scrollLeft = wrapper.scrollLeft;
+        requestAnimationFrame(() => {
+          syncing = false;
+        });
+      }
+    };
+
+    scrollbar.addEventListener('scroll', handleScrollbarScroll);
+    wrapper.addEventListener('scroll', handleWrapperScroll);
+
+    return () => {
+      scrollbar.removeEventListener('scroll', handleScrollbarScroll);
+      wrapper.removeEventListener('scroll', handleWrapperScroll);
+      window.removeEventListener('resize', updateScrollbarWidth);
+    };
+  }, [data]);
+
+  return (
+    <div>
+      <div
+        ref={wrapperRef}
+        className="h-[400px] overflow-y-auto overflow-x-hidden rounded-lg border border-white/10"
+      >
+        <div ref={contentRef} className="inline-block min-w-full">
+          <Table>
+            <TableHeader className="bg-white/5 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent border-white/20">
+                {Object.keys(data[0]).map((key) => (
+                  <TableHead
+                    key={key}
+                    className="text-white font-semibold h-10 whitespace-nowrap px-4"
+                  >
+                    {key}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.map((row: any, idx: number) => (
+                <TableRow
+                  key={idx}
+                  className="border-white/10 hover:bg-white/5 transition-colors"
+                  data-testid={`table-row-${idx}`}
+                >
+                  {Object.values(row).map((value: any, colIdx: number) => (
+                    <TableCell
+                      key={colIdx}
+                      className="text-white/90 py-2 whitespace-nowrap px-4"
+                    >
+                      {typeof value === "number"
+                        ? value.toLocaleString()
+                        : String(value ?? "")}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+
+      {/* External horizontal scrollbar */}
+      <div
+        ref={scrollbarRef}
+        className="mt-2 overflow-x-auto overflow-y-hidden h-4 rounded bg-white/5"
+        style={{ scrollbarWidth: 'thin' }}
+      >
+        <div ref={scrollbarContentRef} style={{ height: '1px' }} />
+      </div>
+    </div>
+  );
+}
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -682,46 +796,10 @@ export default function ChatPage() {
                                           </div>
                                         </div>
                                         {message.response.data && message.response.data.length > 0 ? (
-                                          <div className="rounded-lg border border-white/10">
-                                            <div className="h-[400px] overflow-y-auto">
-                                              <div className="overflow-x-auto">
-                                                <Table>
-                                                  <TableHeader className="bg-white/5 sticky top-0 z-10">
-                                                    <TableRow className="hover:bg-transparent border-white/20">
-                                                      {Object.keys(message.response.data[0]).map((key) => (
-                                                        <TableHead
-                                                          key={key}
-                                                          className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                                                        >
-                                                          {key}
-                                                        </TableHead>
-                                                      ))}
-                                                    </TableRow>
-                                                  </TableHeader>
-                                                  <TableBody>
-                                                    {message.response.data.map((row: any, idx: number) => (
-                                                      <TableRow
-                                                        key={idx}
-                                                        className="border-white/10 hover:bg-white/5 transition-colors"
-                                                        data-testid={`table-row-${idx}`}
-                                                      >
-                                                        {Object.values(row).map((value: any, colIdx: number) => (
-                                                          <TableCell
-                                                            key={colIdx}
-                                                            className="text-white/90 py-2 whitespace-nowrap px-4"
-                                                          >
-                                                            {typeof value === "number"
-                                                              ? value.toLocaleString()
-                                                              : String(value ?? "")}
-                                                          </TableCell>
-                                                        ))}
-                                                      </TableRow>
-                                                    ))}
-                                                  </TableBody>
-                                                </Table>
-                                              </div>
-                                            </div>
-                                          </div>
+                                          <TableWithExternalScrollbar 
+                                            data={message.response.data}
+                                            messageId={message.id}
+                                          />
                                         ) : (
                                           <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
                                             No data available
