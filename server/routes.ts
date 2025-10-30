@@ -48,6 +48,54 @@ export function registerRoutes(app: Express): Express {
 
       const response = await engine.processQuery(question, queryExternalDb);
 
+      // Generate AI insights automatically if query was successful
+      if (response.success && response.data && response.data.length > 0) {
+        try {
+          const openaiClient = new AzureOpenAIClient({
+            endpoint:
+              process.env.AZURE_OPENAI_ENDPOINT ||
+              "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/",
+            apiKey:
+              process.env.AZURE_OPENAI_KEY ||
+              "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU",
+            apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
+            deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
+          });
+
+          const dataContext = `
+Question: ${question}
+Number of Results: ${response.row_count || response.data.length}
+Summary Statistics: ${JSON.stringify(response.summary, null, 2)}
+Sample Data (first 3 rows): ${JSON.stringify(response.data.slice(0, 3), null, 2)}
+          `.trim();
+
+          const insights = await openaiClient.chat([
+            {
+              role: "system",
+              content: `You are a data analyst providing concise insights about project data.
+Provide 2-3 key insights in plain language. Focus on:
+- Most important findings
+- Notable patterns or trends
+- Actionable recommendations
+
+Keep it brief and conversational (3-4 sentences max).`,
+            },
+            {
+              role: "user",
+              content: `Based on this query result:
+${dataContext}
+
+Provide key insights.`,
+            },
+          ]);
+
+          response.ai_insights = insights;
+        } catch (aiError) {
+          console.error("Error generating AI insights:", aiError);
+          // Don't fail the whole query if insights generation fails
+        }
+      }
+
       res.json(response);
     } catch (error) {
       console.error("Error processing query:", error);

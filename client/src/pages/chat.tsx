@@ -651,7 +651,11 @@ export default function ChatPage() {
                                             <span className="ml-2">Copy CSV</span>
                                           </Button>
                                         </div>
-                                        <div className="rounded-lg border border-white/10">
+                                        <div className="rounded-lg border border-white/10 relative">
+                                          {/* Horizontal scroll indicator */}
+                                          <div className="overflow-x-auto sticky top-0 z-20 h-3 bg-white/5">
+                                            <div style={{ width: message.response.data && message.response.data.length > 0 ? `${Object.keys(message.response.data[0]).length * 150}px` : '100%', height: '1px' }}></div>
+                                          </div>
                                           <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
                                             {message.response.data && message.response.data.length > 0 ? (
                                               <Table>
@@ -693,6 +697,28 @@ export default function ChatPage() {
                                             )}
                                           </div>
                                         </div>
+                                      </div>
+
+                                      {/* AI Analysis Section */}
+                                      <div className="glass rounded-xl p-6">
+                                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                          <Brain className="h-5 w-5" />
+                                          AI Analysis
+                                        </h3>
+                                        {message.response.ai_insights ? (
+                                          <div className="glass-dark rounded-lg p-4">
+                                            <p className="text-white/90 whitespace-pre-wrap leading-relaxed">
+                                              {message.response.ai_insights}
+                                            </p>
+                                          </div>
+                                        ) : (
+                                          <div className="glass-dark rounded-lg p-4 text-center">
+                                            <div className="flex items-center justify-center gap-2 text-white/60">
+                                              <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                              <span>Generating AI analysis...</span>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </TabsContent>
 
