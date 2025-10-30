@@ -62,6 +62,8 @@ export const QueryResponseSchema = z.object({
   message: z.string().optional(),
   error: z.string().optional(),
   traceback: z.string().optional(),
+  sql_query: z.string().optional(),
+  sql_params: z.array(z.any()).optional(),
 });
 
 export type QueryResponse = z.infer<typeof QueryResponseSchema>;

@@ -1170,6 +1170,8 @@ export class QueryEngine {
         summary,
         chart_config: chartConfig,
         message: `Found ${results.data.length} results`,
+        sql_query: results.sql_query,
+        sql_params: results.sql_params,
       };
     } catch (error) {
       console.error("Error processing query:", error);
@@ -1239,7 +1241,7 @@ export class QueryEngine {
     functionName: string,
     args: Record<string, any>,
     externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
-  ): Promise<{ success: boolean; data: any[]; error?: string }> {
+  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
     try {
       const template = this.queryTemplates[functionName];
       if (!template) {
@@ -1273,6 +1275,8 @@ export class QueryEngine {
       return {
         success: true,
         data: results,
+        sql_query: sql,
+        sql_params: sqlParams,
       };
     } catch (error) {
       console.error(`Error executing ${functionName}:`, error);

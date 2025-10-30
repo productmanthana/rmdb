@@ -38,6 +38,8 @@ import {
   X,
   Menu,
   PanelLeftClose,
+  FileText,
+  Brain,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -524,6 +526,14 @@ export default function ChatPage() {
                                       <TabsTrigger value="data" className="text-white data-[state=active]:glass-input" data-testid="tab-data">
                                         Table
                                       </TabsTrigger>
+                                      <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input" data-testid="tab-logs">
+                                        <FileText className="h-4 w-4 mr-1" />
+                                        Logs
+                                      </TabsTrigger>
+                                      <TabsTrigger value="analysis" className="text-white data-[state=active]:glass-input" data-testid="tab-analysis">
+                                        <Brain className="h-4 w-4 mr-1" />
+                                        AI Analysis
+                                      </TabsTrigger>
                                     </TabsList>
 
                                     <TabsContent value="chart" className="space-y-4 mt-4">
@@ -614,6 +624,120 @@ export default function ChatPage() {
                                             </ScrollArea>
                                           </div>
                                         </div>
+                                      </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="logs" className="space-y-4 mt-4">
+                                      <div className="glass rounded-xl p-6">
+                                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                          <FileText className="h-5 w-5" />
+                                          SQL Query & Execution Details
+                                        </h3>
+                                        
+                                        {/* SQL Query */}
+                                        <div className="mb-4">
+                                          <p className="text-xs text-white/70 mb-2 font-mono">SQL QUERY:</p>
+                                          <div className="glass-dark rounded-lg p-4 overflow-x-auto">
+                                            <pre className="text-sm text-green-400 font-mono whitespace-pre-wrap">
+                                              {message.response.sql_query || "No SQL query available"}
+                                            </pre>
+                                          </div>
+                                        </div>
+
+                                        {/* SQL Parameters */}
+                                        <div className="mb-4">
+                                          <p className="text-xs text-white/70 mb-2 font-mono">PARAMETERS:</p>
+                                          <div className="glass-dark rounded-lg p-4 overflow-x-auto">
+                                            <pre className="text-sm text-blue-400 font-mono">
+                                              {JSON.stringify(message.response.sql_params || [], null, 2)}
+                                            </pre>
+                                          </div>
+                                        </div>
+
+                                        {/* Raw JSON Response */}
+                                        <div>
+                                          <div className="flex items-center justify-between mb-2">
+                                            <p className="text-xs text-white/70 font-mono">RAW JSON RESPONSE:</p>
+                                            <Button
+                                              size="sm"
+                                              className="glass text-white hover:glass-hover h-7"
+                                              onClick={() => {
+                                                copyToClipboard(JSON.stringify(message.response, null, 2));
+                                              }}
+                                              data-testid="button-copy-json"
+                                            >
+                                              {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                              <span className="ml-1 text-xs">Copy</span>
+                                            </Button>
+                                          </div>
+                                          <div className="glass-dark rounded-lg p-4 overflow-x-auto">
+                                            <ScrollArea className="h-[300px]">
+                                              <pre className="text-sm text-purple-400 font-mono">
+                                                {JSON.stringify(message.response, null, 2)}
+                                              </pre>
+                                            </ScrollArea>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </TabsContent>
+
+                                    <TabsContent value="analysis" className="space-y-4 mt-4">
+                                      <div className="glass rounded-xl p-6">
+                                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                          <Brain className="h-5 w-5" />
+                                          AI Classification & Analysis
+                                        </h3>
+
+                                        {/* Function Name */}
+                                        <div className="mb-4">
+                                          <p className="text-xs text-white/70 mb-2">Query Type:</p>
+                                          <div className="glass-dark rounded-lg px-4 py-2">
+                                            <p className="text-white font-mono text-sm">{message.response.function_name || "Unknown"}</p>
+                                          </div>
+                                        </div>
+
+                                        {/* AI Extracted Parameters */}
+                                        <div className="mb-4">
+                                          <p className="text-xs text-white/70 mb-2">Extracted Parameters:</p>
+                                          <div className="glass-dark rounded-lg p-4">
+                                            <pre className="text-sm text-cyan-400 font-mono">
+                                              {JSON.stringify(message.response.arguments || {}, null, 2)}
+                                            </pre>
+                                          </div>
+                                        </div>
+
+                                        {/* Summary Statistics */}
+                                        {message.response.summary && (
+                                          <div>
+                                            <p className="text-xs text-white/70 mb-2">Summary Statistics:</p>
+                                            <div className="grid grid-cols-2 gap-3">
+                                              {message.response.summary.total_records !== undefined && (
+                                                <div className="glass-dark rounded-lg p-3">
+                                                  <p className="text-xs text-white/70 mb-1">Total Records</p>
+                                                  <p className="text-lg font-bold text-white">{message.response.summary.total_records}</p>
+                                                </div>
+                                              )}
+                                              {message.response.summary.total_value !== undefined && (
+                                                <div className="glass-dark rounded-lg p-3">
+                                                  <p className="text-xs text-white/70 mb-1">Total Value</p>
+                                                  <p className="text-lg font-bold text-white">${(message.response.summary.total_value / 1e6).toFixed(1)}M</p>
+                                                </div>
+                                              )}
+                                              {message.response.summary.avg_fee !== undefined && (
+                                                <div className="glass-dark rounded-lg p-3">
+                                                  <p className="text-xs text-white/70 mb-1">Average Fee</p>
+                                                  <p className="text-lg font-bold text-white">${(message.response.summary.avg_fee / 1e6).toFixed(1)}M</p>
+                                                </div>
+                                              )}
+                                              {message.response.summary.avg_win_rate !== undefined && (
+                                                <div className="glass-dark rounded-lg p-3">
+                                                  <p className="text-xs text-white/70 mb-1">Avg Win Rate</p>
+                                                  <p className="text-lg font-bold text-white">{message.response.summary.avg_win_rate.toFixed(1)}%</p>
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     </TabsContent>
                                   </Tabs>
