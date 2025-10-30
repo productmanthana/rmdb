@@ -396,6 +396,52 @@ export class QueryEngine {
         chart_field: "Fee",
       },
 
+      get_projects_by_category_and_win_range: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE "Request Category" ILIKE $1
+              AND CAST(NULLIF("Win %", '') AS NUMERIC) >= $2
+              {max_win_filter}
+              ORDER BY CAST(NULLIF("Win %", '') AS NUMERIC) DESC,
+                       CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+        params: ["category", "min_win"],
+        param_types: ["str", "int"],
+        optional_params: ["max_win"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      get_projects_by_client_status_win_range: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE "Client" ILIKE $1
+              AND "Status" ILIKE $2
+              AND CAST(NULLIF("Win %", '') AS NUMERIC) >= $3
+              AND CAST(NULLIF("Win %", '') AS NUMERIC) <= $4
+              ORDER BY CAST(NULLIF("Win %", '') AS NUMERIC) DESC,
+                       CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+        params: ["client", "status", "min_win", "max_win"],
+        param_types: ["str", "str", "int", "int"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      get_clients_by_highest_win_rate: {
+        sql: `SELECT "Client",
+              COUNT(*) as project_count,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value
+              FROM "Sample"
+              WHERE "Status" NOT IN ('Won', 'Lost')
+              AND "Win %" IS NOT NULL AND "Win %" != ''
+              AND "Client" IS NOT NULL AND "Client" != ''
+              GROUP BY "Client"
+              ORDER BY avg_win_rate DESC NULLS LAST
+              LIMIT 20`,
+        params: [],
+        param_types: [],
+        chart_type: "bar",
+        chart_field: "avg_win_rate",
+      },
+
       // ═══════════════════════════════════════════════════════════════
       // FEE/SIZE QUERIES
       // ═══════════════════════════════════════════════════════════════
@@ -904,6 +950,45 @@ export class QueryEngine {
         },
       },
 
+      {
+        name: "get_projects_by_category_and_win_range",
+        description: "Get projects in specific category with win percentage above threshold. Use when user asks for category AND win rate together.",
+        parameters: {
+          type: "object",
+          properties: {
+            category: { type: "string" },
+            min_win: { type: "integer" },
+            max_win: { type: "integer", description: "Optional maximum win percentage" },
+          },
+          required: ["category", "min_win"],
+        },
+      },
+
+      {
+        name: "get_projects_by_client_status_win_range",
+        description: "Get projects for specific client with status and win percentage range. Use when user asks for client ID/name, status, AND win rate range.",
+        parameters: {
+          type: "object",
+          properties: {
+            client: { type: "string" },
+            status: { type: "string" },
+            min_win: { type: "integer" },
+            max_win: { type: "integer" },
+          },
+          required: ["client", "status", "min_win", "max_win"],
+        },
+      },
+
+      {
+        name: "get_clients_by_highest_win_rate",
+        description: "Get clients ranked by their average win rate across upcoming projects. Use when user asks 'which clients have highest win rate' or 'clients by win probability'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
       // Region
       {
         name: "get_projects_by_state",
@@ -1163,8 +1248,15 @@ export class QueryEngine {
       let sql = template.sql;
       const sqlParams: any[] = [];
 
-      // Build SQL with dynamic replacements
-      sql = this.buildSql(sql, args, sqlParams);
+      // First, add template's required parameters in order
+      for (const paramName of template.params) {
+        if (args[paramName] !== undefined) {
+          sqlParams.push(args[paramName]);
+        }
+      }
+
+      // Then build SQL with dynamic replacements (this will add more params)
+      sql = this.buildSql(sql, args, sqlParams, template.params.length);
 
       const results = await externalDbQuery(sql, sqlParams);
 
@@ -1182,9 +1274,9 @@ export class QueryEngine {
     }
   }
 
-  private buildSql(sql: string, args: Record<string, any>, params: any[]): string {
+  private buildSql(sql: string, args: Record<string, any>, params: any[], startIndex: number = 0): string {
     let result = sql;
-    let paramIndex = 1;
+    let paramIndex = startIndex + 1;
 
     // Handle date filter
     if (result.includes("{date_filter}")) {
@@ -1326,6 +1418,16 @@ export class QueryEngine {
       }
     }
 
+    if (result.includes("{max_win_filter}")) {
+      if (args.max_win) {
+        result = result.replace("{max_win_filter}", `AND CAST(NULLIF("Win %", '') AS NUMERIC) <= $${paramIndex}`);
+        params.push(args.max_win);
+        paramIndex++;
+      } else {
+        result = result.replace("{max_win_filter}", "");
+      }
+    }
+
     if (result.includes("{status_filter}")) {
       if (args.status) {
         result = result.replace("{status_filter}", `AND "Status" ILIKE $${paramIndex}`);
@@ -1336,17 +1438,9 @@ export class QueryEngine {
       }
     }
 
-    // Add positional parameters for template params
-    const template = this.queryTemplates[Object.keys(this.queryTemplates).find(k => sql.includes(this.queryTemplates[k].sql)) || ""];
-    if (template && template.params.length > 0) {
-      for (let i = 0; i < template.params.length; i++) {
-        const paramName = template.params[i];
-        if (args[paramName] !== undefined) {
-          params.splice(i, 0, args[paramName]);
-        }
-      }
-    }
-
+    // Add positional parameters at the END (after dynamic params)
+    // This must happen AFTER all dynamic parameter processing above
+    // Note: params array already contains dynamic params, so we check for missing template params
     return result;
   }
 
