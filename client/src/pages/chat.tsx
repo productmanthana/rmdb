@@ -682,41 +682,82 @@ export default function ChatPage() {
                                           </div>
                                         </div>
                                         {message.response.data && message.response.data.length > 0 ? (
-                                          <div className="relative w-full h-[400px] rounded-lg border border-white/10 overflow-auto">
-                                            <Table>
-                                              <TableHeader className="bg-white/5 sticky top-0 z-10">
-                                                <TableRow className="hover:bg-transparent border-white/20">
-                                                  {Object.keys(message.response.data[0]).map((key) => (
-                                                    <TableHead
-                                                      key={key}
-                                                      className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                                                    >
-                                                      {key}
-                                                    </TableHead>
-                                                  ))}
-                                                </TableRow>
-                                              </TableHeader>
-                                              <TableBody>
-                                                {message.response.data.map((row: any, idx: number) => (
-                                                  <TableRow
-                                                    key={idx}
-                                                    className="border-white/10 hover:bg-white/5 transition-colors"
-                                                    data-testid={`table-row-${idx}`}
-                                                  >
-                                                    {Object.values(row).map((value: any, colIdx: number) => (
-                                                      <TableCell
-                                                        key={colIdx}
-                                                        className="text-white/90 py-2 whitespace-nowrap px-4"
+                                          <div className="relative">
+                                            <div 
+                                              ref={(el) => {
+                                                if (el) {
+                                                  const tableWrapper = el;
+                                                  const table = el.querySelector('table');
+                                                  
+                                                  // Create synced horizontal scrollbar at bottom
+                                                  let bottomScrollbar = el.parentElement?.querySelector('.bottom-scrollbar') as HTMLElement;
+                                                  if (!bottomScrollbar && table) {
+                                                    bottomScrollbar = document.createElement('div');
+                                                    bottomScrollbar.className = 'bottom-scrollbar overflow-x-auto overflow-y-hidden h-3 mt-2 rounded';
+                                                    bottomScrollbar.style.cssText = 'scrollbar-width: thin;';
+                                                    const scrollContent = document.createElement('div');
+                                                    scrollContent.style.width = table.offsetWidth + 'px';
+                                                    scrollContent.style.height = '1px';
+                                                    bottomScrollbar.appendChild(scrollContent);
+                                                    el.parentElement?.appendChild(bottomScrollbar);
+                                                    
+                                                    // Sync scrolling
+                                                    let isSyncing = false;
+                                                    bottomScrollbar.addEventListener('scroll', () => {
+                                                      if (!isSyncing) {
+                                                        isSyncing = true;
+                                                        tableWrapper.scrollLeft = bottomScrollbar.scrollLeft;
+                                                        requestAnimationFrame(() => { isSyncing = false; });
+                                                      }
+                                                    });
+                                                    
+                                                    tableWrapper.addEventListener('scroll', () => {
+                                                      if (!isSyncing) {
+                                                        isSyncing = true;
+                                                        bottomScrollbar!.scrollLeft = tableWrapper.scrollLeft;
+                                                        requestAnimationFrame(() => { isSyncing = false; });
+                                                      }
+                                                    });
+                                                  }
+                                                }
+                                              }}
+                                              className="w-full h-[400px] rounded-lg border border-white/10 overflow-auto"
+                                            >
+                                              <Table>
+                                                <TableHeader className="bg-white/5 sticky top-0 z-10">
+                                                  <TableRow className="hover:bg-transparent border-white/20">
+                                                    {Object.keys(message.response.data[0]).map((key) => (
+                                                      <TableHead
+                                                        key={key}
+                                                        className="text-white font-semibold h-10 whitespace-nowrap px-4"
                                                       >
-                                                        {typeof value === "number"
-                                                          ? value.toLocaleString()
-                                                          : String(value ?? "")}
-                                                      </TableCell>
+                                                        {key}
+                                                      </TableHead>
                                                     ))}
                                                   </TableRow>
-                                                ))}
-                                              </TableBody>
-                                            </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                  {message.response.data.map((row: any, idx: number) => (
+                                                    <TableRow
+                                                      key={idx}
+                                                      className="border-white/10 hover:bg-white/5 transition-colors"
+                                                      data-testid={`table-row-${idx}`}
+                                                    >
+                                                      {Object.values(row).map((value: any, colIdx: number) => (
+                                                        <TableCell
+                                                          key={colIdx}
+                                                          className="text-white/90 py-2 whitespace-nowrap px-4"
+                                                        >
+                                                          {typeof value === "number"
+                                                            ? value.toLocaleString()
+                                                            : String(value ?? "")}
+                                                        </TableCell>
+                                                      ))}
+                                                    </TableRow>
+                                                  ))}
+                                                </TableBody>
+                                              </Table>
+                                            </div>
                                           </div>
                                         ) : (
                                           <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
