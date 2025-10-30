@@ -292,12 +292,11 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
   }, [data]);
 
   return (
-    <div className="flex gap-2">
-      <div className="flex-1">
+    <div className="flex gap-2 h-full">
+      <div className="flex-1 flex flex-col min-w-0">
         <div
           ref={wrapperRef}
-          className="overflow-auto scrollbar-hide rounded-lg border border-white/10"
-          style={{ height: 'calc(95vh - 200px)' }}
+          className="flex-1 overflow-auto scrollbar-hide rounded-lg border border-white/10"
         >
           <div ref={contentRef} className="inline-block min-w-full">
             <Table>
@@ -339,7 +338,7 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
         {/* External horizontal scrollbar */}
         <div
           ref={hScrollbarRef}
-          className="mt-2 overflow-x-auto overflow-y-hidden h-4 rounded bg-white/5"
+          className="mt-2 overflow-x-auto overflow-y-hidden h-4 rounded bg-white/5 flex-shrink-0"
           style={{ scrollbarWidth: 'thin' }}
         >
           <div ref={hScrollbarContentRef} style={{ height: '1px' }} />
@@ -349,8 +348,8 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
       {/* External vertical scrollbar */}
       <div
         ref={vScrollbarRef}
-        className="overflow-y-auto overflow-x-hidden w-4 rounded bg-white/5"
-        style={{ height: 'calc(95vh - 200px)', scrollbarWidth: 'thin' }}
+        className="overflow-y-auto overflow-x-hidden w-4 rounded bg-white/5 flex-shrink-0"
+        style={{ scrollbarWidth: 'thin' }}
       >
         <div ref={vScrollbarContentRef} style={{ width: '1px' }} />
       </div>
@@ -1221,8 +1220,8 @@ export default function ChatPage() {
 
       {/* Maximized Table Dialog */}
       <Dialog open={!!maximizedTable} onOpenChange={() => setMaximizedTable(null)}>
-        <DialogContent className="max-w-[95vw] max-h-[95vh] glass-dark border-white/20">
-          <DialogHeader>
+        <DialogContent className="max-w-[95vw] h-[95vh] glass-dark border-white/20 flex flex-col p-6">
+          <DialogHeader className="flex-shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-white text-xl">Data Table (Full View)</DialogTitle>
               <Button
@@ -1263,13 +1262,13 @@ export default function ChatPage() {
             </div>
           </DialogHeader>
           
-          <div className="mt-4">
+          <div className="flex-1 min-h-0 mt-4">
             {maximizedTable?.data && maximizedTable.data.length > 0 && (
               <MaximizedTableWithScrollbars data={maximizedTable.data} />
             )}
           </div>
           
-          <div className="mt-4 text-sm text-white/60 text-center">
+          <div className="mt-4 text-sm text-white/60 text-center flex-shrink-0">
             Total Rows: {maximizedTable?.data?.length || 0}
           </div>
         </DialogContent>
