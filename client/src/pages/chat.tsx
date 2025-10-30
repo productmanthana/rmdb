@@ -579,45 +579,47 @@ export default function ChatPage() {
                                           </Button>
                                         </div>
                                         <div className="rounded-lg border border-white/10 overflow-hidden">
-                                          <div className="relative max-h-[400px] overflow-auto">
-                                            {message.response.data && message.response.data.length > 0 ? (
-                                              <Table>
-                                                <TableHeader className="bg-white/5 sticky top-0 z-10">
-                                                  <TableRow className="hover:bg-transparent border-white/20">
-                                                    {Object.keys(message.response.data[0]).map((key) => (
-                                                      <TableHead
-                                                        key={key}
-                                                        className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                                                      >
-                                                        {key}
-                                                      </TableHead>
-                                                    ))}
-                                                  </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                  {message.response.data.map((row: any, idx: number) => (
-                                                    <TableRow
-                                                      key={idx}
-                                                      className="border-white/10 hover:bg-white/5 transition-colors"
-                                                      data-testid={`table-row-${idx}`}
-                                                    >
-                                                      {Object.values(row).map((value: any, colIdx: number) => (
-                                                        <TableCell
-                                                          key={colIdx}
-                                                          className="text-white/90 py-2 whitespace-nowrap px-4"
+                                          <div className="overflow-x-auto">
+                                            <div className="max-h-[400px] overflow-y-auto min-w-full">
+                                              {message.response.data && message.response.data.length > 0 ? (
+                                                <Table>
+                                                  <TableHeader className="bg-white/5 sticky top-0 z-10">
+                                                    <TableRow className="hover:bg-transparent border-white/20">
+                                                      {Object.keys(message.response.data[0]).map((key) => (
+                                                        <TableHead
+                                                          key={key}
+                                                          className="text-white font-semibold h-10 whitespace-nowrap px-4"
                                                         >
-                                                          {typeof value === "number"
-                                                            ? value.toLocaleString()
-                                                            : String(value ?? "")}
-                                                        </TableCell>
+                                                          {key}
+                                                        </TableHead>
                                                       ))}
                                                     </TableRow>
-                                                  ))}
-                                                </TableBody>
-                                              </Table>
-                                            ) : (
-                                              <div className="text-center py-8 text-white/50">No data available</div>
-                                            )}
+                                                  </TableHeader>
+                                                  <TableBody>
+                                                    {message.response.data.map((row: any, idx: number) => (
+                                                      <TableRow
+                                                        key={idx}
+                                                        className="border-white/10 hover:bg-white/5 transition-colors"
+                                                        data-testid={`table-row-${idx}`}
+                                                      >
+                                                        {Object.values(row).map((value: any, colIdx: number) => (
+                                                          <TableCell
+                                                            key={colIdx}
+                                                            className="text-white/90 py-2 whitespace-nowrap px-4"
+                                                          >
+                                                            {typeof value === "number"
+                                                              ? value.toLocaleString()
+                                                              : String(value ?? "")}
+                                                          </TableCell>
+                                                        ))}
+                                                      </TableRow>
+                                                    ))}
+                                                  </TableBody>
+                                                </Table>
+                                              ) : (
+                                                <div className="text-center py-8 text-white/50">No data available</div>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
