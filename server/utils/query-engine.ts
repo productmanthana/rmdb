@@ -596,7 +596,7 @@ export class QueryEngine {
       get_project_by_id: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Project Name"::text ILIKE $1
-              OR "Internal Tracking ID"::text ILIKE $1
+              OR "Internal Id"::text ILIKE $1
               LIMIT 1`,
         params: ["project_name"],
         param_types: ["str"],
@@ -612,7 +612,7 @@ export class QueryEngine {
       {
         name: "get_projects_by_combined_filters",
         description:
-          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, categories, tags, status, dates, etc.",
+          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, categories, tags, status, dates, etc. For CLID (Client ID), use 'client' field, NOT 'company'.",
         parameters: {
           type: "object",
           properties: {
@@ -631,7 +631,8 @@ export class QueryEngine {
               description: "List of tags",
             },
             status: { type: "string", description: "Project status" },
-            company: { type: "string", description: "Company/OPCO name" },
+            client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573'). Use this for Client IDs, NOT company." },
+            company: { type: "string", description: "Company/OPCO operating company name (NOT for CLID)" },
             state_code: { type: "string", description: "State lookup code" },
             min_fee: { type: "number", description: "Minimum fee amount" },
             max_fee: { type: "number", description: "Maximum fee amount" },
@@ -854,11 +855,11 @@ export class QueryEngine {
       // Client
       {
         name: "get_projects_by_client",
-        description: "Get all projects for specific client",
+        description: "Get all projects for specific CLIENT or CLID (Client ID). Use 'client' parameter for CLID values like 'CLID 1573'. Do NOT use 'company' for CLID.",
         parameters: {
           type: "object",
           properties: {
-            client: { type: "string" },
+            client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573', 'CLID 3507')" },
           },
           required: ["client"],
         },
@@ -966,11 +967,11 @@ export class QueryEngine {
 
       {
         name: "get_projects_by_client_status_win_range",
-        description: "Get projects for specific client with status and win percentage range. Use when user asks for client ID/name, status, AND win rate range.",
+        description: "Get projects for specific CLIENT or CLID (Client ID) with status and win percentage range. Use when user asks for CLID (like 'CLID 1573'), status, AND win rate range. Use 'client' parameter for CLID.",
         parameters: {
           type: "object",
           properties: {
-            client: { type: "string" },
+            client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573')" },
             status: { type: "string" },
             min_win: { type: "integer" },
             max_win: { type: "integer" },
@@ -1351,6 +1352,12 @@ export class QueryEngine {
           params.push(`%${tag}%`);
           paramIndex++;
         }
+      }
+
+      if (args.client) {
+        filters.push(`"Client" ILIKE $${paramIndex}`);
+        params.push(`%${args.client}%`);
+        paramIndex++;
       }
 
       if (args.company) {
