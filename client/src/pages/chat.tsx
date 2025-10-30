@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { ChartVisualization } from "@/components/ChartVisualization";
 import { FloatingParticles } from "@/components/FloatingParticles";
+import { TypingIndicator } from "@/components/TypingIndicator";
 import {
   Send,
   Copy,
@@ -27,6 +28,8 @@ import {
   Plus,
   MessageSquare,
   X,
+  Menu,
+  PanelLeftClose,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -82,6 +85,7 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedChats, setSelectedChats] = useState<Set<string>>(new Set());
   const { toast } = useToast();
@@ -249,6 +253,19 @@ export default function ChatPage() {
       {/* Glassmorphic Header */}
       <header className="glass-dark px-4 py-3 flex items-center justify-between shrink-0 relative z-10">
         <div className="flex items-center gap-3">
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="text-white hover:bg-white/10 transition-all"
+            data-testid="button-toggle-sidebar"
+          >
+            {isSidebarOpen ? (
+              <PanelLeftClose className="h-5 w-5" />
+            ) : (
+              <Menu className="h-5 w-5" />
+            )}
+          </Button>
           <div className="h-10 w-10 rounded-xl gradient-glow flex items-center justify-center animate-float">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
@@ -270,9 +287,10 @@ export default function ChatPage() {
         </Button>
       </header>
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative z-10">
         {/* Glassmorphic Sidebar */}
-        <aside className="w-80 glass-dark border-r border-white/10 flex flex-col">
+        {isSidebarOpen && (
+          <aside className="w-80 glass-dark border-r border-white/10 flex flex-col shrink-0 animate-fade-in-up">
           {/* Search */}
           <div className="p-3 border-b border-white/10">
             <div className="relative">
@@ -370,6 +388,7 @@ export default function ChatPage() {
             </div>
           </ScrollArea>
         </aside>
+        )}
 
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -595,11 +614,8 @@ export default function ChatPage() {
                   ))}
 
                   {queryMutation.isPending && (
-                    <div className="flex justify-start">
-                      <div className="space-y-2">
-                        <Skeleton className="h-12 w-48 rounded-2xl glass" />
-                        <Skeleton className="h-32 w-96 rounded-lg glass" />
-                      </div>
+                    <div className="flex justify-start animate-fade-in-up">
+                      <TypingIndicator />
                     </div>
                   )}
                 </div>
