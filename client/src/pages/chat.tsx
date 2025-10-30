@@ -220,6 +220,143 @@ function TableWithExternalScrollbar({ data, messageId }: { data: any[]; messageI
   );
 }
 
+// Component for maximized table with external scrollbars (both horizontal and vertical)
+function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const hScrollbarRef = useRef<HTMLDivElement>(null);
+  const vScrollbarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const hScrollbarContentRef = useRef<HTMLDivElement>(null);
+  const vScrollbarContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const wrapper = wrapperRef.current;
+    const hScrollbar = hScrollbarRef.current;
+    const vScrollbar = vScrollbarRef.current;
+    const content = contentRef.current;
+    const hScrollbarContent = hScrollbarContentRef.current;
+    const vScrollbarContent = vScrollbarContentRef.current;
+
+    if (!wrapper || !hScrollbar || !vScrollbar || !content || !hScrollbarContent || !vScrollbarContent) return;
+
+    // Set scrollbar content sizes
+    const updateScrollbarSizes = () => {
+      hScrollbarContent.style.width = `${content.scrollWidth}px`;
+      vScrollbarContent.style.height = `${content.scrollHeight}px`;
+    };
+    
+    updateScrollbarSizes();
+    window.addEventListener('resize', updateScrollbarSizes);
+
+    let syncing = false;
+
+    // Horizontal scrollbar sync
+    const handleHScrollbarScroll = () => {
+      if (!syncing) {
+        syncing = true;
+        wrapper.scrollLeft = hScrollbar.scrollLeft;
+        requestAnimationFrame(() => { syncing = false; });
+      }
+    };
+
+    // Vertical scrollbar sync
+    const handleVScrollbarScroll = () => {
+      if (!syncing) {
+        syncing = true;
+        wrapper.scrollTop = vScrollbar.scrollTop;
+        requestAnimationFrame(() => { syncing = false; });
+      }
+    };
+
+    // Wrapper scroll sync (both directions)
+    const handleWrapperScroll = () => {
+      if (!syncing) {
+        syncing = true;
+        hScrollbar.scrollLeft = wrapper.scrollLeft;
+        vScrollbar.scrollTop = wrapper.scrollTop;
+        requestAnimationFrame(() => { syncing = false; });
+      }
+    };
+
+    hScrollbar.addEventListener('scroll', handleHScrollbarScroll);
+    vScrollbar.addEventListener('scroll', handleVScrollbarScroll);
+    wrapper.addEventListener('scroll', handleWrapperScroll);
+
+    return () => {
+      hScrollbar.removeEventListener('scroll', handleHScrollbarScroll);
+      vScrollbar.removeEventListener('scroll', handleVScrollbarScroll);
+      wrapper.removeEventListener('scroll', handleWrapperScroll);
+      window.removeEventListener('resize', updateScrollbarSizes);
+    };
+  }, [data]);
+
+  return (
+    <div className="flex gap-2">
+      <div className="flex-1">
+        <div
+          ref={wrapperRef}
+          className="overflow-hidden rounded-lg border border-white/10"
+          style={{ height: 'calc(95vh - 200px)' }}
+        >
+          <div ref={contentRef} className="inline-block min-w-full">
+            <Table>
+              <TableHeader className="bg-white/5 sticky top-0 z-10">
+                <TableRow className="hover:bg-transparent border-white/20">
+                  {Object.keys(data[0]).map((key) => (
+                    <TableHead
+                      key={key}
+                      className="text-white font-semibold h-10 whitespace-nowrap px-4"
+                    >
+                      {key}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.map((row: any, idx: number) => (
+                  <TableRow
+                    key={idx}
+                    className="border-white/10 hover:bg-white/5 transition-colors"
+                  >
+                    {Object.values(row).map((value: any, colIdx: number) => (
+                      <TableCell
+                        key={colIdx}
+                        className="text-white/90 py-2 whitespace-nowrap px-4"
+                      >
+                        {typeof value === "number"
+                          ? value.toLocaleString()
+                          : String(value ?? "")}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* External horizontal scrollbar */}
+        <div
+          ref={hScrollbarRef}
+          className="mt-2 overflow-x-auto overflow-y-hidden h-4 rounded bg-white/5"
+          style={{ scrollbarWidth: 'thin' }}
+        >
+          <div ref={hScrollbarContentRef} style={{ height: '1px' }} />
+        </div>
+      </div>
+
+      {/* External vertical scrollbar */}
+      <div
+        ref={vScrollbarRef}
+        className="overflow-y-auto overflow-x-hidden w-4 rounded bg-white/5"
+        style={{ height: 'calc(95vh - 200px)', scrollbarWidth: 'thin' }}
+      >
+        <div ref={vScrollbarContentRef} style={{ width: '1px' }} />
+      </div>
+    </div>
+  );
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -1157,44 +1294,10 @@ export default function ChatPage() {
             </div>
           </DialogHeader>
           
-          <div className="rounded-lg border border-white/10 mt-4 h-[calc(95vh-150px)] flex flex-col">
-            <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-              {maximizedTable?.data && maximizedTable.data.length > 0 && (
-                <Table>
-                  <TableHeader className="bg-white/5 sticky top-0 z-10">
-                    <TableRow className="hover:bg-transparent border-white/20">
-                      {Object.keys(maximizedTable.data[0]).map((key) => (
-                        <TableHead
-                          key={key}
-                          className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                        >
-                          {key}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {maximizedTable.data.map((row: any, idx: number) => (
-                      <TableRow
-                        key={idx}
-                        className="border-white/10 hover:bg-white/5 transition-colors"
-                      >
-                        {Object.values(row).map((value: any, colIdx: number) => (
-                          <TableCell
-                            key={colIdx}
-                            className="text-white/90 py-2 whitespace-nowrap px-4"
-                          >
-                            {typeof value === "number"
-                              ? value.toLocaleString()
-                              : String(value ?? "")}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
+          <div className="mt-4">
+            {maximizedTable?.data && maximizedTable.data.length > 0 && (
+              <MaximizedTableWithScrollbars data={maximizedTable.data} />
+            )}
           </div>
           
           <div className="mt-4 text-sm text-white/60 text-center">
