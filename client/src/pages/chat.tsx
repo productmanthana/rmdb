@@ -682,7 +682,7 @@ export default function ChatPage() {
                                           </div>
                                         </div>
                                         <div className="rounded-lg border border-white/10 h-[400px] flex flex-col">
-                                          <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
+                                          <div className="flex-1 overflow-y-auto overflow-x-scroll min-h-0">
                                             {message.response.data && message.response.data.length > 0 ? (
                                               <Table>
                                                 <TableHeader className="bg-white/5 sticky top-0 z-10">
