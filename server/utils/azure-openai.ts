@@ -128,4 +128,37 @@ Return ONLY valid JSON with "function_name" and "arguments" fields.`;
       };
     }
   }
+
+  async chat(messages: Array<{ role: string; content: string }>): Promise<string> {
+    try {
+      const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": this.apiKey,
+        },
+        body: JSON.stringify({
+          messages,
+          temperature: 0.7,
+          max_tokens: 1000,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        console.error("Azure OpenAI API Error:", error);
+        throw new Error(`API Error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const responseText = data.choices?.[0]?.message?.content || "";
+
+      return responseText;
+    } catch (error) {
+      console.error("Error in chat completion:", error);
+      throw error;
+    }
+  }
 }
