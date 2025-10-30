@@ -475,13 +475,33 @@ export class ProjectSizeCalculator {
   }
 
   getSqlCaseStatement(): string {
-    // Always use fixed thresholds for better reliability with real project data
+    if (!this.percentiles) {
+      // Fallback if calculation fails
+      return `CASE 
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 100000 THEN 'Micro (<$100K)'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 1000000 THEN 'Small ($100K-$1M)'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 10000000 THEN 'Medium ($1M-$10M)'
+        WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000000 THEN 'Large ($10M-$50M)'
+        ELSE 'Mega (>$50M)'
+      END`;
+    }
+
+    const p = this.percentiles;
+    const p20M = (p.p20 / 1e6).toFixed(1);
+    const p40M = (p.p40 / 1e6).toFixed(1);
+    const p60M = (p.p60 / 1e6).toFixed(1);
+    const p80M = (p.p80 / 1e6).toFixed(1);
+
     return `CASE 
-      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 1000000 THEN 'Micro (<$1M)'
-      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 5000000 THEN 'Small ($1M-$5M)'
-      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 20000000 THEN 'Medium ($5M-$20M)'
-      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000000 THEN 'Large ($20M-$50M)'
-      ELSE 'Mega (>$50M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p20} 
+        THEN 'Micro (<$${p20M}M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= ${p.p20} AND CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p40} 
+        THEN 'Small ($${p20M}M-$${p40M}M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= ${p.p40} AND CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p60} 
+        THEN 'Medium ($${p40M}M-$${p60M}M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= ${p.p60} AND CAST(NULLIF("Fee", '') AS NUMERIC) < ${p.p80} 
+        THEN 'Large ($${p60M}M-$${p80M}M)'
+      ELSE 'Mega (>$${p80M}M)'
     END`;
   }
 
