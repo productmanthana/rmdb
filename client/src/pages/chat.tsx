@@ -681,7 +681,7 @@ export default function ChatPage() {
                                             </Button>
                                           </div>
                                         </div>
-                                        <div className="rounded-lg border border-white/10 max-h-[400px] overflow-x-scroll overflow-y-auto">
+                                        <div className="rounded-lg border border-white/10 max-h-[400px] overflow-auto">
                                             {message.response.data && message.response.data.length > 0 ? (
                                               <Table>
                                                 <TableHeader className="bg-white/5 sticky top-0 z-10">
@@ -855,7 +855,7 @@ export default function ChatPage() {
 
                                                       {/* Data Table */}
                                                       {msg.response.data && msg.response.data.length > 0 && (
-                                                        <div className="rounded-lg border border-white/10 max-h-[300px] overflow-x-scroll overflow-y-auto">
+                                                        <div className="rounded-lg border border-white/10 max-h-[300px] overflow-auto">
                                                             <Table>
                                                               <TableHeader className="bg-white/5 sticky top-0 z-10">
                                                                 <TableRow className="hover:bg-transparent border-white/20">
@@ -1069,7 +1069,7 @@ export default function ChatPage() {
             </div>
           </DialogHeader>
           
-          <div className="rounded-lg border border-white/10 mt-4 max-h-[calc(95vh-150px)] overflow-x-scroll overflow-y-auto">
+          <div className="rounded-lg border border-white/10 mt-4 max-h-[calc(95vh-150px)] overflow-auto">
               {maximizedTable?.data && maximizedTable.data.length > 0 && (
                 <Table>
                   <TableHeader className="bg-white/5 sticky top-0 z-10">
