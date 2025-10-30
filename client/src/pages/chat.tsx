@@ -10,6 +10,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { ChartVisualization } from "@/components/ChartVisualization";
 import { FloatingParticles } from "@/components/FloatingParticles";
 import { TypingIndicator } from "@/components/TypingIndicator";
@@ -560,47 +568,48 @@ export default function ChatPage() {
                                             <span className="ml-2">Copy CSV</span>
                                           </Button>
                                         </div>
-                                        <ScrollArea className="h-96">
-                                          <div className="relative w-full overflow-auto">
-                                            <table className="w-full caption-bottom text-sm">
-                                              <thead className="border-b border-white/20">
-                                                <tr>
-                                                  {message.response.data &&
-                                                    message.response.data.length > 0 &&
-                                                    Object.keys(message.response.data[0]).map((key) => (
-                                                      <th
+                                        <div className="rounded-lg border border-white/10 overflow-hidden">
+                                          <ScrollArea className="h-[400px]">
+                                            {message.response.data && message.response.data.length > 0 ? (
+                                              <Table>
+                                                <TableHeader className="bg-white/5 sticky top-0 z-10">
+                                                  <TableRow className="hover:bg-transparent border-white/20">
+                                                    {Object.keys(message.response.data[0]).map((key) => (
+                                                      <TableHead
                                                         key={key}
-                                                        className="h-12 px-4 text-left align-middle font-medium text-white/80"
+                                                        className="text-white font-semibold h-10 whitespace-nowrap"
                                                       >
                                                         {key}
-                                                      </th>
+                                                      </TableHead>
                                                     ))}
-                                                </tr>
-                                              </thead>
-                                              <tbody>
-                                                {message.response.data &&
-                                                  message.response.data.map((row: any, idx: number) => (
-                                                    <tr
+                                                  </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                  {message.response.data.map((row: any, idx: number) => (
+                                                    <TableRow
                                                       key={idx}
-                                                      className="border-b border-white/10 hover:bg-white/5"
+                                                      className="border-white/10 hover:bg-white/5 transition-colors"
                                                       data-testid={`table-row-${idx}`}
                                                     >
                                                       {Object.values(row).map((value: any, colIdx: number) => (
-                                                        <td key={colIdx} className="p-4 align-middle text-white/90">
+                                                        <TableCell
+                                                          key={colIdx}
+                                                          className="text-white/90 py-2 whitespace-nowrap"
+                                                        >
                                                           {typeof value === "number"
                                                             ? value.toLocaleString()
                                                             : String(value ?? "")}
-                                                        </td>
+                                                        </TableCell>
                                                       ))}
-                                                    </tr>
+                                                    </TableRow>
                                                   ))}
-                                              </tbody>
-                                            </table>
-                                            {(!message.response.data || message.response.data.length === 0) && (
+                                                </TableBody>
+                                              </Table>
+                                            ) : (
                                               <div className="text-center py-8 text-white/50">No data available</div>
                                             )}
-                                          </div>
-                                        </ScrollArea>
+                                          </ScrollArea>
+                                        </div>
                                       </div>
                                     </TabsContent>
                                   </Tabs>
