@@ -296,7 +296,7 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
       <div className="flex-1">
         <div
           ref={wrapperRef}
-          className="overflow-hidden rounded-lg border border-white/10"
+          className="overflow-auto scrollbar-hide rounded-lg border border-white/10"
           style={{ height: 'calc(95vh - 200px)' }}
         >
           <div ref={contentRef} className="inline-block min-w-full">
