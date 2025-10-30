@@ -47,6 +47,7 @@ interface AIAnalysisMessage {
   id: string;
   type: "user" | "assistant";
   content: string;
+  response?: QueryResponse;
 }
 
 interface Message {
@@ -288,28 +289,22 @@ export default function ChatPage() {
     setAiAnalysisLoading(prev => ({ ...prev, [messageId]: true }));
 
     try {
-      // Combine original question with follow-up question
+      // Combine original question with follow-up question to create a new query
       const combinedQuestion = `${message.content.trim()} ${question.trim()}`;
 
-      const res = await apiRequest("POST", "/api/ai-analysis", {
+      // Execute a new SQL query with the combined question
+      const res = await apiRequest("POST", "/api/query", {
         question: combinedQuestion,
-        originalQuestion: message.content,
-        followUpQuestion: question,
-        queryData: {
-          originalQuestion: message.response.question,
-          data: message.response.data,
-          summary: message.response.summary,
-          rowCount: message.response.row_count,
-        },
       });
 
-      const data = await res.json();
+      const data = await res.json() as QueryResponse;
 
-      // Add assistant response
+      // Add assistant response with full query results
       const assistantMsg: AIAnalysisMessage = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: data.analysis || "Unable to generate analysis",
+        content: question,
+        response: data,
       };
 
       setMessages(prev => prev.map(m => 
@@ -317,11 +312,19 @@ export default function ChatPage() {
           ? { ...m, aiAnalysisMessages: [...(m.aiAnalysisMessages || []), assistantMsg] }
           : m
       ));
+
+      if (!data.success) {
+        toast({
+          variant: "destructive",
+          title: "Query Failed",
+          description: data.message || "An error occurred",
+        });
+      }
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Analysis Failed",
-        description: "Unable to generate AI analysis",
+        title: "Query Failed",
+        description: "Unable to execute follow-up query",
       });
     } finally {
       setAiAnalysisLoading(prev => ({ ...prev, [messageId]: false }));
@@ -651,11 +654,7 @@ export default function ChatPage() {
                                             <span className="ml-2">Copy CSV</span>
                                           </Button>
                                         </div>
-                                        <div className="rounded-lg border border-white/10 relative">
-                                          {/* Horizontal scroll indicator */}
-                                          <div className="overflow-x-auto sticky top-0 z-20 h-3 bg-white/5">
-                                            <div style={{ width: message.response.data && message.response.data.length > 0 ? `${Object.keys(message.response.data[0]).length * 150}px` : '100%', height: '1px' }}></div>
-                                          </div>
+                                        <div className="rounded-lg border border-white/10">
                                           <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
                                             {message.response.data && message.response.data.length > 0 ? (
                                               <Table>
@@ -783,36 +782,124 @@ export default function ChatPage() {
                                           Follow up questions
                                         </h3>
 
-                                        {/* AI Analysis Chat History */}
-                                        <div className="mb-4 space-y-3">
+                                        {/* Follow-up Query Results */}
+                                        <div className="mb-4 space-y-6">
                                           {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 ? (
-                                            <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                                            <div className="space-y-6">
                                               {message.aiAnalysisMessages.map((msg) => (
-                                                <div
-                                                  key={msg.id}
-                                                  className={`flex ${msg.type === "user" ? "justify-end" : "justify-start"}`}
-                                                >
-                                                  <div
-                                                    className={`rounded-lg p-3 max-w-[80%] ${
-                                                      msg.type === "user"
-                                                        ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30"
-                                                        : "glass-dark border border-white/10"
-                                                    }`}
-                                                  >
-                                                    <p className="text-sm text-white whitespace-pre-wrap">{msg.content}</p>
+                                                <div key={msg.id} className="space-y-3">
+                                                  {/* User Question */}
+                                                  <div className="flex justify-end">
+                                                    <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
+                                                      <p className="text-sm text-white font-medium">{msg.content}</p>
+                                                    </div>
                                                   </div>
+
+                                                  {/* Query Response */}
+                                                  {msg.response && msg.response.success && (
+                                                    <div className="glass-dark rounded-xl p-4 space-y-4">
+                                                      {/* Summary Stats */}
+                                                      {msg.response.summary && (
+                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                                          {msg.response.summary.total_records !== undefined && (
+                                                            <div className="glass rounded-lg p-2">
+                                                              <p className="text-xs text-white/60">Records</p>
+                                                              <p className="text-lg font-bold text-white">{msg.response.summary.total_records}</p>
+                                                            </div>
+                                                          )}
+                                                          {msg.response.summary.total_value !== undefined && (
+                                                            <div className="glass rounded-lg p-2">
+                                                              <p className="text-xs text-white/60">Total Value</p>
+                                                              <p className="text-lg font-bold text-white">${(msg.response.summary.total_value / 1e6).toFixed(1)}M</p>
+                                                            </div>
+                                                          )}
+                                                          {msg.response.summary.avg_fee !== undefined && (
+                                                            <div className="glass rounded-lg p-2">
+                                                              <p className="text-xs text-white/60">Avg Fee</p>
+                                                              <p className="text-lg font-bold text-white">${(msg.response.summary.avg_fee / 1e6).toFixed(1)}M</p>
+                                                            </div>
+                                                          )}
+                                                          {msg.response.summary.avg_win_rate !== undefined && (
+                                                            <div className="glass rounded-lg p-2">
+                                                              <p className="text-xs text-white/60">Win Rate</p>
+                                                              <p className="text-lg font-bold text-white">{msg.response.summary.avg_win_rate.toFixed(1)}%</p>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                      )}
+
+                                                      {/* Data Table */}
+                                                      {msg.response.data && msg.response.data.length > 0 && (
+                                                        <div className="rounded-lg border border-white/10">
+                                                          <div className="overflow-x-auto overflow-y-auto max-h-[300px]">
+                                                            <Table>
+                                                              <TableHeader className="bg-white/5 sticky top-0 z-10">
+                                                                <TableRow className="hover:bg-transparent border-white/20">
+                                                                  {Object.keys(msg.response.data[0]).map((key) => (
+                                                                    <TableHead
+                                                                      key={key}
+                                                                      className="text-white font-semibold h-10 whitespace-nowrap px-4"
+                                                                    >
+                                                                      {key}
+                                                                    </TableHead>
+                                                                  ))}
+                                                                </TableRow>
+                                                              </TableHeader>
+                                                              <TableBody>
+                                                                {msg.response.data.slice(0, 10).map((row: any, idx: number) => (
+                                                                  <TableRow
+                                                                    key={idx}
+                                                                    className="border-white/10 hover:bg-white/5 transition-colors"
+                                                                  >
+                                                                    {Object.values(row).map((value: any, colIdx: number) => (
+                                                                      <TableCell
+                                                                        key={colIdx}
+                                                                        className="text-white/90 py-2 whitespace-nowrap px-4"
+                                                                      >
+                                                                        {typeof value === "number"
+                                                                          ? value.toLocaleString()
+                                                                          : String(value ?? "")}
+                                                                      </TableCell>
+                                                                    ))}
+                                                                  </TableRow>
+                                                                ))}
+                                                              </TableBody>
+                                                            </Table>
+                                                          </div>
+                                                        </div>
+                                                      )}
+
+                                                      {/* AI Insights */}
+                                                      {msg.response.ai_insights && (
+                                                        <div className="glass rounded-lg p-3">
+                                                          <p className="text-xs text-white/60 mb-2">AI Insights</p>
+                                                          <p className="text-sm text-white/90 whitespace-pre-wrap">{msg.response.ai_insights}</p>
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  )}
+
+                                                  {/* Error Display */}
+                                                  {msg.response && !msg.response.success && (
+                                                    <Alert variant="destructive" className="glass-dark border-red-500/50">
+                                                      <AlertCircle className="h-4 w-4" />
+                                                      <AlertDescription className="text-white">
+                                                        {msg.response.message || "Query failed"}
+                                                      </AlertDescription>
+                                                    </Alert>
+                                                  )}
                                                 </div>
                                               ))}
                                             </div>
                                           ) : (
                                             <div className="glass-dark rounded-lg p-4 text-center">
                                               <p className="text-white/70 text-sm">
-                                                Ask any question about the data above. For example:
+                                                Ask follow-up questions to refine your query. For example:
                                               </p>
                                               <div className="mt-3 space-y-2 text-xs text-white/60">
-                                                <p>• "What are the key insights from this data?"</p>
-                                                <p>• "Which projects should I focus on first?"</p>
-                                                <p>• "What trends do you see in the results?"</p>
+                                                <p>• "which ones are in California?"</p>
+                                                <p>• "show only active status"</p>
+                                                <p>• "with fees over $500K"</p>
                                               </div>
                                             </div>
                                           )}
