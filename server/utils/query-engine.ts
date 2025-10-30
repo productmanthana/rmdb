@@ -1120,6 +1120,10 @@ export class QueryEngine {
         this.functionDefinitions
       );
 
+      console.log(`[QueryEngine] Question: "${userQuestion}"`);
+      console.log(`[QueryEngine] Classified as: ${classification.function_name}`);
+      console.log(`[QueryEngine] AI extracted params:`, JSON.stringify(classification.arguments, null, 2));
+
       if (!classification.function_name || classification.function_name === "none") {
         return {
           success: false,
@@ -1258,7 +1262,12 @@ export class QueryEngine {
       // Then build SQL with dynamic replacements (this will add more params)
       sql = this.buildSql(sql, args, sqlParams, template.params.length);
 
+      console.log(`[QueryEngine] Executing SQL:`, sql);
+      console.log(`[QueryEngine] With params:`, sqlParams);
+
       const results = await externalDbQuery(sql, sqlParams);
+
+      console.log(`[QueryEngine] Results count: ${results.length}`);
 
       return {
         success: true,
