@@ -1,18 +1,16 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { QueryResponse, QueryHistoryItem, SummaryStats } from "@shared/schema";
+import { QueryResponse } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ChartVisualization } from "@/components/ChartVisualization";
-import { Send, Copy, Check, AlertCircle, Lightbulb, Database } from "lucide-react";
+import { Send, Copy, Check, AlertCircle, Sparkles, TrendingUp, Calendar, Tag, Building } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -22,6 +20,45 @@ interface Message {
   timestamp: Date;
   response?: QueryResponse;
 }
+
+const exampleQueries = [
+  {
+    icon: Calendar,
+    category: "Time-Based",
+    queries: [
+      "Show me all mega sized projects starting in the next ten months",
+      "Top 10 projects in last 6 months",
+      "Projects completed in 2024"
+    ]
+  },
+  {
+    icon: TrendingUp,
+    category: "Rankings",
+    queries: [
+      "Top 5 largest projects",
+      "Smallest 3 active projects",
+      "Biggest projects in California"
+    ]
+  },
+  {
+    icon: Tag,
+    category: "Categories",
+    queries: [
+      "Projects with sustainability and innovation tags",
+      "Transportation related projects",
+      "Show all energy sector projects"
+    ]
+  },
+  {
+    icon: Building,
+    category: "Analysis",
+    queries: [
+      "Compare revenue between OPCOs",
+      "Projects with Rail and Transit tags",
+      "Win rate by company"
+    ]
+  }
+];
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -79,7 +116,17 @@ export default function ChatPage() {
   };
 
   const handleExampleClick = (query: string) => {
-    setInput(query);
+    if (queryMutation.isPending) return;
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: "user",
+      content: query,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    queryMutation.mutate(query);
   };
 
   const copyToClipboard = async (text: string) => {
@@ -93,369 +140,301 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-screen flex-col bg-background">
       {/* Header */}
-      <header className="border-b h-16 flex items-center px-6">
+      <header className="border-b px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Database className="h-8 w-8 text-primary" data-testid="logo-icon" />
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+            <Sparkles className="h-5 w-5 text-primary-foreground" />
+          </div>
           <div>
-            <h1 className="text-xl font-semibold" data-testid="text-app-title">
-              Natural Language Database Query
+            <h1 className="text-lg font-semibold" data-testid="text-app-title">
+              Database Query Assistant
             </h1>
-            <p className="text-sm text-muted-foreground">Ask questions about your data in plain English</p>
+            <p className="text-xs text-muted-foreground">Ask anything about your data</p>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Examples */}
-        <aside className="w-80 border-r p-4 overflow-y-auto">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Lightbulb className="h-5 w-5" />
-                Example Queries
-              </CardTitle>
-              <CardDescription>Click to try</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium mb-2">Date Queries</h4>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-2 px-3"
-                    onClick={() =>
-                      handleExampleClick(
-                        "Show me all mega sized projects starting in the next ten months which are transportation related"
-                      )
-                    }
-                    data-testid="button-example-1"
-                  >
-                    <span className="text-sm">Mega transportation projects next 10 months</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-2 px-3"
-                    onClick={() => handleExampleClick("Top 10 projects in last 6 months")}
-                    data-testid="button-example-2"
-                  >
-                    <span className="text-sm">Top 10 projects in last 6 months</span>
-                  </Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h4 className="text-sm font-medium mb-2">Rankings</h4>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-2 px-3"
-                    onClick={() => handleExampleClick("Top 5 largest projects")}
-                    data-testid="button-example-3"
-                  >
-                    <span className="text-sm">Top 5 largest projects</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-2 px-3"
-                    onClick={() => handleExampleClick("Biggest projects in California")}
-                    data-testid="button-example-4"
-                  >
-                    <span className="text-sm">Biggest projects in California</span>
-                  </Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <h4 className="text-sm font-medium mb-2">Analysis</h4>
-                <div className="space-y-2">
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-2 px-3"
-                    onClick={() => handleExampleClick("Projects with Rail and Transit tags")}
-                    data-testid="button-example-5"
-                  >
-                    <span className="text-sm">Projects with Rail and Transit tags</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start text-left h-auto py-2 px-3"
-                    onClick={() => handleExampleClick("Compare revenue between OPCOs")}
-                    data-testid="button-example-6"
-                  >
-                    <span className="text-sm">Compare revenue between OPCOs</span>
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </aside>
-
-        {/* Chat Area */}
-        <main className="flex-1 flex flex-col">
-          {/* Messages */}
-          <ScrollArea className="flex-1 p-6">
-            <div className="max-w-4xl mx-auto space-y-6">
-              {messages.length === 0 && (
-                <div className="text-center py-12">
-                  <Database className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                  <h2 className="text-2xl font-semibold mb-2">Welcome to NL Database Query</h2>
+      <div className="flex-1 overflow-hidden flex flex-col">
+        <ScrollArea className="flex-1 px-4">
+          <div className="max-w-4xl mx-auto py-8">
+            {messages.length === 0 ? (
+              /* Welcome Screen with Examples */
+              <div className="space-y-8">
+                <div className="text-center space-y-3 py-8">
+                  <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold">Welcome to Database Query Assistant</h2>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Ask questions about your data in plain English. Try an example query from the sidebar or type
-                    your own below.
+                    Ask questions about your data in plain English. I'll analyze and visualize the results for you.
                   </p>
                 </div>
-              )}
 
-              {messages.map((message) => (
-                <div key={message.id} className={message.type === "user" ? "flex justify-end" : "flex justify-start"}>
-                  <div className={message.type === "user" ? "max-w-2xl" : "max-w-full w-full"}>
-                    {message.type === "user" ? (
-                      <div className="bg-primary text-primary-foreground rounded-2xl px-4 py-3">
-                        <p className="text-base" data-testid={`text-user-message-${message.id}`}>
-                          {message.content}
-                        </p>
-                        <p className="text-xs mt-1 opacity-70">{message.timestamp.toLocaleTimeString()}</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="bg-muted rounded-xl px-4 py-3">
-                          <p className="text-base" data-testid={`text-bot-message-${message.id}`}>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {exampleQueries.map((group, idx) => (
+                    <Card key={idx} className="hover-elevate transition-all">
+                      <CardContent className="p-5 space-y-3">
+                        <div className="flex items-center gap-2 text-primary">
+                          <group.icon className="h-4 w-4" />
+                          <h3 className="font-semibold text-sm">{group.category}</h3>
+                        </div>
+                        <div className="space-y-2">
+                          {group.queries.map((query, qIdx) => (
+                            <button
+                              key={qIdx}
+                              onClick={() => handleExampleClick(query)}
+                              className="w-full text-left px-3 py-2 rounded-lg text-sm hover-elevate active-elevate-2 border border-border/50 transition-all"
+                              data-testid={`button-example-${idx}-${qIdx}`}
+                            >
+                              {query}
+                            </button>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Chat Messages */
+              <div className="space-y-6 pb-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={message.type === "user" ? "flex justify-end" : "flex justify-start"}
+                  >
+                    <div className={message.type === "user" ? "max-w-2xl" : "max-w-full w-full"}>
+                      {message.type === "user" ? (
+                        <div className="inline-block bg-primary text-primary-foreground rounded-2xl px-5 py-3">
+                          <p className="text-sm" data-testid={`text-user-message-${message.id}`}>
                             {message.content}
                           </p>
-                          <p className="text-xs mt-1 text-muted-foreground">{message.timestamp.toLocaleTimeString()}</p>
                         </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="inline-block bg-muted rounded-2xl px-5 py-3 max-w-2xl">
+                            <p className="text-sm" data-testid={`text-bot-message-${message.id}`}>
+                              {message.content}
+                            </p>
+                          </div>
 
-                        {message.response && (
-                          <div className="space-y-4">
-                            {/* Summary Stats */}
-                            {message.response.summary && message.response.success && (
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                {message.response.summary.total_records !== undefined && (
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <p className="text-xs text-muted-foreground">Total Records</p>
-                                      <p className="text-2xl font-bold" data-testid="text-total-records">
-                                        {message.response.summary.total_records}
-                                      </p>
-                                    </CardContent>
-                                  </Card>
-                                )}
-                                {message.response.summary.total_value !== undefined && (
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <p className="text-xs text-muted-foreground">Total Value</p>
-                                      <p className="text-2xl font-bold" data-testid="text-total-value">
-                                        ${(message.response.summary.total_value / 1e6).toFixed(1)}M
-                                      </p>
-                                    </CardContent>
-                                  </Card>
-                                )}
-                                {message.response.summary.avg_fee !== undefined && (
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <p className="text-xs text-muted-foreground">Avg Fee</p>
-                                      <p className="text-2xl font-bold" data-testid="text-avg-fee">
-                                        ${(message.response.summary.avg_fee / 1e6).toFixed(1)}M
-                                      </p>
-                                    </CardContent>
-                                  </Card>
-                                )}
-                                {message.response.summary.avg_win_rate !== undefined && (
-                                  <Card>
-                                    <CardContent className="pt-4">
-                                      <p className="text-xs text-muted-foreground">Avg Win Rate</p>
-                                      <p className="text-2xl font-bold" data-testid="text-avg-win-rate">
-                                        {message.response.summary.avg_win_rate.toFixed(1)}%
-                                      </p>
-                                    </CardContent>
-                                  </Card>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Error Display */}
-                            {!message.response.success && (
-                              <Alert variant="destructive" data-testid="alert-error">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{message.response.message || "An error occurred"}</AlertDescription>
-                              </Alert>
-                            )}
-
-                            {/* Dual View: Chart + Raw Data */}
-                            {message.response.success && (
-                              <Tabs defaultValue="chart" className="w-full">
-                                <TabsList className="grid w-full max-w-md grid-cols-2">
-                                  <TabsTrigger value="chart" data-testid="tab-chart">
-                                    Chart View
-                                  </TabsTrigger>
-                                  <TabsTrigger value="data" data-testid="tab-data">
-                                    Data Table
-                                  </TabsTrigger>
-                                </TabsList>
-
-                                <TabsContent value="chart" className="space-y-4">
-                                  {message.response.chart_config ? (
-                                    <ChartVisualization config={message.response.chart_config} />
-                                  ) : (
+                          {message.response && (
+                            <div className="space-y-4">
+                              {/* Summary Stats */}
+                              {message.response.summary && message.response.success && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  {message.response.summary.total_records !== undefined && (
                                     <Card>
-                                      <CardContent className="pt-6 text-center text-muted-foreground">
-                                        No chart available for this query
+                                      <CardContent className="p-4">
+                                        <p className="text-xs text-muted-foreground mb-1">Records</p>
+                                        <p className="text-xl font-bold" data-testid="text-total-records">
+                                          {message.response.summary.total_records}
+                                        </p>
                                       </CardContent>
                                     </Card>
                                   )}
-                                </TabsContent>
+                                  {message.response.summary.total_value !== undefined && (
+                                    <Card>
+                                      <CardContent className="p-4">
+                                        <p className="text-xs text-muted-foreground mb-1">Total Value</p>
+                                        <p className="text-xl font-bold" data-testid="text-total-value">
+                                          ${(message.response.summary.total_value / 1e6).toFixed(1)}M
+                                        </p>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                  {message.response.summary.avg_fee !== undefined && (
+                                    <Card>
+                                      <CardContent className="p-4">
+                                        <p className="text-xs text-muted-foreground mb-1">Avg Fee</p>
+                                        <p className="text-xl font-bold" data-testid="text-avg-fee">
+                                          ${(message.response.summary.avg_fee / 1e6).toFixed(1)}M
+                                        </p>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                  {message.response.summary.avg_win_rate !== undefined && (
+                                    <Card>
+                                      <CardContent className="p-4">
+                                        <p className="text-xs text-muted-foreground mb-1">Avg Win Rate</p>
+                                        <p className="text-xl font-bold" data-testid="text-avg-win-rate">
+                                          {message.response.summary.avg_win_rate.toFixed(1)}%
+                                        </p>
+                                      </CardContent>
+                                    </Card>
+                                  )}
+                                </div>
+                              )}
 
-                                <TabsContent value="data" className="space-y-4">
-                                  <Card>
-                                    <CardHeader>
-                                      <div className="flex items-center justify-between">
-                                        <CardTitle className="text-lg">Data Table</CardTitle>
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          onClick={() => {
-                                            const data = message.response?.data || [];
-                                            if (data.length > 0) {
-                                              const headers = Object.keys(data[0]);
-                                              const csv = [
-                                                headers.join(','),
-                                                ...data.map((row: any) => 
-                                                  headers.map(h => JSON.stringify(row[h] ?? '')).join(',')
-                                                )
-                                              ].join('\n');
-                                              copyToClipboard(csv);
-                                            }
-                                          }}
-                                          data-testid="button-copy-data"
-                                        >
-                                          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                                          <span className="ml-2">{copied ? "Copy CSV" : "Copy CSV"}</span>
-                                        </Button>
-                                      </div>
-                                    </CardHeader>
-                                    <CardContent>
-                                      <ScrollArea className="h-96">
-                                        <div className="relative w-full overflow-auto">
-                                          <table className="w-full caption-bottom text-sm">
-                                            <thead className="[&_tr]:border-b">
-                                              <tr className="border-b transition-colors hover:bg-muted/50">
-                                                {message.response.data && message.response.data.length > 0 && 
-                                                  Object.keys(message.response.data[0]).map((key) => (
-                                                    <th 
-                                                      key={key}
-                                                      className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
-                                                    >
-                                                      {key}
-                                                    </th>
-                                                  ))
-                                                }
-                                              </tr>
-                                            </thead>
-                                            <tbody className="[&_tr:last-child]:border-0">
-                                              {message.response.data && message.response.data.map((row: any, idx: number) => (
-                                                <tr 
-                                                  key={idx}
-                                                  className="border-b transition-colors hover:bg-muted/50"
-                                                  data-testid={`table-row-${idx}`}
-                                                >
-                                                  {Object.values(row).map((value: any, colIdx: number) => (
-                                                    <td 
-                                                      key={colIdx}
-                                                      className="p-4 align-middle"
-                                                    >
-                                                      {typeof value === 'number' 
-                                                        ? value.toLocaleString() 
-                                                        : String(value ?? '')
-                                                      }
-                                                    </td>
-                                                  ))}
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
-                                          {(!message.response.data || message.response.data.length === 0) && (
-                                            <div className="text-center py-8 text-muted-foreground">
-                                              No data available
-                                            </div>
-                                          )}
+                              {/* Error Display */}
+                              {!message.response.success && (
+                                <Alert variant="destructive" data-testid="alert-error">
+                                  <AlertCircle className="h-4 w-4" />
+                                  <AlertDescription>
+                                    {message.response.message || "An error occurred"}
+                                  </AlertDescription>
+                                </Alert>
+                              )}
+
+                              {/* Data Display */}
+                              {message.response.success && (
+                                <Tabs defaultValue="chart" className="w-full">
+                                  <TabsList className="grid w-full max-w-md grid-cols-2">
+                                    <TabsTrigger value="chart" data-testid="tab-chart">
+                                      Chart
+                                    </TabsTrigger>
+                                    <TabsTrigger value="data" data-testid="tab-data">
+                                      Table
+                                    </TabsTrigger>
+                                  </TabsList>
+
+                                  <TabsContent value="chart" className="space-y-4">
+                                    {message.response.chart_config ? (
+                                      <ChartVisualization config={message.response.chart_config} />
+                                    ) : (
+                                      <Card>
+                                        <CardContent className="pt-6 text-center text-muted-foreground">
+                                          No chart available
+                                        </CardContent>
+                                      </Card>
+                                    )}
+                                  </TabsContent>
+
+                                  <TabsContent value="data" className="space-y-4">
+                                    <Card>
+                                      <CardContent className="p-6">
+                                        <div className="flex items-center justify-between mb-4">
+                                          <h3 className="font-semibold">Data Table</h3>
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => {
+                                              const data = message.response?.data || [];
+                                              if (data.length > 0) {
+                                                const headers = Object.keys(data[0]);
+                                                const csv = [
+                                                  headers.join(','),
+                                                  ...data.map((row: any) =>
+                                                    headers.map(h => JSON.stringify(row[h] ?? '')).join(',')
+                                                  )
+                                                ].join('\n');
+                                                copyToClipboard(csv);
+                                              }
+                                            }}
+                                            data-testid="button-copy-data"
+                                          >
+                                            {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                                            <span className="ml-2">Copy CSV</span>
+                                          </Button>
                                         </div>
-                                      </ScrollArea>
-                                    </CardContent>
-                                  </Card>
-                                </TabsContent>
-                              </Tabs>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {queryMutation.isPending && (
-                <div className="flex justify-start">
-                  <div className="max-w-full w-full space-y-4">
-                    <div className="bg-muted rounded-xl px-4 py-3">
-                      <p className="text-base text-muted-foreground">Processing your query...</p>
+                                        <ScrollArea className="h-96">
+                                          <div className="relative w-full overflow-auto">
+                                            <table className="w-full caption-bottom text-sm">
+                                              <thead className="[&_tr]:border-b">
+                                                <tr className="border-b transition-colors hover:bg-muted/50">
+                                                  {message.response.data && message.response.data.length > 0 &&
+                                                    Object.keys(message.response.data[0]).map((key) => (
+                                                      <th
+                                                        key={key}
+                                                        className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                                                      >
+                                                        {key}
+                                                      </th>
+                                                    ))
+                                                  }
+                                                </tr>
+                                              </thead>
+                                              <tbody className="[&_tr:last-child]:border-0">
+                                                {message.response.data && message.response.data.map((row: any, idx: number) => (
+                                                  <tr
+                                                    key={idx}
+                                                    className="border-b transition-colors hover:bg-muted/50"
+                                                    data-testid={`table-row-${idx}`}
+                                                  >
+                                                    {Object.values(row).map((value: any, colIdx: number) => (
+                                                      <td
+                                                        key={colIdx}
+                                                        className="p-4 align-middle"
+                                                      >
+                                                        {typeof value === 'number'
+                                                          ? value.toLocaleString()
+                                                          : String(value ?? '')
+                                                        }
+                                                      </td>
+                                                    ))}
+                                                  </tr>
+                                                ))}
+                                              </tbody>
+                                            </table>
+                                            {(!message.response.data || message.response.data.length === 0) && (
+                                              <div className="text-center py-8 text-muted-foreground">
+                                                No data available
+                                              </div>
+                                            )}
+                                          </div>
+                                        </ScrollArea>
+                                      </CardContent>
+                                    </Card>
+                                  </TabsContent>
+                                </Tabs>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[1, 2, 3, 4].map((i) => (
-                        <Card key={i}>
-                          <CardContent className="pt-4">
-                            <Skeleton className="h-4 w-20 mb-2" />
-                            <Skeleton className="h-8 w-24" />
-                          </CardContent>
-                        </Card>
-                      ))}
+                  </div>
+                ))}
+
+                {queryMutation.isPending && (
+                  <div className="flex justify-start">
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-48 rounded-2xl" />
+                      <Skeleton className="h-32 w-96 rounded-lg" />
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          {/* Input Area */}
-          <div className="border-t p-4">
-            <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
-              <div className="flex gap-2">
-                <Textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about your data in natural language..."
-                  className="min-h-12 max-h-32 resize-none"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSubmit(e);
-                    }
-                  }}
-                  disabled={queryMutation.isPending}
-                  data-testid="input-query"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="h-12 w-12 rounded-full"
-                  disabled={!input.trim() || queryMutation.isPending}
-                  data-testid="button-send"
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Press Enter to send • Shift+Enter for new line
-              </p>
-            </form>
+            )}
           </div>
-        </main>
+        </ScrollArea>
+
+        {/* Input Area */}
+        <div className="border-t bg-background">
+          <div className="max-w-4xl mx-auto px-4 py-4">
+            <form onSubmit={handleSubmit} className="relative">
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask about your data... (e.g., Show me all projects from 2024)"
+                className="min-h-[60px] pr-12 resize-none rounded-2xl"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSubmit(e);
+                  }
+                }}
+                data-testid="input-query"
+                disabled={queryMutation.isPending}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="absolute right-2 bottom-2 rounded-xl"
+                disabled={!input.trim() || queryMutation.isPending}
+                data-testid="button-submit"
+              >
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+            <p className="text-xs text-center text-muted-foreground mt-2">
+              Press Enter to send, Shift + Enter for new line
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
