@@ -1,0 +1,48 @@
+SQL Query & Execution Details
+SQL QUERY:
+
+SELECT * FROM "Sample" 
+              WHERE 1=1
+              AND (CASE 
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 35000 
+        THEN 'Micro (<$0.0M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= 35000 AND CAST(NULLIF("Fee", '') AS NUMERIC) < 90000 
+        THEN 'Small ($0.0M-$0.1M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= 90000 AND CAST(NULLIF("Fee", '') AS NUMERIC) < 250000 
+        THEN 'Medium ($0.1M-$0.3M)'
+      WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= 250000 AND CAST(NULLIF("Fee", '') AS NUMERIC) < 1319919 
+        THEN 'Large ($0.3M-$1.3M)'
+      ELSE 'Mega (>$1.3M)'
+    END) = 'Mega' AND "Start Date" >= $1::date AND "Start Date" <= $2::date
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              LIMIT 50
+PARAMETERS:
+
+[
+  "2025-10-30",
+  "2026-08-26"
+]
+RAW JSON RESPONSE:
+
+
+Copy
+{
+  "success": true,
+  "question": "Show me all mega sized projects starting in the next ten months",
+  "function_name": "get_projects_by_combined_filters",
+  "arguments": {
+    "size": "Mega",
+    "start_date": "2025-10-30",
+    "end_date": "2026-08-26"
+  },
+  "data": [],
+  "row_count": 0,
+  "summary": {},
+  "chart_config": null,
+  "message": "Found 0 results",
+  "sql_query": "SELECT * FROM \"Sample\" \n              WHERE 1=1\n              AND (CASE \n      WHEN CAST(NULLIF(\"Fee\", '') AS NUMERIC) < 35000 \n        THEN 'Micro (<$0.0M)'\n      WHEN CAST(NULLIF(\"Fee\", '') AS NUMERIC) >= 35000 AND CAST(NULLIF(\"Fee\", '') AS NUMERIC) < 90000 \n        THEN 'Small ($0.0M-$0.1M)'\n      WHEN CAST(NULLIF(\"Fee\", '') AS NUMERIC) >= 90000 AND CAST(NULLIF(\"Fee\", '') AS NUMERIC) < 250000 \n        THEN 'Medium ($0.1M-$0.3M)'\n      WHEN CAST(NULLIF(\"Fee\", '') AS NUMERIC) >= 250000 AND CAST(NULLIF(\"Fee\", '') AS NUMERIC) < 1319919 \n        THEN 'Large ($0.3M-$1.3M)'\n      ELSE 'Mega (>$1.3M)'\n    END) = 'Mega' AND \"Start Date\" >= $1::date AND \"Start Date\" <= $2::date\n              ORDER BY CAST(NULLIF(\"Fee\", '') AS NUMERIC) DESC NULLS LAST\n              LIMIT 50",
+  "sql_params": [
+    "2025-10-30",
+    "2026-08-26"
+  ]
+}
