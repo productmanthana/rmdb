@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { ChartVisualization } from "@/components/ChartVisualization";
+import { FloatingParticles } from "@/components/FloatingParticles";
 import {
   Send,
   Copy,
@@ -241,11 +242,14 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col gradient-dark-professional overflow-hidden">
+    <div className="flex h-screen flex-col gradient-mesh overflow-hidden relative">
+      {/* Floating Particles Background */}
+      <FloatingParticles />
+
       {/* Glassmorphic Header */}
-      <header className="glass-dark px-4 py-3 flex items-center justify-between shrink-0">
+      <header className="glass-dark px-4 py-3 flex items-center justify-between shrink-0 relative z-10">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl gradient-accent flex items-center justify-center shadow-lg">
+          <div className="h-10 w-10 rounded-xl gradient-glow flex items-center justify-center animate-float">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
