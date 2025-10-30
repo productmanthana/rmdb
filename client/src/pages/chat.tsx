@@ -241,11 +241,11 @@ export default function ChatPage() {
   };
 
   return (
-    <div className="flex h-screen flex-col gradient-purple-blue overflow-hidden">
+    <div className="flex h-screen flex-col gradient-dark-professional overflow-hidden">
       {/* Glassmorphic Header */}
       <header className="glass-dark px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl gradient-purple flex items-center justify-center">
+          <div className="h-10 w-10 rounded-xl gradient-accent flex items-center justify-center shadow-lg">
             <Sparkles className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -625,7 +625,7 @@ export default function ChatPage() {
                   <Button
                     type="submit"
                     size="icon"
-                    className="gradient-purple rounded-2xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity"
+                    className="gradient-accent rounded-2xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity shadow-lg"
                     disabled={!input.trim() || queryMutation.isPending}
                     data-testid="button-submit"
                   >
