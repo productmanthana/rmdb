@@ -107,7 +107,7 @@ const exampleQueries = [
 ];
 
 // Component to handle table with external scrollbar
-function TableWithExternalScrollbar({ data, messageId }: { data: any[]; messageId: string }) {
+function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { data: any[]; messageId: string; height?: string }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollbarRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -168,7 +168,8 @@ function TableWithExternalScrollbar({ data, messageId }: { data: any[]; messageI
     <div>
       <div
         ref={wrapperRef}
-        className="h-[400px] overflow-y-auto overflow-x-hidden rounded-lg border border-white/10"
+        className="overflow-y-auto overflow-x-hidden rounded-lg border border-white/10"
+        style={{ height }}
       >
         <div ref={contentRef} className="inline-block min-w-full">
           <Table>
@@ -1076,43 +1077,11 @@ export default function ChatPage() {
 
                                                       {/* Data Table */}
                                                       {msg.response.data && msg.response.data.length > 0 && (
-                                                        <div className="rounded-lg border border-white/10 h-[300px] flex flex-col">
-                                                          <div className="flex-1 overflow-y-auto overflow-x-auto min-h-0">
-                                                            <Table>
-                                                              <TableHeader className="bg-white/5 sticky top-0 z-10">
-                                                                <TableRow className="hover:bg-transparent border-white/20">
-                                                                  {Object.keys(msg.response.data[0]).map((key) => (
-                                                                    <TableHead
-                                                                      key={key}
-                                                                      className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                                                                    >
-                                                                      {key}
-                                                                    </TableHead>
-                                                                  ))}
-                                                                </TableRow>
-                                                              </TableHeader>
-                                                              <TableBody>
-                                                                {msg.response.data.slice(0, 10).map((row: any, idx: number) => (
-                                                                  <TableRow
-                                                                    key={idx}
-                                                                    className="border-white/10 hover:bg-white/5 transition-colors"
-                                                                  >
-                                                                    {Object.values(row).map((value: any, colIdx: number) => (
-                                                                      <TableCell
-                                                                        key={colIdx}
-                                                                        className="text-white/90 py-2 whitespace-nowrap px-4"
-                                                                      >
-                                                                        {typeof value === "number"
-                                                                          ? value.toLocaleString()
-                                                                          : String(value ?? "")}
-                                                                      </TableCell>
-                                                                    ))}
-                                                                  </TableRow>
-                                                                ))}
-                                                              </TableBody>
-                                                            </Table>
-                                                          </div>
-                                                        </div>
+                                                        <TableWithExternalScrollbar 
+                                                          data={msg.response.data.slice(0, 10)}
+                                                          messageId={`followup-${msg.id}`}
+                                                          height="300px"
+                                                        />
                                                       )}
 
                                                       {/* AI Insights */}
