@@ -891,8 +891,8 @@ export default function ChatPage() {
                                           Follow up questions
                                         </h3>
 
-                                        {/* Follow-up Query Results */}
-                                        <div className="mb-4 space-y-6">
+                                        {/* Follow-up Chat Interface */}
+                                        <div className="mb-4 space-y-6 min-h-[200px]">
                                           {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 ? (
                                             <div className="space-y-6">
                                               {message.aiAnalysisMessages.map((msg) => (
@@ -1001,14 +1001,16 @@ export default function ChatPage() {
                                               ))}
                                             </div>
                                           ) : (
-                                            <div className="glass-dark rounded-lg p-4 text-center">
-                                              <p className="text-white/70 text-sm">
-                                                Ask follow-up questions to refine your query. For example:
-                                              </p>
-                                              <div className="mt-3 space-y-2 text-xs text-white/60">
-                                                <p>• "which ones are in California?"</p>
-                                                <p>• "show only active status"</p>
-                                                <p>• "with fees over $500K"</p>
+                                            <div className="flex items-center justify-center h-[200px]">
+                                              <p className="text-white/50 text-sm">Start a conversation by asking a question below</p>
+                                            </div>
+                                          )}
+                                          
+                                          {/* Typing Indicator - Show when loading */}
+                                          {aiAnalysisLoading[message.id] && (
+                                            <div className="flex items-start gap-3">
+                                              <div className="glass-dark rounded-xl p-4">
+                                                <TypingIndicator />
                                               </div>
                                             </div>
                                           )}
