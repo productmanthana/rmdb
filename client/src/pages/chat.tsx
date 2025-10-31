@@ -1312,7 +1312,15 @@ export default function ChatPage() {
                                                         [message.id]: e.target.value,
                                                       }))
                                                     }
-                                                    placeholder="Ask a follow-up question..."
+                                                    onKeyDown={(e) => {
+                                                      if (e.key === "Enter" && !e.shiftKey) {
+                                                        e.preventDefault();
+                                                        if (aiAnalysisInputs[message.id]?.trim() && !aiAnalysisLoading[message.id]) {
+                                                          handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                        }
+                                                      }
+                                                    }}
+                                                    placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
                                                     className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
                                                     disabled={aiAnalysisLoading[message.id]}
                                                     data-testid={`input-ai-analysis-${message.id}`}
