@@ -1374,7 +1374,9 @@ Extract the COMPLETE set of filters combining both previous and new requirements
     // Size filter (uses CASE statement)
     if (args.size) {
       const sizeCase = this.sizeCalculator.getSqlCaseStatement();
-      filters.push(`(${sizeCase}) = '${args.size}'`);
+      filters.push(`(${sizeCase}) = $${paramIndex}`);
+      params.push(args.size);
+      paramIndex++;
     }
 
     // Status filter
@@ -1497,7 +1499,8 @@ Extract the COMPLETE set of filters combining both previous and new requirements
     // Handle size condition
     if (result.includes("{size_condition}")) {
       const sizeCase = this.sizeCalculator.getSqlCaseStatement();
-      result = result.replace("{size_condition}", `(${sizeCase}) = '${args.size}'`);
+      // Use $1 since 'size' is the first (and only) required param for get_projects_by_size
+      result = result.replace("{size_condition}", `(${sizeCase}) = $1`);
     }
 
     // Handle size case
@@ -1512,7 +1515,9 @@ Extract the COMPLETE set of filters combining both previous and new requirements
 
       if (args.size) {
         const sizeCase = this.sizeCalculator.getSqlCaseStatement();
-        filters.push(`(${sizeCase}) = '${args.size}'`);
+        filters.push(`(${sizeCase}) = $${paramIndex}`);
+        params.push(args.size);
+        paramIndex++;
       }
 
       if (args.status) {
