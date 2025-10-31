@@ -549,12 +549,14 @@ export default function ChatPage() {
     setAiAnalysisLoading(prev => ({ ...prev, [messageId]: true }));
 
     try {
-      // Combine original question with follow-up question to create a new query
-      const combinedQuestion = `${message.content.trim()} ${question.trim()}`;
-
-      // Execute a new SQL query with the combined question
+      // Execute a new SQL query with follow-up question and previous context
       const res = await apiRequest("POST", "/api/query", {
-        question: combinedQuestion,
+        question: question.trim(),
+        previousContext: message.response.function_name && message.response.arguments ? {
+          question: message.content.trim(),
+          function_name: message.response.function_name,
+          arguments: message.response.arguments,
+        } : undefined,
       });
 
       const data = await res.json() as QueryResponse;
