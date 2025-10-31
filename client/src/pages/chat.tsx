@@ -736,12 +736,12 @@ export default function ChatPage() {
                       type="checkbox"
                       checked={selectedChats.has(chat.id)}
                       onChange={() => handleSelectChat(chat.id)}
-                      className="mt-1"
+                      className="mt-1 shrink-0"
                       onClick={(e) => e.stopPropagation()}
                       data-testid={`checkbox-chat-${chat.id}`}
                     />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate font-medium">
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p className="text-sm text-white font-medium line-clamp-2 break-words">
                         {chat.title}
                       </p>
                       <p className="text-xs text-white/50 mt-1">
