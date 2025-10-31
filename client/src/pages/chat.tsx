@@ -563,7 +563,7 @@ export default function ChatPage() {
       const assistantMsg: AIAnalysisMessage = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: question,
+        content: "",
         response: data,
       };
 
@@ -1041,56 +1041,174 @@ export default function ChatPage() {
                                                     </div>
                                                   </div>
 
-                                                  {/* Query Response */}
+                                                  {/* Query Response with Tabs */}
                                                   {msg.response && msg.response.success && (
-                                                    <div className="glass-dark rounded-xl p-4 space-y-4">
-                                                      {/* Summary Stats */}
-                                                      {msg.response.summary && (
-                                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                                          {msg.response.summary.total_records !== undefined && (
-                                                            <div className="glass rounded-lg p-2">
-                                                              <p className="text-xs text-white/60">Records</p>
-                                                              <p className="text-lg font-bold text-white">{msg.response.summary.total_records}</p>
+                                                    <Tabs defaultValue="data" className="w-full">
+                                                      <TabsList className="glass border-0">
+                                                        <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
+                                                          Response
+                                                        </TabsTrigger>
+                                                        <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input">
+                                                          Chart
+                                                        </TabsTrigger>
+                                                        <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input">
+                                                          <FileText className="h-4 w-4 mr-1" />
+                                                          Logs
+                                                        </TabsTrigger>
+                                                      </TabsList>
+
+                                                      <TabsContent value="data" className="space-y-4 mt-4">
+                                                        <div className="glass-dark rounded-xl p-4">
+                                                          {/* Summary Stats */}
+                                                          {msg.response.summary && (
+                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                                                              {msg.response.summary.total_records !== undefined && (
+                                                                <div className="glass rounded-lg p-2">
+                                                                  <p className="text-xs text-white/60">Records</p>
+                                                                  <p className="text-lg font-bold text-white">{msg.response.summary.total_records}</p>
+                                                                </div>
+                                                              )}
+                                                              {msg.response.summary.total_value !== undefined && (
+                                                                <div className="glass rounded-lg p-2">
+                                                                  <p className="text-xs text-white/60">Total Value</p>
+                                                                  <p className="text-lg font-bold text-white">${(msg.response.summary.total_value / 1e6).toFixed(1)}M</p>
+                                                                </div>
+                                                              )}
+                                                              {msg.response.summary.avg_fee !== undefined && (
+                                                                <div className="glass rounded-lg p-2">
+                                                                  <p className="text-xs text-white/60">Avg Fee</p>
+                                                                  <p className="text-lg font-bold text-white">${(msg.response.summary.avg_fee / 1e6).toFixed(1)}M</p>
+                                                                </div>
+                                                              )}
+                                                              {msg.response.summary.avg_win_rate !== undefined && (
+                                                                <div className="glass rounded-lg p-2">
+                                                                  <p className="text-xs text-white/60">Win Rate</p>
+                                                                  <p className="text-lg font-bold text-white">{msg.response.summary.avg_win_rate.toFixed(1)}%</p>
+                                                                </div>
+                                                              )}
                                                             </div>
                                                           )}
-                                                          {msg.response.summary.total_value !== undefined && (
-                                                            <div className="glass rounded-lg p-2">
-                                                              <p className="text-xs text-white/60">Total Value</p>
-                                                              <p className="text-lg font-bold text-white">${(msg.response.summary.total_value / 1e6).toFixed(1)}M</p>
+
+                                                          {/* Data Table with Maximize */}
+                                                          <div className="flex items-center justify-between mb-3">
+                                                            <h4 className="font-semibold text-white text-sm">Data Table</h4>
+                                                            <div className="flex items-center gap-2">
+                                                              <Button
+                                                                size="sm"
+                                                                className="glass text-white hover:glass-hover h-7"
+                                                                onClick={() => {
+                                                                  const data = msg.response?.data || [];
+                                                                  if (data.length > 0) {
+                                                                    const headers = Object.keys(data[0]);
+                                                                    const csv = [
+                                                                      headers.join(","),
+                                                                      ...data.map((row: any) =>
+                                                                        headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
+                                                                      ),
+                                                                    ].join("\n");
+                                                                    copyToClipboard(csv);
+                                                                  }
+                                                                }}
+                                                              >
+                                                                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                                <span className="ml-1 text-xs">Copy CSV</span>
+                                                              </Button>
+                                                              <Button
+                                                                size="sm"
+                                                                className="glass text-white hover:glass-hover h-7"
+                                                                onClick={() => {
+                                                                  if (msg.response?.data) {
+                                                                    setMaximizedTable({
+                                                                      messageId: msg.id,
+                                                                      data: msg.response.data,
+                                                                    });
+                                                                  }
+                                                                }}
+                                                              >
+                                                                <Maximize2 className="h-3 w-3" />
+                                                                <span className="ml-1 text-xs">Maximize</span>
+                                                              </Button>
                                                             </div>
+                                                          </div>
+
+                                                          {msg.response.data && msg.response.data.length > 0 && (
+                                                            <TableWithExternalScrollbar 
+                                                              data={msg.response.data}
+                                                              messageId={`followup-${msg.id}`}
+                                                              height="300px"
+                                                            />
                                                           )}
-                                                          {msg.response.summary.avg_fee !== undefined && (
-                                                            <div className="glass rounded-lg p-2">
-                                                              <p className="text-xs text-white/60">Avg Fee</p>
-                                                              <p className="text-lg font-bold text-white">${(msg.response.summary.avg_fee / 1e6).toFixed(1)}M</p>
-                                                            </div>
-                                                          )}
-                                                          {msg.response.summary.avg_win_rate !== undefined && (
-                                                            <div className="glass rounded-lg p-2">
-                                                              <p className="text-xs text-white/60">Win Rate</p>
-                                                              <p className="text-lg font-bold text-white">{msg.response.summary.avg_win_rate.toFixed(1)}%</p>
+
+                                                          {/* AI Insights */}
+                                                          {msg.response.ai_insights && (
+                                                            <div className="glass rounded-lg p-3 mt-4">
+                                                              <p className="text-xs text-white/60 mb-2">AI Insights</p>
+                                                              <p className="text-sm text-white/90 whitespace-pre-wrap">{msg.response.ai_insights}</p>
                                                             </div>
                                                           )}
                                                         </div>
-                                                      )}
+                                                      </TabsContent>
 
-                                                      {/* Data Table */}
-                                                      {msg.response.data && msg.response.data.length > 0 && (
-                                                        <TableWithExternalScrollbar 
-                                                          data={msg.response.data.slice(0, 10)}
-                                                          messageId={`followup-${msg.id}`}
-                                                          height="300px"
-                                                        />
-                                                      )}
+                                                      <TabsContent value="chart" className="space-y-4 mt-4">
+                                                        {msg.response.chart_config ? (
+                                                          <div className="glass-dark rounded-xl p-6">
+                                                            <ChartVisualization config={msg.response.chart_config} />
+                                                          </div>
+                                                        ) : (
+                                                          <div className="glass-dark rounded-xl p-6 text-center text-white/70">
+                                                            No chart available
+                                                          </div>
+                                                        )}
+                                                      </TabsContent>
 
-                                                      {/* AI Insights */}
-                                                      {msg.response.ai_insights && (
-                                                        <div className="glass rounded-lg p-3">
-                                                          <p className="text-xs text-white/60 mb-2">AI Insights</p>
-                                                          <p className="text-sm text-white/90 whitespace-pre-wrap">{msg.response.ai_insights}</p>
+                                                      <TabsContent value="logs" className="space-y-4 mt-4">
+                                                        <div className="glass-dark rounded-xl p-4">
+                                                          {/* SQL Query */}
+                                                          <div className="mb-3">
+                                                            <p className="text-xs text-white/70 mb-2 font-mono">SQL QUERY:</p>
+                                                            <div className="glass rounded-lg p-3 overflow-x-auto">
+                                                              <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                                                                {msg.response.sql_query || "No SQL query available"}
+                                                              </pre>
+                                                            </div>
+                                                          </div>
+
+                                                          {/* SQL Parameters */}
+                                                          <div className="mb-3">
+                                                            <p className="text-xs text-white/70 mb-2 font-mono">PARAMETERS:</p>
+                                                            <div className="glass rounded-lg p-3 overflow-x-auto">
+                                                              <pre className="text-xs text-blue-400 font-mono">
+                                                                {JSON.stringify(msg.response.sql_params || [], null, 2)}
+                                                              </pre>
+                                                            </div>
+                                                          </div>
+
+                                                          {/* Raw JSON Response */}
+                                                          <div>
+                                                            <div className="flex items-center justify-between mb-2">
+                                                              <p className="text-xs text-white/70 font-mono">RAW JSON RESPONSE:</p>
+                                                              <Button
+                                                                size="sm"
+                                                                className="glass text-white hover:glass-hover h-6"
+                                                                onClick={() => {
+                                                                  copyToClipboard(JSON.stringify(msg.response, null, 2));
+                                                                }}
+                                                              >
+                                                                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                                <span className="ml-1 text-xs">Copy</span>
+                                                              </Button>
+                                                            </div>
+                                                            <div className="glass rounded-lg p-3 overflow-x-auto">
+                                                              <ScrollArea className="h-[250px]">
+                                                                <pre className="text-xs text-purple-400 font-mono">
+                                                                  {JSON.stringify(msg.response, null, 2)}
+                                                                </pre>
+                                                              </ScrollArea>
+                                                            </div>
+                                                          </div>
                                                         </div>
-                                                      )}
-                                                    </div>
+                                                      </TabsContent>
+                                                    </Tabs>
                                                   )}
 
                                                   {/* Error Display */}
