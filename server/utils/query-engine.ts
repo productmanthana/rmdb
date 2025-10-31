@@ -1502,23 +1502,33 @@ export class QueryEngine {
       // If we have previous context, provide it to help maintain filters
       const enhancedQuestion = previousContext
         ? `CONTEXT: The user previously asked: "${previousContext.question}"
+Previous query type: ${previousContext.function_name}
 Applied filters: ${JSON.stringify(previousContext.arguments)}
 
 FOLLOW-UP REFINEMENT: ${userQuestion}
 
-IMPORTANT INSTRUCTIONS:
-- Keep ALL existing filters from the previous query (${JSON.stringify(previousContext.arguments)})
-- ADD any new filters mentioned in the follow-up refinement
-- If the follow-up changes a filter (like date range), UPDATE that specific filter while keeping others
-- Merge the contexts intelligently to create a refined search
+CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
+1. **USE THE SAME QUERY TYPE** (${previousContext.function_name}) unless the user explicitly asks for something completely different
+2. **REPLACE parameters of the same type** - If the previous query had a POC and the user provides a name, REPLACE the POC name
+3. **Keep other filters unchanged** - Status, dates, companies, etc. should be preserved unless explicitly changed
 
-COMMON REFINEMENT PATTERNS:
-- "best", "top one", "best of best", "#1" → means LIMIT 1 (keep other filters, just reduce limit to 1)
-- "next X months/years" → update date range only (keep other filters like size, location, status)
-- "in California", "in Texas" → ADD location filter (keep size, dates, etc)
-- "mega sized", "large projects" → ADD/UPDATE size filter (keep dates, location, etc)
+COMMON FOLLOW-UP PATTERNS:
+- User provides just a NAME → Replace the POC/client/person parameter with the new name, keep the same function (${previousContext.function_name})
+- "best", "top one", "#1" → Keep everything, just set limit=1
+- "next X months/years" → Update date range only, keep other filters
+- "in California" → ADD state filter, keep everything else
+- "mega sized" → ADD/UPDATE size filter, keep everything else
 
-Extract the COMPLETE set of filters combining both previous and new requirements.`
+EXAMPLES:
+Previous: get_projects_by_poc with poc="Amy Wincko"
+Follow-up: "Michael Luciani" 
+→ Use get_projects_by_poc with poc="Michael Luciani" (SAME FUNCTION, REPLACE POC)
+
+Previous: get_projects_by_year with year=2024
+Follow-up: "only mega sized"
+→ Use get_projects_by_year with year=2024, size="mega" (ADD SIZE FILTER)
+
+Extract the COMPLETE set of filters, maintaining the query type and replacing parameters appropriately.`
         : userQuestion;
 
       const classification = await this.openaiClient.classifyQuery(
