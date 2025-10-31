@@ -3243,6 +3243,78 @@ export class QueryEngine {
     ];
   }
 
+  /**
+   * Smart merge of previous arguments with new arguments
+   * Detects whether the user is pivoting (replace) or refining (accumulate)
+   */
+  private smartMergeArguments(
+    previousArgs: Record<string, any>,
+    newArgs: Record<string, any>
+  ): Record<string, any> {
+    // Define parameter categories
+    const REPLACEABLE_PARAMS = new Set([
+      'tags',        // If user mentions new tags, they want THOSE tags, not old + new
+      'categories',  // Same for categories
+      'company',     // Usually want to pivot to a different company
+      'client',      // Usually want to pivot to a different client
+      'poc',         // Usually want to pivot to a different person
+      'status',      // Usually want to change the status filter
+      'size',        // Usually want to change the size filter
+      'state_code',  // Usually want to pivot to a different location
+    ]);
+
+    const CUMULATIVE_PARAMS = new Set([
+      'start_date',  // Keep date filters unless explicitly changed
+      'end_date',
+      'min_fee',     // Keep fee filters unless explicitly changed
+      'max_fee',
+      'min_win',     // Keep win% filters unless explicitly changed
+      'max_win',
+      'limit',       // Usually update the limit
+      'year',        // Core query parameters - usually keep
+      'quarter',
+      'years',
+      'category',    // Single category (not array) - usually keep
+      'project_name',
+      'state_name',
+      'time_reference',
+    ]);
+
+    const result: Record<string, any> = {};
+
+    // Step 1: Add all previous cumulative parameters (unless new ones override them)
+    for (const [key, value] of Object.entries(previousArgs)) {
+      if (CUMULATIVE_PARAMS.has(key) && !(key in newArgs)) {
+        result[key] = value;
+      }
+    }
+
+    // Step 2: Process new parameters
+    for (const [key, value] of Object.entries(newArgs)) {
+      if (REPLACEABLE_PARAMS.has(key)) {
+        // REPLACE: Don't merge with previous value, just use new value
+        result[key] = value;
+      } else {
+        // CUMULATIVE or OVERRIDE: Use new value
+        result[key] = value;
+      }
+    }
+
+    // Step 3: Handle special cases
+    
+    // If new args have both tags AND old args had tags, we've already replaced
+    // But log it for debugging
+    if (previousArgs.tags && newArgs.tags) {
+      console.log(`[SmartMerge] Tags REPLACED: ${JSON.stringify(previousArgs.tags)} → ${JSON.stringify(newArgs.tags)}`);
+    }
+
+    if (previousArgs.categories && newArgs.categories) {
+      console.log(`[SmartMerge] Categories REPLACED: ${JSON.stringify(previousArgs.categories)} → ${JSON.stringify(newArgs.categories)}`);
+    }
+
+    return result;
+  }
+
   async processQuery(
     userQuestion: string,
     externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>,
@@ -3299,6 +3371,15 @@ Extract the COMPLETE set of filters, maintaining the query type and replacing pa
           message: `Could not understand the question: '${userQuestion}'. Please try rephrasing.`,
           data: [],
         };
+      }
+
+      // Step 1.5: Smart merge of previous context with new arguments
+      if (previousContext) {
+        classification.arguments = this.smartMergeArguments(
+          previousContext.arguments,
+          classification.arguments
+        );
+        console.log(`[QueryEngine] After smart merge:`, JSON.stringify(classification.arguments, null, 2));
       }
 
       // Step 2: Preprocess to handle ALL calculations (dates, numbers, limits)
