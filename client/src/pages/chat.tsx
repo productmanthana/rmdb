@@ -531,6 +531,17 @@ export default function ChatPage() {
     const message = messages.find(m => m.id === messageId);
     if (!message || !message.response) return;
 
+    // Check if we've reached the 3 follow-up question limit
+    const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
+    if (userFollowUpCount >= 3) {
+      toast({
+        variant: "destructive",
+        title: "Follow-up Limit Reached",
+        description: "Maximum 3 follow-up questions allowed. Please start a new query.",
+      });
+      return;
+    }
+
     // Add user question to AI analysis messages
     const userMsg: AIAnalysisMessage = {
       id: Date.now().toString(),
@@ -1242,42 +1253,68 @@ export default function ChatPage() {
                                         </div>
 
                                         {/* AI Analysis Input */}
-                                        <div className="glass-input rounded-xl p-1">
-                                          <form
-                                            onSubmit={(e) => {
-                                              e.preventDefault();
-                                              handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
-                                            }}
-                                            className="flex items-end gap-2"
-                                          >
-                                            <Textarea
-                                              value={aiAnalysisInputs[message.id] || ""}
-                                              onChange={(e) =>
-                                                setAiAnalysisInputs((prev) => ({
-                                                  ...prev,
-                                                  [message.id]: e.target.value,
-                                                }))
-                                              }
-                                              placeholder="Ask a question about the data..."
-                                              className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
-                                              disabled={aiAnalysisLoading[message.id]}
-                                              data-testid={`input-ai-analysis-${message.id}`}
-                                            />
-                                            <Button
-                                              type="submit"
-                                              size="icon"
-                                              className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
-                                              disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
-                                              data-testid={`button-submit-ai-analysis-${message.id}`}
-                                            >
-                                              {aiAnalysisLoading[message.id] ? (
-                                                <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                              ) : (
-                                                <Send className="h-4 w-4 text-white" />
-                                              )}
-                                            </Button>
-                                          </form>
-                                        </div>
+                                        {(() => {
+                                          const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
+                                          const limitReached = userFollowUpCount >= 3;
+
+                                          return limitReached ? (
+                                            <div className="glass-dark rounded-xl p-4 border border-white/10">
+                                              <div className="flex items-center gap-3">
+                                                <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                                                  <AlertCircle className="h-5 w-5 text-white/70" />
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-medium text-white">Follow-up Limit Reached</p>
+                                                  <p className="text-xs text-white/60 mt-1">
+                                                    You've asked 3 follow-up questions. Please start a new query to continue exploring the data.
+                                                  </p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-2">
+                                              <div className="glass-input rounded-xl p-1">
+                                                <form
+                                                  onSubmit={(e) => {
+                                                    e.preventDefault();
+                                                    handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                  }}
+                                                  className="flex items-end gap-2"
+                                                >
+                                                  <Textarea
+                                                    value={aiAnalysisInputs[message.id] || ""}
+                                                    onChange={(e) =>
+                                                      setAiAnalysisInputs((prev) => ({
+                                                        ...prev,
+                                                        [message.id]: e.target.value,
+                                                      }))
+                                                    }
+                                                    placeholder="Ask a follow-up question..."
+                                                    className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                                    disabled={aiAnalysisLoading[message.id]}
+                                                    data-testid={`input-ai-analysis-${message.id}`}
+                                                  />
+                                                  <Button
+                                                    type="submit"
+                                                    size="icon"
+                                                    className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
+                                                    disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
+                                                    data-testid={`button-submit-ai-analysis-${message.id}`}
+                                                  >
+                                                    {aiAnalysisLoading[message.id] ? (
+                                                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                      <Send className="h-4 w-4 text-white" />
+                                                    )}
+                                                  </Button>
+                                                </form>
+                                              </div>
+                                              <p className="text-xs text-white/50 px-2">
+                                                {userFollowUpCount}/3 follow-up questions used
+                                              </p>
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
                                     </TabsContent>
                                   </Tabs>
