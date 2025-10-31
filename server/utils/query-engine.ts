@@ -2136,7 +2136,7 @@ export class QueryEngine {
       {
         name: "get_projects_by_combined_filters",
         description:
-          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, categories, tags, status, dates, etc. For CLID (Client ID), use 'client' field, NOT 'company'.",
+          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. Use 'tags' parameter for keywords, industries, project types (Rail, Transit, Hospital, Healthcare, etc). Use 'categories' ONLY for official Request Category values. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead.",
         parameters: {
           type: "object",
           properties: {
@@ -2147,12 +2147,12 @@ export class QueryEngine {
             categories: {
               type: "array",
               items: { type: "string" },
-              description: "List of request categories",
+              description: "Official Request Category values from database (rarely used - prefer tags)",
             },
             tags: {
               type: "array",
               items: { type: "string" },
-              description: "List of tags",
+              description: "List of keywords/tags for filtering (e.g., Rail, Transit, Hospital, Healthcare, Design-Build, Renovation). Use this for industry terms, project types, and general keywords.",
             },
             status: { type: "string", description: "Project status" },
             client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573'). Use this for Client IDs, NOT company." },
@@ -2230,7 +2230,7 @@ export class QueryEngine {
       // Category/Type
       {
         name: "get_projects_by_category",
-        description: "Get projects by request category",
+        description: "Get projects by official Request Category database field ONLY. This is for formal project categories like 'Healthcare Facility', 'Corporate Office', etc. DO NOT use for general keywords, tags, or industry terms - use get_projects_by_combined_filters with 'tags' parameter instead.",
         parameters: {
           type: "object",
           properties: {
@@ -2624,7 +2624,7 @@ export class QueryEngine {
 
       {
         name: "get_projects_by_poc",
-        description: "Get all projects managed by specific Point of Contact/POC/project manager. Use when user asks for a specific person's projects.",
+        description: "Get all projects managed by specific Point of Contact/POC/project manager/person name. Use when user mentions a PERSON'S NAME (e.g., 'Amy Wincko', 'Michael Luciani', 'John Smith'). DO NOT use for client/company names.",
         parameters: {
           type: "object",
           properties: {
@@ -3257,14 +3257,17 @@ export class QueryEngine {
 
     // Define parameter categories
     const REPLACEABLE_PARAMS = new Set([
-      'tags',        // If user mentions new tags, they want THOSE tags, not old + new
-      'categories',  // Same for categories
       'company',     // Usually want to pivot to a different company
       'client',      // Usually want to pivot to a different client
       'poc',         // Usually want to pivot to a different person
       'status',      // Usually want to change the status filter
       'size',        // Usually want to change the size filter
       'state_code',  // Usually want to pivot to a different location
+      'categories',  // Usually want to REPLACE categories when pivoting
+    ]);
+
+    const ADDITIVE_PARAMS = new Set([
+      'tags',        // Usually want to ADD new tags to existing ones (e.g., "also add Transit")
     ]);
 
     const CUMULATIVE_PARAMS = new Set([
@@ -3304,6 +3307,18 @@ export class QueryEngine {
         // REPLACE: Don't merge with previous value, just use new value
         console.log(`[SmartMerge] Replacing param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
+      } else if (ADDITIVE_PARAMS.has(key)) {
+        // ADDITIVE: Union new values with existing values (for tags/categories)
+        if (previousArgs[key] && Array.isArray(previousArgs[key]) && Array.isArray(value)) {
+          // Combine old and new, removing duplicates
+          const combined = Array.from(new Set([...previousArgs[key], ...value]));
+          console.log(`[SmartMerge] Adding to existing ${key}: ${JSON.stringify(previousArgs[key])} + ${JSON.stringify(value)} = ${JSON.stringify(combined)}`);
+          result[key] = combined;
+        } else {
+          // No previous value or not arrays, just use new value
+          console.log(`[SmartMerge] Setting new ${key}: ${JSON.stringify(value)}`);
+          result[key] = value;
+        }
       } else {
         // CUMULATIVE or OVERRIDE: Use new value
         console.log(`[SmartMerge] Adding/overriding param: ${key} = ${JSON.stringify(value)}`);
@@ -3390,15 +3405,24 @@ CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
 3. The system will automatically merge your extracted parameters with previous ones
 
 IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in the follow-up question "${userQuestion}".
-- If the follow-up mentions new tags/categories → Extract ONLY those new tags/categories
+- If the follow-up is "also add X" or "include X" → Treat X as a TAG (e.g., "also add Hospital" = tags: ["Hospital"])
+- If the follow-up is a COMMA-SEPARATED LIST without context → Treat ALL as tags (e.g., "Healthcare, Medical, Hospital, Medium" = tags)
 - If the follow-up mentions a date → Extract ONLY the new date
-- If the follow-up mentions a size → Extract ONLY the size
+- If the follow-up explicitly says "Request Category" → Extract as category
+- If the follow-up explicitly says "size" → Extract as size
+- If the follow-up mentions fee/money → Extract as min_fee/max_fee
 - DO NOT include previous parameters unless they're explicitly mentioned again
+
+CRITICAL: For comma-separated lists and additive refinements, use TAGS (not categories):
+"Healthcare, Medical, Hospital, Medium, Design-Build" → tags: [all of these]
+"Rail, Transit" → tags: ["Rail", "Transit"]
+"also add Hospital" → tags: ["Hospital"]
+"include Clinic" → tags: ["Clinic"]
 
 EXAMPLES:
 Previous: get_projects_by_date_range with tags=["Rail","Transit"], start_date="2025-10-31"
-Follow-up: "Healthcare, Medical, Hospital"
-→ Extract: categories=["Healthcare","Medical","Hospital"] ONLY (system will handle previous filters)
+Follow-up: "Healthcare, Medical, Hospital, Medium"
+→ Extract: tags=["Healthcare","Medical","Hospital","Medium"] (system will clear old tags)
 
 Previous: get_projects_by_year with year=2024
 Follow-up: "only mega sized"
