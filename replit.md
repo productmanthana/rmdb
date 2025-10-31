@@ -58,6 +58,13 @@ Preferred communication style: Simple, everyday language.
   - **Phase 1 (15 queries)**: High-value comparisons (states, categories, clients, quarters, POCs, benchmarking)
   - **Phase 2 (12 queries)**: Trend & forecasting (quarterly trends, momentum, seasonality, pipeline velocity/quality)
   - **Phase 3 & 4 (10 queries)**: Client intelligence & risk analysis (tiers, retention, at-risk detection, concentration, underperformance)
+- **Total: 89 production-ready query templates**
+
+**Recent Bug Fixes** (October 31, 2025):
+- Fixed PostgreSQL error: "ORDER BY CASE alias_name" pattern not supported in PostgreSQL
+- Affected 4 queries: `get_client_retention_rate`, `get_deal_cycle_analysis`, `get_pipeline_quality`, `get_at_risk_clients`
+- Solution: Wrapped queries in CTEs to allow ORDER BY to reference aliases in outer SELECT
+- All queries now execute successfully without SQL errors
 
 The system can now answer virtually ANY complex business intelligence question including:
 - Multi-entity comparisons (compare CA vs TX vs FL)
