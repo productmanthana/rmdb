@@ -400,11 +400,13 @@ export class QueryEngine {
               WHERE "Status" NOT IN ('Won', 'Lost')
               AND "Win %" IS NOT NULL
               {date_filter}
+              {additional_filters}
               ORDER BY CAST("Win %" AS NUMERIC) DESC,
                        CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
               LIMIT $1`,
         params: ["limit"],
         param_types: ["int"],
+        optional_params: ["min_fee", "max_fee", "min_win", "max_win", "size", "status", "state_code", "company", "client", "categories", "tags"],
         chart_type: "bar",
         chart_field: "Fee",
       },
