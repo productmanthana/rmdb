@@ -584,17 +584,20 @@ export default function ChatPage() {
         if (m.id === messageId) {
           // Update the original message's context if this follow-up refined it
           // This ensures future follow-ups build on the cumulative refined context
+          // We update context whenever the follow-up was successful and returned arguments
+          // even if the function name changed (Azure may classify refinements differently)
           const shouldUpdateContext = 
             data.success && 
-            data.function_name === m.response?.function_name &&
+            data.function_name &&
             data.arguments;
 
           return {
             ...m,
             aiAnalysisMessages: [...(m.aiAnalysisMessages || []), assistantMsg],
-            // Update the parent response with refined arguments
+            // Update the parent response with refined function and arguments
             response: shouldUpdateContext ? {
               ...m.response!,
+              function_name: data.function_name,
               arguments: data.arguments,
             } : m.response,
           };

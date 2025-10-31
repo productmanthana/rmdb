@@ -1130,6 +1130,12 @@ IMPORTANT INSTRUCTIONS:
 - If the follow-up changes a filter (like date range), UPDATE that specific filter while keeping others
 - Merge the contexts intelligently to create a refined search
 
+COMMON REFINEMENT PATTERNS:
+- "best", "top one", "best of best", "#1" → means LIMIT 1 (keep other filters, just reduce limit to 1)
+- "next X months/years" → update date range only (keep other filters like size, location, status)
+- "in California", "in Texas" → ADD location filter (keep size, dates, etc)
+- "mega sized", "large projects" → ADD/UPDATE size filter (keep dates, location, etc)
+
 Extract the COMPLETE set of filters combining both previous and new requirements.`
         : userQuestion;
 
