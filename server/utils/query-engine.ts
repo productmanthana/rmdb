@@ -1112,16 +1112,23 @@ export class QueryEngine {
 
   async processQuery(
     userQuestion: string,
-    externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
+    externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>,
+    previousContext?: { question: string; function_name: string; arguments: Record<string, any> }
   ): Promise<QueryResponse> {
     try {
       // Step 1: Classify query with LLM (text understanding only)
+      // If we have previous context, provide it to help maintain filters
+      const enhancedQuestion = previousContext
+        ? `Previous query context: ${previousContext.question} (filters: ${JSON.stringify(previousContext.arguments)}). Follow-up question: ${userQuestion}`
+        : userQuestion;
+
       const classification = await this.openaiClient.classifyQuery(
-        userQuestion,
+        enhancedQuestion,
         this.functionDefinitions
       );
 
       console.log(`[QueryEngine] Question: "${userQuestion}"`);
+      console.log(`[QueryEngine] Previous context:`, previousContext ? JSON.stringify(previousContext, null, 2) : "None");
       console.log(`[QueryEngine] Classified as: ${classification.function_name}`);
       console.log(`[QueryEngine] AI extracted params:`, JSON.stringify(classification.arguments, null, 2));
 

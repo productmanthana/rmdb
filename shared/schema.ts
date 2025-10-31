@@ -6,6 +6,11 @@ import { z } from "zod";
 
 export const QueryRequestSchema = z.object({
   question: z.string().min(1, "Question is required"),
+  previousContext: z.object({
+    question: z.string(),
+    function_name: z.string(),
+    arguments: z.record(z.string(), z.any()),
+  }).optional(),
 });
 
 export type QueryRequest = z.infer<typeof QueryRequestSchema>;

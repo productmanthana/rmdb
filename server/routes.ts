@@ -43,10 +43,10 @@ export function registerRoutes(app: Express): Express {
         });
       }
 
-      const { question } = validation.data;
+      const { question, previousContext } = validation.data;
       const engine = getQueryEngine();
 
-      const response = await engine.processQuery(question, queryExternalDb);
+      const response = await engine.processQuery(question, queryExternalDb, previousContext);
 
       // Generate AI insights automatically if query was successful
       if (response.success && response.data && response.data.length > 0) {
