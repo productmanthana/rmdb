@@ -368,6 +368,7 @@ export default function ChatPage() {
   const [aiAnalysisInputs, setAiAnalysisInputs] = useState<Record<string, string>>({});
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Record<string, boolean>>({});
   const [maximizedTable, setMaximizedTable] = useState<{ messageId: string; data: any[] } | null>(null);
+  const [activeTabPerMessage, setActiveTabPerMessage] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   // Fetch chat history
@@ -886,7 +887,16 @@ export default function ChatPage() {
 
                                 {/* Data Display */}
                                 {message.response.success && (
-                                  <Tabs defaultValue="data" className="w-full">
+                                  <Tabs 
+                                    defaultValue="data" 
+                                    className="w-full"
+                                    onValueChange={(value) => {
+                                      setActiveTabPerMessage(prev => ({
+                                        ...prev,
+                                        [message.id]: value
+                                      }));
+                                    }}
+                                  >
                                     <TabsList className="glass border-0">
                                       <TabsTrigger value="data" className="text-white data-[state=active]:glass-input" data-testid="tab-data">
                                         Response
@@ -1410,9 +1420,11 @@ export default function ChatPage() {
               lastMessage?.response?.data && 
               lastMessage?.response?.data.length > 0 &&
               ((lastMessage.aiAnalysisMessages || []).filter(m => m.type === "user").length < 3);
+            
+            const isAnalysisTabActive = lastMessage && activeTabPerMessage[lastMessage.id] === "analysis";
 
-            if (hasActiveFollowUps) {
-              // Show "Start New Question" button instead
+            if (hasActiveFollowUps && isAnalysisTabActive) {
+              // Show "Start New Question" button instead (only when on analysis tab)
               return (
                 <div className="glass-dark border-t border-white/10 shrink-0">
                   <div className="max-w-4xl mx-auto px-4 py-4">
