@@ -3251,6 +3251,10 @@ export class QueryEngine {
     previousArgs: Record<string, any>,
     newArgs: Record<string, any>
   ): Record<string, any> {
+    console.log(`[SmartMerge] STARTING MERGE`);
+    console.log(`[SmartMerge] Previous args:`, JSON.stringify(previousArgs));
+    console.log(`[SmartMerge] New args:`, JSON.stringify(newArgs));
+
     // Define parameter categories
     const REPLACEABLE_PARAMS = new Set([
       'tags',        // If user mentions new tags, they want THOSE tags, not old + new
@@ -3285,6 +3289,11 @@ export class QueryEngine {
     // Step 1: Add all previous cumulative parameters (unless new ones override them)
     for (const [key, value] of Object.entries(previousArgs)) {
       if (CUMULATIVE_PARAMS.has(key) && !(key in newArgs)) {
+        console.log(`[SmartMerge] Keeping cumulative param: ${key} = ${JSON.stringify(value)}`);
+        result[key] = value;
+      } else if (!CUMULATIVE_PARAMS.has(key) && !REPLACEABLE_PARAMS.has(key)) {
+        // Unknown parameter - keep it for safety
+        console.log(`[SmartMerge] Keeping unknown param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
       }
     }
@@ -3293,17 +3302,62 @@ export class QueryEngine {
     for (const [key, value] of Object.entries(newArgs)) {
       if (REPLACEABLE_PARAMS.has(key)) {
         // REPLACE: Don't merge with previous value, just use new value
+        console.log(`[SmartMerge] Replacing param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
       } else {
         // CUMULATIVE or OVERRIDE: Use new value
+        console.log(`[SmartMerge] Adding/overriding param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
       }
     }
 
-    // Step 3: Handle special cases
+    // Step 3: Handle special pivot cases
+    console.log(`[SmartMerge] Checking pivot conditions...`);
+    console.log(`[SmartMerge]   newArgs.categories? ${!!newArgs.categories}`);
+    console.log(`[SmartMerge]   previousArgs.tags? ${!!previousArgs.tags}`);
+    console.log(`[SmartMerge]   !newArgs.tags? ${!newArgs.tags}`);
     
-    // If new args have both tags AND old args had tags, we've already replaced
-    // But log it for debugging
+    // IMPORTANT: If user provides new categories but had old tags,
+    // this is likely a PIVOT (e.g., tags:Rail/Transit → categories:Healthcare).
+    // In this case, we should CLEAR old tags to prevent impossible combinations
+    // like "categories=Healthcare AND tags=Rail"
+    if (newArgs.categories && previousArgs.tags && !newArgs.tags) {
+      console.log(`[SmartMerge] PIVOT condition met: new categories, old tags exist, no new tags`);
+      // User pivoted to new categories but didn't mention tags
+      // Check if categories actually changed (or if previous had no categories)
+      const oldCats = JSON.stringify(previousArgs.categories || []);
+      const newCats = JSON.stringify(newArgs.categories);
+      
+      console.log(`[SmartMerge]   Comparing categories: ${oldCats} vs ${newCats}`);
+      
+      if (oldCats !== newCats) {
+        // Categories changed or were newly added - this is a pivot, clear old tags
+        delete result.tags;
+        console.log(`[SmartMerge] ✅ PIVOT DETECTED: Categories changed/added, CLEARING old tags`);
+        console.log(`[SmartMerge]   Old categories: ${oldCats}, New categories: ${newCats}`);
+        console.log(`[SmartMerge]   Old tags (${JSON.stringify(previousArgs.tags)}) were removed`);
+      }
+    }
+
+    // Similarly, if user provides new tags but had old categories
+    // Clear old categories (they're pivoting from one domain to another)
+    if (newArgs.tags && previousArgs.categories && !newArgs.categories) {
+      console.log(`[SmartMerge] PIVOT condition met: new tags, old categories exist, no new categories`);
+      const oldTags = JSON.stringify(previousArgs.tags || []);
+      const newTags = JSON.stringify(newArgs.tags);
+      
+      console.log(`[SmartMerge]   Comparing tags: ${oldTags} vs ${newTags}`);
+      
+      if (oldTags !== newTags) {
+        // Tags changed or were newly added - this is a pivot, clear old categories
+        delete result.categories;
+        console.log(`[SmartMerge] ✅ PIVOT DETECTED: Tags changed/added, CLEARING old categories`);
+        console.log(`[SmartMerge]   Old tags: ${oldTags}, New tags: ${newTags}`);
+        console.log(`[SmartMerge]   Old categories (${JSON.stringify(previousArgs.categories)}) were removed`);
+      }
+    }
+    
+    // Log replacements for debugging
     if (previousArgs.tags && newArgs.tags) {
       console.log(`[SmartMerge] Tags REPLACED: ${JSON.stringify(previousArgs.tags)} → ${JSON.stringify(newArgs.tags)}`);
     }
@@ -3332,26 +3386,29 @@ FOLLOW-UP REFINEMENT: ${userQuestion}
 
 CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
 1. **USE THE SAME QUERY TYPE** (${previousContext.function_name}) unless the user explicitly asks for something completely different
-2. **REPLACE parameters of the same type** - If the previous query had a POC and the user provides a name, REPLACE the POC name
-3. **Keep other filters unchanged** - Status, dates, companies, etc. should be preserved unless explicitly changed
+2. **EXTRACT ONLY NEW/CHANGED PARAMETERS** from the follow-up question - DO NOT repeat previous parameters
+3. The system will automatically merge your extracted parameters with previous ones
 
-COMMON FOLLOW-UP PATTERNS:
-- User provides just a NAME → Replace the POC/client/person parameter with the new name, keep the same function (${previousContext.function_name})
-- "best", "top one", "#1" → Keep everything, just set limit=1
-- "next X months/years" → Update date range only, keep other filters
-- "in California" → ADD state filter, keep everything else
-- "mega sized" → ADD/UPDATE size filter, keep everything else
+IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in the follow-up question "${userQuestion}".
+- If the follow-up mentions new tags/categories → Extract ONLY those new tags/categories
+- If the follow-up mentions a date → Extract ONLY the new date
+- If the follow-up mentions a size → Extract ONLY the size
+- DO NOT include previous parameters unless they're explicitly mentioned again
 
 EXAMPLES:
-Previous: get_projects_by_poc with poc="Amy Wincko"
-Follow-up: "Michael Luciani" 
-→ Use get_projects_by_poc with poc="Michael Luciani" (SAME FUNCTION, REPLACE POC)
+Previous: get_projects_by_date_range with tags=["Rail","Transit"], start_date="2025-10-31"
+Follow-up: "Healthcare, Medical, Hospital"
+→ Extract: categories=["Healthcare","Medical","Hospital"] ONLY (system will handle previous filters)
 
 Previous: get_projects_by_year with year=2024
 Follow-up: "only mega sized"
-→ Use get_projects_by_year with year=2024, size="mega" (ADD SIZE FILTER)
+→ Extract: size="mega" ONLY (year will be preserved by system)
 
-Extract the COMPLETE set of filters, maintaining the query type and replacing parameters appropriately.`
+Previous: get_largest_projects with start_date="2025-01-01"
+Follow-up: "last 3 months"
+→ Extract: start_date and end_date for last 3 months (replaces previous date)
+
+Extract ONLY the parameters mentioned in: "${userQuestion}"`
         : userQuestion;
 
       const classification = await this.openaiClient.classifyQuery(
