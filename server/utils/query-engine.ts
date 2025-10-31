@@ -657,6 +657,26 @@ export class QueryEngine {
         chart_field: "Fee",
       },
 
+      compare_pocs: {
+        sql: `SELECT 
+              "Point Of Contact" as poc,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count
+              FROM "Sample"
+              WHERE "Point Of Contact" ILIKE $1 OR "Point Of Contact" ILIKE $2
+              GROUP BY "Point Of Contact"
+              ORDER BY total_value DESC NULLS LAST`,
+        params: ["poc1", "poc2"],
+        param_types: ["str", "str"],
+        optional_params: ["start_date", "end_date", "status", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
       // ═══════════════════════════════════════════════════════════════
       // DESCRIPTION SEARCH
       // ═══════════════════════════════════════════════════════════════
@@ -1362,6 +1382,19 @@ export class QueryEngine {
         },
       },
 
+      {
+        name: "compare_pocs",
+        description: "Compare performance metrics between two Points of Contact/POCs/project managers. Use when user wants to compare two people, their performance, projects, or results. Returns aggregated metrics for both POCs.",
+        parameters: {
+          type: "object",
+          properties: {
+            poc1: { type: "string", description: "Name of the first Point of Contact/POC" },
+            poc2: { type: "string", description: "Name of the second Point of Contact/POC" },
+          },
+          required: ["poc1", "poc2"],
+        },
+      },
+
       // Description Search
       {
         name: "search_description",
@@ -1702,7 +1735,7 @@ Extract the COMPLETE set of filters, maintaining the query type and replacing pa
       for (const paramName of template.params) {
         if (args[paramName] !== undefined) {
           // Add wildcards for text search parameters that use ILIKE
-          if (paramName === 'poc' || paramName === 'keyword' || paramName === 'client') {
+          if (paramName === 'poc' || paramName === 'poc1' || paramName === 'poc2' || paramName === 'keyword' || paramName === 'client') {
             sqlParams.push(`%${args[paramName]}%`);
           } else {
             sqlParams.push(args[paramName]);
