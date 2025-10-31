@@ -1060,9 +1060,32 @@ export default function ChatPage() {
                                           Follow up questions
                                         </h3>
 
-                                        {/* Follow-up Chat Interface */}
-                                        <div className="mb-4 space-y-6 min-h-[200px]">
-                                          {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 ? (
+                                        {/* Check if there's data to analyze */}
+                                        {!message.response.data || message.response.data.length === 0 ? (
+                                          <div className="glass-dark rounded-xl p-6 border border-white/10">
+                                            <div className="flex flex-col items-center justify-center gap-4 text-center">
+                                              <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center">
+                                                <AlertCircle className="h-8 w-8 text-white/70" />
+                                              </div>
+                                              <div>
+                                                <p className="text-base font-medium text-white mb-2">No Data Available</p>
+                                                <p className="text-sm text-white/60 mb-4">
+                                                  The query returned no results. Follow-up questions require data to analyze.
+                                                </p>
+                                                <p className="text-xs text-white/50 mb-3">Try asking:</p>
+                                                <div className="space-y-2 text-xs text-white/70">
+                                                  <p>• "Show me all projects from 2024"</p>
+                                                  <p>• "What are the top 10 largest projects?"</p>
+                                                  <p>• "Compare revenue between companies"</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <>
+                                            {/* Follow-up Chat Interface */}
+                                            <div className="mb-4 space-y-6 min-h-[200px]">
+                                              {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 ? (
                                             <div className="space-y-6">
                                               {message.aiAnalysisMessages.map((msg) => (
                                                 <div key={msg.id} className="space-y-3">
@@ -1346,6 +1369,8 @@ export default function ChatPage() {
                                             </div>
                                           );
                                         })()}
+                                          </>
+                                        )}
                                       </div>
                                     </TabsContent>
                                   </Tabs>

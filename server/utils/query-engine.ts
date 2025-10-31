@@ -1780,6 +1780,13 @@ Extract the COMPLETE set of filters combining both previous and new requirements
       paramIndex++;
     }
 
+    // Point of Contact filter (POC)
+    if (args.poc) {
+      filters.push(`"Point Of Contact" ILIKE $${paramIndex}`);
+      params.push(`%${args.poc}%`);
+      paramIndex++;
+    }
+
     // Categories filter (array)
     if (args.categories && args.categories.length > 0) {
       filters.push(`"Request Category" ILIKE ANY($${paramIndex})`);
@@ -1916,6 +1923,12 @@ Extract the COMPLETE set of filters combining both previous and new requirements
       if (args.client) {
         filters.push(`"Client" ILIKE $${paramIndex}`);
         params.push(`%${args.client}%`);
+        paramIndex++;
+      }
+
+      if (args.poc) {
+        filters.push(`"Point Of Contact" ILIKE $${paramIndex}`);
+        params.push(`%${args.poc}%`);
         paramIndex++;
       }
 
