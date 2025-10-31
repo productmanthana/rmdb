@@ -621,6 +621,217 @@ export class QueryEngine {
       },
 
       // ═══════════════════════════════════════════════════════════════
+      // POC (POINT OF CONTACT) ANALYSIS
+      // ═══════════════════════════════════════════════════════════════
+
+      get_top_pocs: {
+        sql: `SELECT "Point Of Contact" as poc,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count
+              FROM "Sample"
+              WHERE "Point Of Contact" IS NOT NULL AND "Point Of Contact" != ''
+              GROUP BY "Point Of Contact"
+              ORDER BY total_value DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_projects_by_poc: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE "Point Of Contact" ILIKE $1
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
+        params: ["poc"],
+        param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // DESCRIPTION SEARCH
+      // ═══════════════════════════════════════════════════════════════
+
+      search_description: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE "Description" ILIKE $1
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
+        params: ["keyword"],
+        param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // MONTH-BASED QUERIES
+      // ═══════════════════════════════════════════════════════════════
+
+      get_projects_by_month: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE EXTRACT(YEAR FROM "Start Date") = $1
+              AND EXTRACT(MONTH FROM "Start Date") = $2
+              AND "Start Date" > '2000-01-01'
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
+        params: ["year", "month"],
+        param_types: ["int", "int"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      get_revenue_by_month: {
+        sql: `SELECT 
+              EXTRACT(YEAR FROM "Start Date") as year,
+              EXTRACT(MONTH FROM "Start Date") as month,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee
+              FROM "Sample"
+              WHERE EXTRACT(YEAR FROM "Start Date") = $1
+              AND "Start Date" > '2000-01-01'
+              GROUP BY year, month
+              ORDER BY month`,
+        params: ["year"],
+        param_types: ["int"],
+        chart_type: "line",
+        chart_field: "total_revenue",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // TREND ANALYSIS
+      // ═══════════════════════════════════════════════════════════════
+
+      get_yoy_growth: {
+        sql: `WITH yearly_stats AS (
+                SELECT 
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee
+                FROM "Sample"
+                WHERE EXTRACT(YEAR FROM "Start Date") IN ($1, $2)
+                AND "Start Date" > '2000-01-01'
+                GROUP BY year
+              )
+              SELECT 
+                year,
+                project_count,
+                total_revenue,
+                avg_fee,
+                LAG(total_revenue) OVER (ORDER BY year) as prev_year_revenue,
+                CASE 
+                  WHEN LAG(total_revenue) OVER (ORDER BY year) > 0 
+                  THEN ((total_revenue - LAG(total_revenue) OVER (ORDER BY year)) / LAG(total_revenue) OVER (ORDER BY year)) * 100
+                  ELSE NULL
+                END as yoy_growth_pct
+              FROM yearly_stats
+              ORDER BY year`,
+        params: ["year1", "year2"],
+        param_types: ["int", "int"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // REGIONAL PERFORMANCE
+      // ═══════════════════════════════════════════════════════════════
+
+      get_revenue_by_state: {
+        sql: `SELECT "State Lookup" as state,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count
+              FROM "Sample"
+              WHERE "State Lookup" IS NOT NULL AND "State Lookup" != ''
+              GROUP BY "State Lookup"
+              ORDER BY total_revenue DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // CLIENT ANALYSIS
+      // ═══════════════════════════════════════════════════════════════
+
+      get_repeat_clients: {
+        sql: `SELECT "Client",
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              MIN("Start Date") as first_project,
+              MAX("Start Date") as latest_project
+              FROM "Sample"
+              WHERE "Client" IS NOT NULL AND "Client" != ''
+              GROUP BY "Client"
+              HAVING COUNT(*) > 1
+              ORDER BY project_count DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // RISK ANALYSIS
+      // ═══════════════════════════════════════════════════════════════
+
+      get_high_risk_opportunities: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE CAST(NULLIF("Fee", '') AS NUMERIC) > $1
+              AND CAST(NULLIF("Win %", '') AS NUMERIC) < $2
+              AND "Status" NOT IN ('Won', 'Lost')
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC
+              {limit_clause}`,
+        params: ["min_fee", "max_win"],
+        param_types: ["float", "int"],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PROJECT TYPE ANALYSIS
+      // ═══════════════════════════════════════════════════════════════
+
+      get_revenue_by_project_type: {
+        sql: `SELECT "Project Type",
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+              FROM "Sample"
+              WHERE "Project Type" IS NOT NULL AND "Project Type" != ''
+              GROUP BY "Project Type"
+              ORDER BY total_revenue DESC NULLS LAST`,
+        params: [],
+        param_types: [],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
       // UTILITY QUERIES
       // ═══════════════════════════════════════════════════════════════
 
@@ -1123,6 +1334,136 @@ export class QueryEngine {
             year2: { type: "integer" },
           },
           required: ["year1", "year2"],
+        },
+      },
+
+      // POC (Point of Contact)
+      {
+        name: "get_top_pocs",
+        description: "Get top performing project managers/POCs by total value, project count, or win rate. Use for questions like 'best POCs', 'top project managers', 'who handles most projects'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of POCs to return" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_projects_by_poc",
+        description: "Get all projects managed by specific Point of Contact/POC/project manager. Use when user asks for a specific person's projects.",
+        parameters: {
+          type: "object",
+          properties: {
+            poc: { type: "string", description: "Name of the Point of Contact/project manager" },
+          },
+          required: ["poc"],
+        },
+      },
+
+      // Description Search
+      {
+        name: "search_description",
+        description: "Search for projects by keyword in project description. Use when user wants to find projects 'mentioning', 'containing', 'about', or 'describing' specific topics.",
+        parameters: {
+          type: "object",
+          properties: {
+            keyword: { type: "string", description: "Keyword or phrase to search for in descriptions" },
+          },
+          required: ["keyword"],
+        },
+      },
+
+      // Month-based Queries
+      {
+        name: "get_projects_by_month",
+        description: "Get projects starting in specific month. Use when user asks for 'January projects', 'March 2024', etc.",
+        parameters: {
+          type: "object",
+          properties: {
+            year: { type: "integer", description: "Year (e.g., 2024)" },
+            month: { type: "integer", description: "Month number 1-12 (1=Jan, 12=Dec)" },
+          },
+          required: ["year", "month"],
+        },
+      },
+
+      {
+        name: "get_revenue_by_month",
+        description: "Get monthly revenue breakdown for a specific year. Use for 'monthly revenue', 'revenue by month', 'monthly trends'.",
+        parameters: {
+          type: "object",
+          properties: {
+            year: { type: "integer", description: "Year to analyze" },
+          },
+          required: ["year"],
+        },
+      },
+
+      // Trend Analysis
+      {
+        name: "get_yoy_growth",
+        description: "Calculate year-over-year growth between two years. Use for 'YoY growth', 'compare 2023 vs 2024', 'year over year'.",
+        parameters: {
+          type: "object",
+          properties: {
+            year1: { type: "integer", description: "First year (earlier)" },
+            year2: { type: "integer", description: "Second year (later)" },
+          },
+          required: ["year1", "year2"],
+        },
+      },
+
+      // Regional Analysis
+      {
+        name: "get_revenue_by_state",
+        description: "Get revenue breakdown by state/region. Use for 'revenue by state', 'regional performance', 'market share by geography'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of states to return" },
+          },
+          required: [],
+        },
+      },
+
+      // Client Analysis
+      {
+        name: "get_repeat_clients",
+        description: "Get clients with multiple projects (repeat customers). Use for 'repeat clients', 'returning customers', 'client loyalty'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of clients to return" },
+          },
+          required: [],
+        },
+      },
+
+      // Risk Analysis
+      {
+        name: "get_high_risk_opportunities",
+        description: "Find high-value projects with low win rates (risky opportunities). Use for 'high risk', 'risky projects', 'low confidence high value'.",
+        parameters: {
+          type: "object",
+          properties: {
+            min_fee: { type: "number", description: "Minimum project value to consider" },
+            max_win: { type: "integer", description: "Maximum win percentage (low confidence threshold)" },
+            limit: { type: "integer", description: "Number of projects to return" },
+          },
+          required: ["min_fee", "max_win"],
+        },
+      },
+
+      // Project Type Analysis
+      {
+        name: "get_revenue_by_project_type",
+        description: "Get revenue breakdown by project type (Design, Construction, etc.). Use for 'revenue by project type', 'which types are most profitable'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
         },
       },
 
