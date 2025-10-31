@@ -41,9 +41,12 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE EXTRACT(YEAR FROM "Start Date") = $1
               AND "Start Date" > '2000-01-01'
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["year"],
         param_types: ["int"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -53,9 +56,12 @@ export class QueryEngine {
               WHERE "Start Date" >= $1::date 
               AND "Start Date" <= $2::date
               AND "Start Date" > '2000-01-01'
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["start_date", "end_date"],
         param_types: ["str", "str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -65,9 +71,12 @@ export class QueryEngine {
               WHERE EXTRACT(YEAR FROM "Start Date") = $1
               AND EXTRACT(QUARTER FROM "Start Date") = $2
               AND "Start Date" > '2000-01-01'
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["year", "quarter"],
         param_types: ["int", "int"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -76,9 +85,12 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE EXTRACT(YEAR FROM "Start Date") = ANY($1)
               AND "Start Date" > '2000-01-01'
-              ORDER BY "Start Date", CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY "Start Date", CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["years"],
         param_types: ["array"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -91,11 +103,12 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE "Fee" IS NOT NULL AND "Fee" != ''
               {date_filter}
+              {additional_filters}
               ORDER BY CAST("Fee" AS NUMERIC) DESC
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_year", "end_year", "limit", "start_date", "end_date"],
+        optional_params: ["start_year", "end_year", "limit", "start_date", "end_date", "size", "status", "state_code", "company", "client", "categories", "tags", "min_win", "max_win"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -105,11 +118,12 @@ export class QueryEngine {
               WHERE "Fee" IS NOT NULL AND "Fee" != ''
               AND CAST("Fee" AS NUMERIC) > 0
               {date_filter}
+              {additional_filters}
               ORDER BY CAST("Fee" AS NUMERIC) ASC
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_year", "end_year", "limit", "start_date", "end_date"],
+        optional_params: ["start_year", "end_year", "limit", "start_date", "end_date", "size", "status", "state_code", "company", "client", "categories", "tags", "min_win", "max_win"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -118,11 +132,12 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE "State Lookup" = $1::text
               AND "Fee" IS NOT NULL AND "Fee" != ''
+              {additional_filters}
               ORDER BY CAST("Fee" AS NUMERIC) DESC
               {limit_clause}`,
         params: ["state_code"],
         param_types: ["str"],
-        optional_params: ["limit"],
+        optional_params: ["limit", "size", "status", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -131,11 +146,12 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE "Request Category" ILIKE $1
               AND "Fee" IS NOT NULL AND "Fee" != ''
+              {additional_filters}
               ORDER BY CAST("Fee" AS NUMERIC) DESC
               {limit_clause}`,
         params: ["category"],
         param_types: ["str"],
-        optional_params: ["limit"],
+        optional_params: ["limit", "size", "status", "state_code", "company", "client", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -147,9 +163,12 @@ export class QueryEngine {
       get_projects_by_category: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Request Category" ILIKE $1
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["category"],
         param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -157,9 +176,12 @@ export class QueryEngine {
       get_projects_by_project_type: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Project Type" ILIKE $1
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["project_type"],
         param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -167,9 +189,12 @@ export class QueryEngine {
       get_projects_by_multiple_categories: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Request Category" ILIKE ANY($1)
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["categories"],
         param_types: ["array"],
+        optional_params: ["size", "status", "state_code", "company", "client", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -182,11 +207,12 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE "Tags" ILIKE $1
               AND "Fee" IS NOT NULL AND "Fee" != ''
+              {additional_filters}
               ORDER BY CAST("Fee" AS NUMERIC) DESC
               {limit_clause}`,
         params: ["tag"],
         param_types: ["str"],
-        optional_params: ["limit"],
+        optional_params: ["limit", "size", "status", "state_code", "company", "client", "categories", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -194,9 +220,12 @@ export class QueryEngine {
       get_projects_by_tags: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Tags" ILIKE $1
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["tag"],
         param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -239,9 +268,12 @@ export class QueryEngine {
       get_projects_by_company: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Company" ILIKE $1
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["company"],
         param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -286,9 +318,12 @@ export class QueryEngine {
       get_projects_by_client: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Client" ILIKE $1
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["client"],
         param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -312,9 +347,12 @@ export class QueryEngine {
       get_projects_by_status: {
         sql: `SELECT * FROM "Sample" 
               WHERE "Status" ILIKE $1
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["status"],
         param_types: ["str"],
+        optional_params: ["size", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -491,9 +529,12 @@ export class QueryEngine {
       get_projects_by_state: {
         sql: `SELECT * FROM "Sample" 
               WHERE "State Lookup" = $1::text
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
         params: ["state_code"],
         param_types: ["str"],
+        optional_params: ["size", "status", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -1286,6 +1327,11 @@ Extract the COMPLETE set of filters combining both previous and new requirements
         }
       }
 
+      // Mark if dates are already in required params to avoid duplication in additional_filters
+      if (template.params.includes("start_date") && template.params.includes("end_date")) {
+        args._date_already_applied = true;
+      }
+
       // Then build SQL with dynamic replacements (this will add more params)
       sql = this.buildSql(sql, args, sqlParams, template.params.length);
 
@@ -1312,6 +1358,112 @@ Extract the COMPLETE set of filters combining both previous and new requirements
     }
   }
 
+  /**
+   * Build additional filters for follow-up questions
+   * This allows ANY query to accept filter refinements from follow-ups
+   * Returns SQL fragment and the next parameter index
+   */
+  private buildAdditionalFilters(
+    args: Record<string, any>,
+    params: any[],
+    startIndex: number
+  ): { sql: string; nextIndex: number } {
+    const filters: string[] = [];
+    let paramIndex = startIndex;
+
+    // Size filter (uses CASE statement)
+    if (args.size) {
+      const sizeCase = this.sizeCalculator.getSqlCaseStatement();
+      filters.push(`(${sizeCase}) = '${args.size}'`);
+    }
+
+    // Status filter
+    if (args.status) {
+      filters.push(`"Status" ILIKE $${paramIndex}`);
+      params.push(`%${args.status}%`);
+      paramIndex++;
+    }
+
+    // State/Location filter
+    if (args.state_code) {
+      filters.push(`"State Lookup" = $${paramIndex}::text`);
+      params.push(args.state_code);
+      paramIndex++;
+    }
+
+    // Company filter (OPCO)
+    if (args.company) {
+      filters.push(`"Company" ILIKE $${paramIndex}`);
+      params.push(`%${args.company}%`);
+      paramIndex++;
+    }
+
+    // Client filter (CLID)
+    if (args.client) {
+      filters.push(`"Client" ILIKE $${paramIndex}`);
+      params.push(`%${args.client}%`);
+      paramIndex++;
+    }
+
+    // Categories filter (array)
+    if (args.categories && args.categories.length > 0) {
+      filters.push(`"Request Category" ILIKE ANY($${paramIndex})`);
+      params.push(args.categories.map((c: string) => `%${c}%`));
+      paramIndex++;
+    }
+
+    // Tags filter (array)
+    if (args.tags && args.tags.length > 0) {
+      for (const tag of args.tags) {
+        filters.push(`"Tags" ILIKE $${paramIndex}`);
+        params.push(`%${tag}%`);
+        paramIndex++;
+      }
+    }
+
+    // Fee range filters
+    if (args.min_fee) {
+      filters.push(`CAST(NULLIF("Fee", '') AS NUMERIC) >= $${paramIndex}`);
+      params.push(args.min_fee);
+      paramIndex++;
+    }
+
+    if (args.max_fee) {
+      filters.push(`CAST(NULLIF("Fee", '') AS NUMERIC) <= $${paramIndex}`);
+      params.push(args.max_fee);
+      paramIndex++;
+    }
+
+    // Win percentage filters
+    if (args.min_win) {
+      filters.push(`CAST(NULLIF("Win %", '') AS NUMERIC) >= $${paramIndex}`);
+      params.push(args.min_win);
+      paramIndex++;
+    }
+
+    if (args.max_win) {
+      filters.push(`CAST(NULLIF("Win %", '') AS NUMERIC) <= $${paramIndex}`);
+      params.push(args.max_win);
+      paramIndex++;
+    }
+
+    // Date range filter (only add if not already in main query)
+    // Check if the query already has date parameters to avoid duplicates
+    if (args.start_date && args.end_date && !args._date_already_applied) {
+      filters.push(
+        `"Start Date" >= $${paramIndex}::date AND "Start Date" <= $${paramIndex + 1}::date`
+      );
+      params.push(args.start_date, args.end_date);
+      paramIndex += 2;
+    }
+
+    // Return SQL fragment
+    return {
+      sql: filters.length > 0 ? `AND ${filters.join(" AND ")}` : "",
+      nextIndex: paramIndex,
+    };
+  }
+
   private buildSql(sql: string, args: Record<string, any>, params: any[], startIndex: number = 0): string {
     let result = sql;
     let paramIndex = startIndex + 1;
@@ -1325,6 +1477,7 @@ Extract the COMPLETE set of filters combining both previous and new requirements
         );
         params.push(args.start_date, args.end_date);
         paramIndex += 2;
+        args._date_already_applied = true; // Mark dates as applied to avoid duplication
       } else {
         result = result.replace("{date_filter}", "");
       }
@@ -1449,6 +1602,16 @@ Extract the COMPLETE set of filters combining both previous and new requirements
         "{tag_conditions}",
         tagFilters.length > 0 ? `AND ${tagFilters.join(" AND ")}` : ""
       );
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // UNIVERSAL ADDITIONAL FILTERS
+    // This allows ANY query to accept follow-up filter refinements!
+    // ═══════════════════════════════════════════════════════════════
+    if (result.includes("{additional_filters}")) {
+      const additionalFilters = this.buildAdditionalFilters(args, params, paramIndex);
+      result = result.replace("{additional_filters}", additionalFilters.sql);
+      paramIndex = additionalFilters.nextIndex;
     }
 
     // Handle other placeholders
