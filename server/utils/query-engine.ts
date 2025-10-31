@@ -875,6 +875,418 @@ export class QueryEngine {
         chart_type: "bar",
         chart_field: "Fee",
       },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHASE 1: HIGH-VALUE COMPARISONS
+      // ═══════════════════════════════════════════════════════════════
+
+      compare_states: {
+        sql: `SELECT "State Lookup" as state,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count
+              FROM "Sample"
+              WHERE "State Lookup" = ANY($1)
+              {additional_filters}
+              GROUP BY "State Lookup"
+              ORDER BY total_value DESC NULLS LAST`,
+        params: ["states"],
+        param_types: ["array"],
+        optional_params: ["start_date", "end_date", "status", "company", "categories"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      compare_categories: {
+        sql: `SELECT "Request Category" as category,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count
+              FROM "Sample"
+              WHERE "Request Category" ILIKE ANY($1)
+              {additional_filters}
+              GROUP BY "Request Category"
+              ORDER BY total_value DESC NULLS LAST`,
+        params: ["categories"],
+        param_types: ["array"],
+        optional_params: ["start_date", "end_date", "status", "state_code", "company"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      compare_clients: {
+        sql: `SELECT "Client",
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count,
+              MAX("Start Date") as latest_project
+              FROM "Sample"
+              WHERE "Client" ILIKE ANY($1)
+              {additional_filters}
+              GROUP BY "Client"
+              ORDER BY total_value DESC NULLS LAST`,
+        params: ["clients"],
+        param_types: ["array"],
+        optional_params: ["start_date", "end_date", "status", "state_code", "company"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      compare_quarters: {
+        sql: `SELECT 
+              EXTRACT(YEAR FROM "Start Date") as year,
+              EXTRACT(QUARTER FROM "Start Date") as quarter,
+              CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+              FROM "Sample"
+              WHERE (EXTRACT(YEAR FROM "Start Date") = $1 AND EXTRACT(QUARTER FROM "Start Date") = $2)
+                 OR (EXTRACT(YEAR FROM "Start Date") = $3 AND EXTRACT(QUARTER FROM "Start Date") = $4)
+              AND "Start Date" > '2000-01-01'
+              {additional_filters}
+              GROUP BY year, quarter
+              ORDER BY year, quarter`,
+        params: ["year1", "quarter1", "year2", "quarter2"],
+        param_types: ["int", "int", "int", "int"],
+        optional_params: ["status", "company", "state_code", "categories"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      compare_months_across_years: {
+        sql: `SELECT 
+              EXTRACT(YEAR FROM "Start Date") as year,
+              EXTRACT(MONTH FROM "Start Date") as month,
+              TO_CHAR("Start Date", 'Mon YYYY') as period,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee
+              FROM "Sample"
+              WHERE EXTRACT(MONTH FROM "Start Date") = $1
+              AND EXTRACT(YEAR FROM "Start Date") = ANY($2)
+              AND "Start Date" > '2000-01-01'
+              {additional_filters}
+              GROUP BY year, month
+              ORDER BY year`,
+        params: ["month", "years"],
+        param_types: ["int", "array"],
+        optional_params: ["status", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      compare_to_average: {
+        sql: `WITH segment_stats AS (
+                SELECT 
+                  CASE 
+                    WHEN $1 = 'company' THEN "Company"
+                    WHEN $1 = 'state' THEN "State Lookup"
+                    WHEN $1 = 'category' THEN "Request Category"
+                    WHEN $1 = 'poc' THEN "Point Of Contact"
+                  END as segment,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+                FROM "Sample"
+                WHERE CASE 
+                  WHEN $1 = 'company' THEN "Company" IS NOT NULL
+                  WHEN $1 = 'state' THEN "State Lookup" IS NOT NULL
+                  WHEN $1 = 'category' THEN "Request Category" IS NOT NULL
+                  WHEN $1 = 'poc' THEN "Point Of Contact" IS NOT NULL
+                END
+                GROUP BY segment
+              ),
+              overall_avg AS (
+                SELECT 
+                  AVG(avg_project_value) as overall_avg_value,
+                  AVG(avg_win_rate) as overall_avg_win_rate
+                FROM segment_stats
+              )
+              SELECT 
+                s.segment,
+                s.project_count,
+                s.total_value,
+                s.avg_project_value,
+                s.avg_win_rate,
+                o.overall_avg_value,
+                o.overall_avg_win_rate,
+                ROUND(((s.avg_project_value - o.overall_avg_value) / NULLIF(o.overall_avg_value, 0) * 100)::numeric, 2) as pct_diff_from_avg
+              FROM segment_stats s, overall_avg o
+              WHERE s.segment ILIKE $2
+              ORDER BY s.total_value DESC`,
+        params: ["dimension", "value"],
+        param_types: ["str", "str"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      rank_all_pocs: {
+        sql: `WITH poc_stats AS (
+                SELECT 
+                  "Point Of Contact" as poc,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+                  COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+                  COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count,
+                  ROUND((COUNT(CASE WHEN "Status" = 'Won' THEN 1 END)::numeric / 
+                         NULLIF(COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END), 0) * 100)::numeric, 2) as actual_win_rate
+                FROM "Sample"
+                WHERE "Point Of Contact" IS NOT NULL AND "Point Of Contact" != ''
+                {additional_filters}
+                GROUP BY "Point Of Contact"
+              )
+              SELECT 
+                ROW_NUMBER() OVER (ORDER BY total_value DESC) as rank,
+                poc,
+                project_count,
+                total_value,
+                avg_project_value,
+                avg_win_rate,
+                won_count,
+                lost_count,
+                actual_win_rate
+              FROM poc_stats
+              ORDER BY total_value DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_state_performance_ranking: {
+        sql: `WITH state_stats AS (
+                SELECT 
+                  "State Lookup" as state,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+                  COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count
+                FROM "Sample"
+                WHERE "State Lookup" IS NOT NULL AND "State Lookup" != ''
+                {additional_filters}
+                GROUP BY "State Lookup"
+              )
+              SELECT 
+                ROW_NUMBER() OVER (ORDER BY total_value DESC) as rank,
+                state,
+                project_count,
+                total_value,
+                avg_project_value,
+                avg_win_rate,
+                won_count
+              FROM state_stats
+              ORDER BY total_value DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "status", "limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_client_lifetime_value: {
+        sql: `SELECT "Client",
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as lifetime_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              MIN("Start Date") as first_project_date,
+              MAX("Start Date") as latest_project_date,
+              EXTRACT(DAYS FROM (MAX("Start Date") - MIN("Start Date"))) as relationship_days,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count
+              FROM "Sample"
+              WHERE "Client" IS NOT NULL AND "Client" != ''
+              {additional_filters}
+              GROUP BY "Client"
+              ORDER BY lifetime_value DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        chart_type: "bar",
+        chart_field: "lifetime_value",
+      },
+
+      get_client_win_rate_by_type: {
+        sql: `SELECT 
+              CASE 
+                WHEN project_count >= 10 THEN 'Enterprise'
+                WHEN project_count >= 5 THEN 'Mid-Market'
+                ELSE 'Small'
+              END as client_tier,
+              COUNT(DISTINCT "Client") as client_count,
+              SUM(project_count) as total_projects,
+              AVG(avg_win_rate) as avg_win_rate,
+              SUM(total_value) as total_value
+              FROM (
+                SELECT 
+                  "Client",
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                GROUP BY "Client"
+              ) client_stats
+              GROUP BY client_tier
+              ORDER BY 
+                CASE client_tier 
+                  WHEN 'Enterprise' THEN 1 
+                  WHEN 'Mid-Market' THEN 2 
+                  ELSE 3 
+                END`,
+        params: [],
+        param_types: [],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_poc_efficiency: {
+        sql: `SELECT 
+              "Point Of Contact" as poc,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              ROUND((SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) / NULLIF(COUNT(*), 0))::numeric, 2) as revenue_per_project,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count
+              FROM "Sample"
+              WHERE "Point Of Contact" IS NOT NULL AND "Point Of Contact" != ''
+              {additional_filters}
+              GROUP BY "Point Of Contact"
+              ORDER BY revenue_per_project DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        chart_type: "bar",
+        chart_field: "revenue_per_project",
+      },
+
+      get_poc_win_rate_trend: {
+        sql: `SELECT 
+              "Point Of Contact" as poc,
+              EXTRACT(YEAR FROM "Start Date") as year,
+              EXTRACT(QUARTER FROM "Start Date") as quarter,
+              COUNT(*) as project_count,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_predicted_win_rate,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END) as closed_count,
+              ROUND((COUNT(CASE WHEN "Status" = 'Won' THEN 1 END)::numeric / 
+                     NULLIF(COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END), 0) * 100)::numeric, 2) as actual_win_rate
+              FROM "Sample"
+              WHERE "Point Of Contact" ILIKE $1
+              AND "Start Date" > '2000-01-01'
+              GROUP BY "Point Of Contact", year, quarter
+              ORDER BY year DESC, quarter DESC`,
+        params: ["poc"],
+        param_types: ["str"],
+        chart_type: "line",
+        chart_field: "actual_win_rate",
+      },
+
+      get_top_bottom_performers: {
+        sql: `WITH poc_performance AS (
+                SELECT 
+                  "Point Of Contact" as poc,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+                FROM "Sample"
+                WHERE "Point Of Contact" IS NOT NULL AND "Point Of Contact" != ''
+                {additional_filters}
+                GROUP BY "Point Of Contact"
+                HAVING COUNT(*) >= 3
+              ),
+              ranked AS (
+                SELECT 
+                  poc,
+                  project_count,
+                  total_value,
+                  avg_project_value,
+                  avg_win_rate,
+                  ROW_NUMBER() OVER (ORDER BY total_value DESC) as rank_desc,
+                  ROW_NUMBER() OVER (ORDER BY total_value ASC) as rank_asc
+                FROM poc_performance
+              )
+              SELECT 
+                poc,
+                project_count,
+                total_value,
+                avg_project_value,
+                avg_win_rate,
+                CASE WHEN rank_desc <= 5 THEN 'Top Performer'
+                     WHEN rank_asc <= 5 THEN 'Needs Improvement'
+                     ELSE 'Average'
+                END as performance_tier
+              FROM ranked
+              WHERE rank_desc <= 5 OR rank_asc <= 5
+              ORDER BY total_value DESC`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_category_by_state_matrix: {
+        sql: `SELECT 
+              "State Lookup" as state,
+              "Request Category" as category,
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+              FROM "Sample"
+              WHERE "State Lookup" IS NOT NULL AND "State Lookup" != ''
+              AND "Request Category" IS NOT NULL AND "Request Category" != ''
+              {additional_filters}
+              GROUP BY "State Lookup", "Request Category"
+              ORDER BY total_value DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "status", "limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_status_by_category_matrix: {
+        sql: `SELECT 
+              "Request Category" as category,
+              "Status",
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate,
+              ROUND((COUNT(*)::numeric / SUM(COUNT(*)) OVER (PARTITION BY "Request Category") * 100)::numeric, 2) as pct_of_category
+              FROM "Sample"
+              WHERE "Request Category" IS NOT NULL AND "Request Category" != ''
+              AND "Status" IS NOT NULL AND "Status" != ''
+              {additional_filters}
+              GROUP BY "Request Category", "Status"
+              ORDER BY "Request Category", total_value DESC NULLS LAST`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
     };
   }
 
@@ -1493,6 +1905,209 @@ export class QueryEngine {
       {
         name: "get_revenue_by_project_type",
         description: "Get revenue breakdown by project type (Design, Construction, etc.). Use for 'revenue by project type', 'which types are most profitable'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHASE 1: HIGH-VALUE COMPARISONS
+      // ═══════════════════════════════════════════════════════════════
+
+      {
+        name: "compare_states",
+        description: "Compare performance metrics between 2 or more states. Use when user wants side-by-side state comparison. Examples: 'compare CA and TX', 'compare California, Texas, and Florida'.",
+        parameters: {
+          type: "object",
+          properties: {
+            states: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of state codes to compare (e.g., ['CA', 'TX', 'FL'])",
+            },
+          },
+          required: ["states"],
+        },
+      },
+
+      {
+        name: "compare_categories",
+        description: "Compare performance metrics between 2 or more request categories. Use when user wants side-by-side category comparison. Examples: 'compare Design and Construction', 'compare these categories: X, Y, Z'.",
+        parameters: {
+          type: "object",
+          properties: {
+            categories: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of categories to compare",
+            },
+          },
+          required: ["categories"],
+        },
+      },
+
+      {
+        name: "compare_clients",
+        description: "Compare performance metrics between 2 or more clients. Use when user wants side-by-side client comparison. Examples: 'compare Client A and Client B', 'compare CLID 1573 and CLID 3507'.",
+        parameters: {
+          type: "object",
+          properties: {
+            clients: {
+              type: "array",
+              items: { type: "string" },
+              description: "List of clients to compare (can be client names or CLIDs)",
+            },
+          },
+          required: ["clients"],
+        },
+      },
+
+      {
+        name: "compare_quarters",
+        description: "Compare two specific quarters (e.g., Q1 2024 vs Q1 2023, or Q4 2024 vs Q3 2024). Use when user wants quarter-over-quarter comparison.",
+        parameters: {
+          type: "object",
+          properties: {
+            year1: { type: "integer", description: "First quarter's year" },
+            quarter1: { type: "integer", description: "First quarter (1-4)" },
+            year2: { type: "integer", description: "Second quarter's year" },
+            quarter2: { type: "integer", description: "Second quarter (1-4)" },
+          },
+          required: ["year1", "quarter1", "year2", "quarter2"],
+        },
+      },
+
+      {
+        name: "compare_months_across_years",
+        description: "Compare the same month across different years (e.g., December 2023 vs December 2024). Use when user wants month-over-month year-over-year comparison.",
+        parameters: {
+          type: "object",
+          properties: {
+            month: { type: "integer", description: "Month number (1-12)" },
+            years: {
+              type: "array",
+              items: { type: "integer" },
+              description: "List of years to compare",
+            },
+          },
+          required: ["month", "years"],
+        },
+      },
+
+      {
+        name: "compare_to_average",
+        description: "Compare a specific entity (company, state, category, or POC) to the overall average. Use when user asks 'how does X compare to average?', 'is X above/below average?'.",
+        parameters: {
+          type: "object",
+          properties: {
+            dimension: {
+              type: "string",
+              enum: ["company", "state", "category", "poc"],
+              description: "What dimension to compare (company, state, category, or poc)",
+            },
+            value: { type: "string", description: "The specific value to compare (e.g., 'CA', 'Design', 'Michael Luciani')" },
+          },
+          required: ["dimension", "value"],
+        },
+      },
+
+      {
+        name: "rank_all_pocs",
+        description: "Get complete ranking/leaderboard of all POCs by performance. Use when user asks for 'POC rankings', 'leaderboard', 'who are the top POCs', 'rank all project managers'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of POCs to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_state_performance_ranking",
+        description: "Get complete ranking of all states by performance. Use when user asks for 'state rankings', 'which states perform best', 'rank states by revenue'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of states to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_client_lifetime_value",
+        description: "Get total lifetime value of clients including first/last project dates, relationship duration. Use when user asks about 'client lifetime value', 'total value per client', 'client history'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of clients to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_client_win_rate_by_type",
+        description: "Segment clients into Enterprise/Mid-Market/Small tiers and show win rates by tier. Use when user asks about 'client segmentation', 'win rates by client size', 'enterprise vs small clients'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_poc_efficiency",
+        description: "Calculate revenue per project for each POC (efficiency metric). Use when user asks about 'POC efficiency', 'revenue per project by POC', 'most efficient project managers'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of POCs to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_poc_win_rate_trend",
+        description: "Show how a specific POC's win rate has changed over time by quarter. Use when user asks about 'POC performance over time', 'is X improving?', 'POC trend analysis'.",
+        parameters: {
+          type: "object",
+          properties: {
+            poc: { type: "string", description: "Name of the Point of Contact" },
+          },
+          required: ["poc"],
+        },
+      },
+
+      {
+        name: "get_top_bottom_performers",
+        description: "Identify top 5 and bottom 5 performing POCs. Use when user asks about 'best and worst performers', 'who's struggling', 'star performers and underperformers'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_category_by_state_matrix",
+        description: "Multi-dimensional analysis showing how each category performs in each state. Use when user asks about 'category performance by state', 'which categories work best in which states', 'geographic category analysis'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of results (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_status_by_category_matrix",
+        description: "Multi-dimensional analysis showing status distribution within each category. Use when user asks about 'win rates by category', 'how each category is performing', 'category conversion rates'.",
         parameters: {
           type: "object",
           properties: {},
