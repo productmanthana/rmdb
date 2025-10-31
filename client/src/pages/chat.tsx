@@ -888,7 +888,7 @@ export default function ChatPage() {
                                 {/* Data Display */}
                                 {message.response.success && (
                                   <Tabs 
-                                    defaultValue="data" 
+                                    value={activeTabPerMessage[message.id] || "data"}
                                     className="w-full"
                                     onValueChange={(value) => {
                                       setActiveTabPerMessage(prev => ({
