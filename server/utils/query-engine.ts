@@ -3255,6 +3255,24 @@ export class QueryEngine {
     console.log(`[SmartMerge] Previous args:`, JSON.stringify(previousArgs));
     console.log(`[SmartMerge] New args:`, JSON.stringify(newArgs));
 
+    // Normalize tags and categories to always be arrays (AI might return strings)
+    if (newArgs.tags && typeof newArgs.tags === 'string') {
+      newArgs.tags = [newArgs.tags];
+      console.log(`[SmartMerge] Normalized new tags from string to array:`, newArgs.tags);
+    }
+    if (newArgs.categories && typeof newArgs.categories === 'string') {
+      newArgs.categories = [newArgs.categories];
+      console.log(`[SmartMerge] Normalized new categories from string to array:`, newArgs.categories);
+    }
+    if (previousArgs.tags && typeof previousArgs.tags === 'string') {
+      previousArgs.tags = [previousArgs.tags];
+      console.log(`[SmartMerge] Normalized previous tags from string to array:`, previousArgs.tags);
+    }
+    if (previousArgs.categories && typeof previousArgs.categories === 'string') {
+      previousArgs.categories = [previousArgs.categories];
+      console.log(`[SmartMerge] Normalized previous categories from string to array:`, previousArgs.categories);
+    }
+
     // Define parameter categories
     const REPLACEABLE_PARAMS = new Set([
       'company',     // Usually want to pivot to a different company
@@ -3405,6 +3423,7 @@ CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
 3. The system will automatically merge your extracted parameters with previous ones
 
 IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in the follow-up question "${userQuestion}".
+- If the user says "tags" or "tagged" → Treat those values as TAGS (e.g., "show tags: Rail, Transit" = tags: ["Rail", "Transit"])
 - If the follow-up is "also add X" or "include X" → Treat X as a TAG (e.g., "also add Hospital" = tags: ["Hospital"])
 - If the follow-up is a COMMA-SEPARATED LIST without context → Treat ALL as tags (e.g., "Healthcare, Medical, Hospital, Medium" = tags)
 - If the follow-up mentions a date → Extract ONLY the new date
@@ -3532,6 +3551,35 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       } else {
         delete args.time_reference;
       }
+    }
+
+    // Client normalization - ensure all Client values start with "CLID "
+    if (args.client) {
+      const client = args.client.trim();
+      // If it's just a number or doesn't start with "CLID", add the prefix
+      if (/^\d+$/.test(client)) {
+        // Just a number like "4885" -> "CLID 4885"
+        args.client = `CLID ${client}`;
+        console.log(`[Normalize] Client normalized: "${args.client}"`);
+      } else if (!client.toUpperCase().startsWith('CLID')) {
+        // Doesn't start with CLID -> add prefix
+        args.client = `CLID ${client}`;
+        console.log(`[Normalize] Client normalized: "${args.client}"`);
+      }
+    }
+
+    // Handle clients array (for compare_clients, etc.)
+    if (args.clients && Array.isArray(args.clients)) {
+      args.clients = args.clients.map(client => {
+        const trimmed = client.trim();
+        if (/^\d+$/.test(trimmed)) {
+          return `CLID ${trimmed}`;
+        } else if (!trimmed.toUpperCase().startsWith('CLID')) {
+          return `CLID ${trimmed}`;
+        }
+        return client;
+      });
+      console.log(`[Normalize] Clients array normalized: ${JSON.stringify(args.clients)}`);
     }
 
     // Status normalization
