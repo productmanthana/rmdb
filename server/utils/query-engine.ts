@@ -2136,7 +2136,7 @@ export class QueryEngine {
       {
         name: "get_projects_by_combined_filters",
         description:
-          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. Use 'tags' parameter for keywords, industries, project types (Rail, Transit, Hospital, Healthcare, etc). Use 'categories' ONLY for official Request Category values. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead.",
+          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. Use 'tags' parameter ONLY when user explicitly mentions 'tags' or 'tagged'. For general keywords without 'tags' mention, use get_projects_by_category instead. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead.",
         parameters: {
           type: "object",
           properties: {
@@ -2147,12 +2147,12 @@ export class QueryEngine {
             categories: {
               type: "array",
               items: { type: "string" },
-              description: "Official Request Category values from database (rarely used - prefer tags)",
+              description: "Request Category values (use single category with get_projects_by_category instead)",
             },
             tags: {
               type: "array",
               items: { type: "string" },
-              description: "List of keywords/tags for filtering (e.g., Rail, Transit, Hospital, Healthcare, Design-Build, Renovation). Use this for industry terms, project types, and general keywords.",
+              description: "Keywords/tags ONLY when user explicitly says 'tags' or 'tagged' (e.g., 'show tags: Rail, Transit'). For general category queries without 'tags' keyword, use get_projects_by_category instead.",
             },
             status: { type: "string", description: "Project status" },
             client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573'). Use this for Client IDs, NOT company." },
@@ -2230,11 +2230,11 @@ export class QueryEngine {
       // Category/Type
       {
         name: "get_projects_by_category",
-        description: "Get projects by official Request Category database field ONLY. This is for formal project categories like 'Healthcare Facility', 'Corporate Office', etc. DO NOT use for general keywords, tags, or industry terms - use get_projects_by_combined_filters with 'tags' parameter instead.",
+        description: "Get projects by Request Category field. Use for project categories like 'Transportation', 'Healthcare', 'Corporate', 'Education', etc. Use this function when user asks for category/type WITHOUT the word 'tags'. If user explicitly mentions 'tags', use get_projects_by_combined_filters instead.",
         parameters: {
           type: "object",
           properties: {
-            category: { type: "string" },
+            category: { type: "string", description: "Request Category value (e.g., 'Transportation', 'Healthcare', 'Corporate')" },
           },
           required: ["category"],
         },
@@ -3423,20 +3423,21 @@ CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
 3. The system will automatically merge your extracted parameters with previous ones
 
 IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in the follow-up question "${userQuestion}".
-- If the user says "tags" or "tagged" → Treat those values as TAGS (e.g., "show tags: Rail, Transit" = tags: ["Rail", "Transit"])
-- If the follow-up is "also add X" or "include X" → Treat X as a TAG (e.g., "also add Hospital" = tags: ["Hospital"])
-- If the follow-up is a COMMA-SEPARATED LIST without context → Treat ALL as tags (e.g., "Healthcare, Medical, Hospital, Medium" = tags)
+- If the user explicitly says "tags" or "tagged" → Use TAGS parameter (e.g., "show tags: Rail, Transit" = tags: ["Rail", "Transit"])
+- If the follow-up is "also add X" (in context of previous tags) → Treat X as a TAG (e.g., "also add Hospital" = tags: ["Hospital"])
+- If the follow-up is a SINGLE category/type WITHOUT "tags" keyword → Use CATEGORY (e.g., "Transportation projects" = category: "Transportation")
+- If the follow-up is a COMMA-SEPARATED LIST → Treat as TAGS (e.g., "Rail, Transit, Hospital" = tags: [...])
 - If the follow-up mentions a date → Extract ONLY the new date
-- If the follow-up explicitly says "Request Category" → Extract as category
 - If the follow-up explicitly says "size" → Extract as size
 - If the follow-up mentions fee/money → Extract as min_fee/max_fee
 - DO NOT include previous parameters unless they're explicitly mentioned again
 
-CRITICAL: For comma-separated lists and additive refinements, use TAGS (not categories):
-"Healthcare, Medical, Hospital, Medium, Design-Build" → tags: [all of these]
-"Rail, Transit" → tags: ["Rail", "Transit"]
-"also add Hospital" → tags: ["Hospital"]
-"include Clinic" → tags: ["Clinic"]
+CRITICAL DISTINCTION - Category vs Tags:
+"Transportation projects" → category: "Transportation" (use get_projects_by_category)
+"Healthcare related projects" → category: "Healthcare" (use get_projects_by_category)
+"show tags: Rail, Transit" → tags: ["Rail", "Transit"] (use get_projects_by_combined_filters)
+"Rail, Transit, Hospital" → tags: [...] (comma-separated list = tags)
+"also add Hospital" (when previous context had tags) → tags: ["Hospital"] (additive)
 
 EXAMPLES:
 Previous: get_projects_by_date_range with tags=["Rail","Transit"], start_date="2025-10-31"
@@ -3471,6 +3472,48 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
           message: `Could not understand the question: '${userQuestion}'. Please try rephrasing.`,
           data: [],
         };
+      }
+
+      // Step 1.4: Deterministic category vs tags routing
+      // If user did NOT say "tags" or "tagged", and AI classified as combined_filters with single tag
+      // Convert to get_projects_by_category instead
+      const questionLower = userQuestion.toLowerCase().trim();
+      // Use word boundary regex to match standalone "tag", "tags", "tagged", "tag:" but NOT "heritage", "strategic"
+      const tagsKeywordPattern = /\btag(s|ged|:)?\b/;
+      const hastagsKeyword = tagsKeywordPattern.test(questionLower);
+      const isCommaList = userQuestion.includes(',');
+      
+      if (!hastagsKeyword && !isCommaList && classification.function_name === 'get_projects_by_combined_filters') {
+        const args = classification.arguments;
+        
+        // If there's a single tag (or tags array with one item) and no other meaningful filters
+        if (args.tags && !args.categories) {
+          const tagsArray = Array.isArray(args.tags) ? args.tags : [args.tags];
+          
+          // Check if there are any meaningful filters besides tags
+          // Ignore: limit, start_date/end_date (date ranges are OK with category)
+          const hasMeaningfulFilters = args.size || args.status || args.client || args.company || 
+                                      args.poc || args.state_code || args.min_fee || args.max_fee ||
+                                      args.min_win || args.max_win;
+          
+          if (tagsArray.length === 1 && !hasMeaningfulFilters) {
+            // Convert to category-based query
+            console.log(`[QueryEngine] ⚠️ ROUTING CORRECTION: Converting tags to category`);
+            console.log(`[QueryEngine]   Reason: Single value "${tagsArray[0]}" without "tag" keyword or commas`);
+            console.log(`[QueryEngine]   Original: get_projects_by_combined_filters with tags=${JSON.stringify(tagsArray)}`);
+            
+            classification.function_name = 'get_projects_by_category';
+            classification.arguments = {
+              category: tagsArray[0],
+              // Preserve date filters if present
+              ...(args.start_date && { start_date: args.start_date }),
+              ...(args.end_date && { end_date: args.end_date }),
+              ...(args.limit && { limit: args.limit }),
+            };
+            
+            console.log(`[QueryEngine]   Corrected: get_projects_by_category with category="${tagsArray[0]}"`);
+          }
+        }
       }
 
       // Step 1.5: Smart merge of previous context with new arguments
