@@ -580,11 +580,27 @@ export default function ChatPage() {
         response: data,
       };
 
-      setMessages(prev => prev.map(m => 
-        m.id === messageId 
-          ? { ...m, aiAnalysisMessages: [...(m.aiAnalysisMessages || []), assistantMsg] }
-          : m
-      ));
+      setMessages(prev => prev.map(m => {
+        if (m.id === messageId) {
+          // Update the original message's context if this follow-up refined it
+          // This ensures future follow-ups build on the cumulative refined context
+          const shouldUpdateContext = 
+            data.success && 
+            data.function_name === m.response?.function_name &&
+            data.arguments;
+
+          return {
+            ...m,
+            aiAnalysisMessages: [...(m.aiAnalysisMessages || []), assistantMsg],
+            // Update the parent response with refined arguments
+            response: shouldUpdateContext ? {
+              ...m.response!,
+              arguments: data.arguments,
+            } : m.response,
+          };
+        }
+        return m;
+      }));
 
       if (!data.success) {
         toast({
