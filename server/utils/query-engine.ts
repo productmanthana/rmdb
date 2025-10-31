@@ -2299,14 +2299,14 @@ export class QueryEngine {
       {
         name: "get_projects_by_multiple_tags",
         description:
-          "Get projects that have ALL specified tags. Use when user mentions multiple tags with 'and', '&', or commas.",
+          "Get projects that match ANY of the specified tags (OR logic). Use when user asks for projects with specific tags like 'Rail', 'Transit', 'Healthcare', etc.",
         parameters: {
           type: "object",
           properties: {
             tags: {
               type: "array",
               items: { type: "string" },
-              description: "List of tags (up to 5). Project must have ALL tags.",
+              description: "List of tags. Projects matching ANY tag will be returned (OR logic).",
             },
           },
           required: ["tags"],
@@ -4095,16 +4095,30 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     // Handle tag conditions
     if (result.includes("{tag_conditions}")) {
       const tagFilters: string[] = [];
-      for (let i = 1; i <= 5; i++) {
-        if (args[`tag${i}`]) {
+      
+      // Handle tags array (preferred format)
+      if (args.tags && Array.isArray(args.tags)) {
+        for (const tag of args.tags) {
           tagFilters.push(`"Tags" ILIKE $${paramIndex}`);
-          params.push(`%${args[`tag${i}`]}%`);
+          params.push(`%${tag}%`);
           paramIndex++;
         }
+      } 
+      // Fallback: handle individual tag1, tag2, etc. parameters
+      else {
+        for (let i = 1; i <= 5; i++) {
+          if (args[`tag${i}`]) {
+            tagFilters.push(`"Tags" ILIKE $${paramIndex}`);
+            params.push(`%${args[`tag${i}`]}%`);
+            paramIndex++;
+          }
+        }
       }
+      
+      // Use OR logic for tags (match ANY tag, not all)
       result = result.replace(
         "{tag_conditions}",
-        tagFilters.length > 0 ? `AND ${tagFilters.join(" AND ")}` : ""
+        tagFilters.length > 0 ? `AND (${tagFilters.join(" OR ")})` : ""
       );
     }
 
