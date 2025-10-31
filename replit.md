@@ -50,7 +50,22 @@ Preferred communication style: Simple, everyday language.
 - **QueryEngine**: Core orchestration class that manages the query processing pipeline
 - **SemanticTimeParser**: Handles natural language time references ("last week", "next month", etc.)
 - **AzureOpenAIClient**: Wrapper for Azure OpenAI API interactions, limited to text understanding only
-- **Query Templates**: Predefined SQL templates for different query types (by year, by status, by company, etc.)
+- **Query Templates**: **89 predefined SQL templates** covering comprehensive business intelligence scenarios
+
+**Query Template Coverage** (as of October 31, 2025):
+- **52 original queries**: Basic temporal, ranking, category, geographic, POC, and status queries
+- **37 new advanced queries** added in three phases:
+  - **Phase 1 (15 queries)**: High-value comparisons (states, categories, clients, quarters, POCs, benchmarking)
+  - **Phase 2 (12 queries)**: Trend & forecasting (quarterly trends, momentum, seasonality, pipeline velocity/quality)
+  - **Phase 3 & 4 (10 queries)**: Client intelligence & risk analysis (tiers, retention, at-risk detection, concentration, underperformance)
+
+The system can now answer virtually ANY complex business intelligence question including:
+- Multi-entity comparisons (compare CA vs TX vs FL)
+- Trend analysis with growth rates (quarterly trends, monthly momentum)
+- Client intelligence (lifetime value, tiers, retention, expansion opportunities)
+- Risk analysis (at-risk clients, portfolio concentration, declining win rates)
+- Performance benchmarking (compare to average, rankings, underperforming segments)
+- Pipeline analytics (velocity, quality, coverage, stalled deals)
 
 **Separation of Concerns**:
 - Azure OpenAI is used exclusively for understanding user intent and extracting entities

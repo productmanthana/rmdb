@@ -1637,23 +1637,26 @@ export class QueryEngine {
       },
 
       get_deal_cycle_analysis: {
-        sql: `SELECT 
-              CASE 
-                WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000 THEN 'Small (<50K)'
-                WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 200000 THEN 'Medium (50-200K)'
-                WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 500000 THEN 'Large (200-500K)'
-                ELSE 'Mega (500K+)'
-              END as deal_size,
-              "Request Category" as category,
-              COUNT(*) as project_count,
-              AVG(EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as avg_cycle_days,
-              PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as median_cycle_days
-              FROM "Sample"
-              WHERE "Fee" IS NOT NULL AND "Fee" != ''
-              AND CAST(NULLIF("Fee", '') AS NUMERIC) > 0
-              AND "Status" IN ('Won', 'Lost')
-              {additional_filters}
-              GROUP BY deal_size, category
+        sql: `WITH sized_deals AS (
+                SELECT 
+                  CASE 
+                    WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000 THEN 'Small (<50K)'
+                    WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 200000 THEN 'Medium (50-200K)'
+                    WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 500000 THEN 'Large (200-500K)'
+                    ELSE 'Mega (500K+)'
+                  END as deal_size,
+                  "Request Category" as category,
+                  COUNT(*) as project_count,
+                  AVG(EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as avg_cycle_days,
+                  PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as median_cycle_days
+                FROM "Sample"
+                WHERE "Fee" IS NOT NULL AND "Fee" != ''
+                AND CAST(NULLIF("Fee", '') AS NUMERIC) > 0
+                AND "Status" IN ('Won', 'Lost')
+                {additional_filters}
+                GROUP BY deal_size, category
+              )
+              SELECT * FROM sized_deals
               ORDER BY 
                 CASE deal_size
                   WHEN 'Mega (500K+)' THEN 1
@@ -1699,21 +1702,24 @@ export class QueryEngine {
       },
 
       get_pipeline_quality: {
-        sql: `SELECT 
-              CASE 
-                WHEN CAST(NULLIF("Win %", '') AS NUMERIC) >= 70 THEN 'High Probability (70%+)'
-                WHEN CAST(NULLIF("Win %", '') AS NUMERIC) >= 40 THEN 'Medium Probability (40-70%)'
-                ELSE 'Low Probability (<40%)'
-              END as probability_tier,
-              COUNT(*) as opportunity_count,
-              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
-              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_deal_size,
-              SUM(CAST(NULLIF("Fee", '') AS NUMERIC) * CAST(NULLIF("Win %", '') AS NUMERIC) / 100) as weighted_value
-              FROM "Sample"
-              WHERE "Status" NOT IN ('Won', 'Lost')
-              AND "Win %" IS NOT NULL AND "Win %" != ''
-              {additional_filters}
-              GROUP BY probability_tier
+        sql: `WITH tiered_pipeline AS (
+                SELECT 
+                  CASE 
+                    WHEN CAST(NULLIF("Win %", '') AS NUMERIC) >= 70 THEN 'High Probability (70%+)'
+                    WHEN CAST(NULLIF("Win %", '') AS NUMERIC) >= 40 THEN 'Medium Probability (40-70%)'
+                    ELSE 'Low Probability (<40%)'
+                  END as probability_tier,
+                  COUNT(*) as opportunity_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_deal_size,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC) * CAST(NULLIF("Win %", '') AS NUMERIC) / 100) as weighted_value
+                FROM "Sample"
+                WHERE "Status" NOT IN ('Won', 'Lost')
+                AND "Win %" IS NOT NULL AND "Win %" != ''
+                {additional_filters}
+                GROUP BY probability_tier
+              )
+              SELECT * FROM tiered_pipeline
               ORDER BY 
                 CASE probability_tier
                   WHEN 'High Probability (70%+)' THEN 1
@@ -1778,19 +1784,22 @@ export class QueryEngine {
                 WHERE "Client" IS NOT NULL AND "Client" != ''
                 AND "Start Date" > '2000-01-01'
                 GROUP BY "Client"
+              ),
+              categorized AS (
+                SELECT 
+                  CASE 
+                    WHEN years_active = 1 THEN 'One-Time Client'
+                    WHEN years_active >= 5 THEN 'Long-Term (5+ years)'
+                    WHEN years_active >= 3 THEN 'Established (3-4 years)'
+                    ELSE 'Repeat (2 years)'
+                  END as retention_category,
+                  COUNT(*) as client_count,
+                  SUM(total_projects) as total_projects,
+                  ROUND(AVG(total_projects)::numeric, 2) as avg_projects_per_client
+                FROM client_years
+                GROUP BY retention_category
               )
-              SELECT 
-                CASE 
-                  WHEN years_active = 1 THEN 'One-Time Client'
-                  WHEN years_active >= 5 THEN 'Long-Term (5+ years)'
-                  WHEN years_active >= 3 THEN 'Established (3-4 years)'
-                  ELSE 'Repeat (2 years)'
-                END as retention_category,
-                COUNT(*) as client_count,
-                SUM(total_projects) as total_projects,
-                ROUND(AVG(total_projects)::numeric, 2) as avg_projects_per_client
-              FROM client_years
-              GROUP BY retention_category
+              SELECT * FROM categorized
               ORDER BY 
                 CASE retention_category
                   WHEN 'Long-Term (5+ years)' THEN 1
@@ -1852,23 +1861,26 @@ export class QueryEngine {
                 WHERE "Client" IS NOT NULL AND "Client" != ''
                 GROUP BY "Client"
                 HAVING COUNT(*) > 1
+              ),
+              risk_assessed AS (
+                SELECT 
+                  "Client",
+                  total_projects,
+                  lifetime_value,
+                  last_project,
+                  days_inactive,
+                  projects_last_year,
+                  projects_prior_year,
+                  CASE 
+                    WHEN projects_last_year < projects_prior_year AND days_inactive > 180 THEN 'High Risk'
+                    WHEN projects_last_year < projects_prior_year THEN 'Medium Risk'
+                    WHEN days_inactive > 365 THEN 'Medium Risk'
+                    ELSE 'Low Risk'
+                  END as risk_level
+                FROM client_trends
+                WHERE projects_last_year < projects_prior_year OR days_inactive > 180
               )
-              SELECT 
-                "Client",
-                total_projects,
-                lifetime_value,
-                last_project,
-                days_inactive,
-                projects_last_year,
-                projects_prior_year,
-                CASE 
-                  WHEN projects_last_year < projects_prior_year AND days_inactive > 180 THEN 'High Risk'
-                  WHEN projects_last_year < projects_prior_year THEN 'Medium Risk'
-                  WHEN days_inactive > 365 THEN 'Medium Risk'
-                  ELSE 'Low Risk'
-                END as risk_level
-              FROM client_trends
-              WHERE projects_last_year < projects_prior_year OR days_inactive > 180
+              SELECT * FROM risk_assessed
               ORDER BY 
                 CASE risk_level
                   WHEN 'High Risk' THEN 1
