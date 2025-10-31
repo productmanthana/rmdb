@@ -1,0 +1,90 @@
+SQL QUERY:
+
+SELECT * FROM "Sample" 
+              WHERE "Fee" IS NOT NULL AND "Fee" != ''
+              
+              ORDER BY CAST("Fee" AS NUMERIC) DESC
+              LIMIT $1
+PARAMETERS:
+
+[
+  1
+]
+RAW JSON RESPONSE:
+
+
+Copy
+{
+  "success": true,
+  "question": "which is best of best in above",
+  "function_name": "get_largest_projects",
+  "arguments": {
+    "limit": 1
+  },
+  "data": [
+    {
+      "Request Category": "Healthcare",
+      "Module Name": "Opportunity",
+      "LP": "0",
+      "Conflict": "0",
+      "Co Op": "0",
+      "Project Name": "PID 1061",
+      "Client": "CLID 3908",
+      "Status": "Submitted",
+      "Group Criteria": "",
+      "Fee": "2500000000",
+      "Group": "",
+      "Company": "Company G",
+      "Email": "",
+      "Point Of Contact": "Amy Wincko",
+      "Win %": "0",
+      "Project Type": "Hospitals",
+      "Start Date": "1900-01-01T00:00:00.000Z",
+      "Description": "From CM RFQ: NYU Langone Health intends to develop a state-of-the-art medical center campus in Uniondale, NY to replace our existing facilities located in Mineola, NY. The program proposes three million square feet of new construction spread over 7 buildings on a 37- acre site. The master plan includes a hospital, medical education and research facilities, ambulatory care, administration, student/staff housing, a central utility plant, and structured parking. The first phase of the program will include a 750-bed hospital, the central utility plant, and structured parking. The projects will be divided into three packages, as follows: 1. The CM will be responsible for the coordination of the construction activities on all sites, construction of the hospital, the attached parking structure, site utilities, site work, and overall site safety. 2. The CM will be responsible for the central utility plant. 3. The CM will be responsible for the east parking structure. We may award one, two, or all three of these packages to one or more CMs. We are currently in the conceptual phase of the project design, developing the master plan for the site, creating the functional program, and embarking on the regulatory discussions with the state, county, and town. Schematic design is expected to begin shortly. Based on the entitlements process, we anticipate construction will begin mid-2026. From Andrew's notes: NYULH - Long Island - New Medical Center at Nassau Community College - 2,000,000 SF Replacement Hospital, 2,500 Car Garage and possible Research Building (precon likely 2024, construction likely 2026/2027) (JB&B?) (11/30/23 EIS in process VHB ? construction start in 2026. A lot more work in Mineola in the interim ? repositioning.) (1/11/24 Debra Berger in charge of this project, along with Cary Coltun. EwingCole, LERA, VHB, JB&B. Still negotiating the boundary of the property. Still working through programming. Cost estimating will go to CM during design.) (5/16/24, @Raffaela, hasn?t moved into SD yet, and looking to supplement / build out the design team.)",
+      "State Lookup": "1831",
+      "Internal Id": "0063l00000qdMaV",
+      "Is Updated": "TRUE",
+      "Tags": "Healthcare, Medical, Hospital, Mega-Project, New-Construction"
+    }
+  ],
+  "row_count": 1,
+  "summary": {
+    "total_records": 1,
+    "total_value": 2500000000,
+    "avg_fee": 2500000000,
+    "median_fee": 2500000000,
+    "min_fee": 2500000000,
+    "max_fee": 2500000000,
+    "avg_win_rate": 0,
+    "status_breakdown": {
+      "Submitted": 1
+    },
+    "top_companies": {
+      "Company G": 1
+    }
+  },
+  "chart_config": {
+    "type": "bar",
+    "title": "Top 1 Results",
+    "labels": [
+      "PID 1061"
+    ],
+    "datasets": [
+      {
+        "label": "Fee",
+        "data": [
+          2500000000
+        ],
+        "backgroundColor": "rgba(54, 162, 235, 0.6)",
+        "borderColor": "rgba(54, 162, 235, 1)",
+        "borderWidth": 1
+      }
+    ]
+  },
+  "message": "Found 1 results",
+  "sql_query": "SELECT * FROM \"Sample\" \n              WHERE \"Fee\" IS NOT NULL AND \"Fee\" != ''\n              \n              ORDER BY CAST(\"Fee\" AS NUMERIC) DESC\n              LIMIT $1",
+  "sql_params": [
+    1
+  ],
+  "ai_insights": "1. The project is a massive healthcare development with an estimated value of $2.5 billion, making it a significant investment opportunity. It’s currently in the conceptual phase, with construction expected to start in 2026, so early engagement is crucial.\n\n2. Company G is the sole entity associated with this project, and the status is marked as \"Submitted.\" There’s a unique opportunity to monitor or support their involvement as this progresses through design and regulatory phases.\n\nRecommendation: Focus on building relationships with stakeholders like Debra Berger and Cary Coltun, who are leading the project, and track updates on design team expansion or entitlements."
+}
