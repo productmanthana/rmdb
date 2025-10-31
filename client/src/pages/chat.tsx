@@ -988,6 +988,13 @@ export default function ChatPage() {
                                               {message.response.ai_insights}
                                             </p>
                                           </div>
+                                        ) : (!message.response.data || message.response.data.length === 0) ? (
+                                          <div className="glass-dark rounded-lg p-4 text-center">
+                                            <div className="flex items-center justify-center gap-2 text-white/60">
+                                              <AlertCircle className="h-5 w-5" />
+                                              <span>No data available for AI analysis</span>
+                                            </div>
+                                          </div>
                                         ) : (
                                           <div className="glass-dark rounded-lg p-4 text-center">
                                             <div className="flex items-center justify-center gap-2 text-white/60">

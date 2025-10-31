@@ -1691,13 +1691,24 @@ Extract the COMPLETE set of filters combining both previous and new requirements
       // First, add template's required parameters in order
       for (const paramName of template.params) {
         if (args[paramName] !== undefined) {
-          sqlParams.push(args[paramName]);
+          // Add wildcards for text search parameters that use ILIKE
+          if (paramName === 'poc' || paramName === 'keyword' || paramName === 'client') {
+            sqlParams.push(`%${args[paramName]}%`);
+          } else {
+            sqlParams.push(args[paramName]);
+          }
         }
       }
 
-      // Mark if dates are already in required params to avoid duplication in additional_filters
+      // Mark if parameters are already in required params to avoid duplication in additional_filters
       if (template.params.includes("start_date") && template.params.includes("end_date")) {
         args._date_already_applied = true;
+      }
+      if (template.params.includes("poc")) {
+        args._poc_already_applied = true;
+      }
+      if (template.params.includes("keyword")) {
+        args._keyword_already_applied = true;
       }
 
       // Then build SQL with dynamic replacements (this will add more params)
@@ -1780,8 +1791,8 @@ Extract the COMPLETE set of filters combining both previous and new requirements
       paramIndex++;
     }
 
-    // Point of Contact filter (POC)
-    if (args.poc) {
+    // Point of Contact filter (POC) - only if not already in main query
+    if (args.poc && !args._poc_already_applied) {
       filters.push(`"Point Of Contact" ILIKE $${paramIndex}`);
       params.push(`%${args.poc}%`);
       paramIndex++;
@@ -1926,7 +1937,7 @@ Extract the COMPLETE set of filters combining both previous and new requirements
         paramIndex++;
       }
 
-      if (args.poc) {
+      if (args.poc && !args._poc_already_applied) {
         filters.push(`"Point Of Contact" ILIKE $${paramIndex}`);
         params.push(`%${args.poc}%`);
         paramIndex++;
