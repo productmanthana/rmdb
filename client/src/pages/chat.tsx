@@ -1144,12 +1144,16 @@ export default function ChatPage() {
                                                             </div>
                                                           </div>
 
-                                                          {msg.response.data && msg.response.data.length > 0 && (
+                                                          {msg.response.data && msg.response.data.length > 0 ? (
                                                             <TableWithExternalScrollbar 
                                                               data={msg.response.data}
                                                               messageId={`followup-${msg.id}`}
                                                               height="300px"
                                                             />
+                                                          ) : (
+                                                            <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
+                                                              No results found for this query. The filters may be too restrictive, or no data matches these criteria.
+                                                            </div>
                                                           )}
 
                                                           {/* AI Insights */}
