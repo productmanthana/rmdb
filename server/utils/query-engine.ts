@@ -1287,6 +1287,831 @@ export class QueryEngine {
         chart_type: "bar",
         chart_field: "total_value",
       },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHASE 2: TREND & FORECASTING
+      // ═══════════════════════════════════════════════════════════════
+
+      get_quarterly_trends: {
+        sql: `WITH quarterly_data AS (
+                SELECT 
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY year, quarter
+              ),
+              with_lag AS (
+                SELECT 
+                  period,
+                  year,
+                  quarter,
+                  project_count,
+                  total_revenue,
+                  avg_win_rate,
+                  LAG(total_revenue) OVER (ORDER BY year, quarter) as prev_revenue
+                FROM quarterly_data
+              )
+              SELECT 
+                period,
+                year,
+                quarter,
+                project_count,
+                total_revenue,
+                avg_win_rate,
+                prev_revenue,
+                ROUND(((total_revenue - prev_revenue) / NULLIF(prev_revenue, 0) * 100)::numeric, 2) as growth_rate_pct
+              FROM with_lag
+              ORDER BY year DESC, quarter DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "status", "limit"],
+        chart_type: "line",
+        chart_field: "total_revenue",
+      },
+
+      get_best_worst_quarters: {
+        sql: `WITH quarterly_revenue AS (
+                SELECT 
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  COUNT(*) as project_count
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY year, quarter
+              ),
+              ranked AS (
+                SELECT 
+                  period,
+                  total_revenue,
+                  project_count,
+                  ROW_NUMBER() OVER (ORDER BY total_revenue DESC) as rank_desc,
+                  ROW_NUMBER() OVER (ORDER BY total_revenue ASC) as rank_asc
+                FROM quarterly_revenue
+              )
+              SELECT 
+                period,
+                total_revenue,
+                project_count,
+                CASE 
+                  WHEN rank_desc <= 3 THEN 'Peak Quarter'
+                  WHEN rank_asc <= 3 THEN 'Trough Quarter'
+                END as quarter_type
+              FROM ranked
+              WHERE rank_desc <= 3 OR rank_asc <= 3
+              ORDER BY total_revenue DESC`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      get_monthly_momentum: {
+        sql: `WITH monthly_data AS (
+                SELECT 
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(MONTH FROM "Start Date") as month,
+                  TO_CHAR("Start Date", 'Mon YYYY') as period,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  COUNT(*) as project_count
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY year, month
+              ),
+              with_lag AS (
+                SELECT 
+                  period,
+                  year,
+                  month,
+                  total_revenue,
+                  project_count,
+                  LAG(total_revenue, 1) OVER (ORDER BY year, month) as prev_month_revenue,
+                  LAG(total_revenue, 2) OVER (ORDER BY year, month) as two_months_ago_revenue
+                FROM monthly_data
+              )
+              SELECT 
+                period,
+                total_revenue,
+                project_count,
+                prev_month_revenue,
+                ROUND(((total_revenue - prev_month_revenue) / NULLIF(prev_month_revenue, 0) * 100)::numeric, 2) as mom_growth_pct,
+                CASE 
+                  WHEN total_revenue > prev_month_revenue AND prev_month_revenue > two_months_ago_revenue THEN 'Accelerating'
+                  WHEN total_revenue < prev_month_revenue AND prev_month_revenue < two_months_ago_revenue THEN 'Decelerating'
+                  WHEN total_revenue > prev_month_revenue THEN 'Growing'
+                  WHEN total_revenue < prev_month_revenue THEN 'Declining'
+                  ELSE 'Stable'
+                END as momentum
+              FROM with_lag
+              WHERE prev_month_revenue IS NOT NULL
+              ORDER BY year DESC, month DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        chart_type: "line",
+        chart_field: "total_revenue",
+      },
+
+      get_seasonal_patterns: {
+        sql: `SELECT 
+              EXTRACT(MONTH FROM "Start Date") as month,
+              TO_CHAR("Start Date", 'Month') as month_name,
+              COUNT(*) as total_projects,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+              COUNT(DISTINCT EXTRACT(YEAR FROM "Start Date")) as years_of_data
+              FROM "Sample"
+              WHERE "Start Date" > '2000-01-01'
+              {additional_filters}
+              GROUP BY month, month_name
+              ORDER BY month`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "status"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      get_revenue_trend_by_category: {
+        sql: `WITH category_quarterly AS (
+                SELECT 
+                  "Request Category" as category,
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  COUNT(*) as project_count
+                FROM "Sample"
+                WHERE "Request Category" ILIKE $1
+                AND "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY category, year, quarter
+              ),
+              with_lag AS (
+                SELECT 
+                  category,
+                  period,
+                  total_revenue,
+                  project_count,
+                  LAG(total_revenue) OVER (PARTITION BY category ORDER BY year, quarter) as prev_revenue
+                FROM category_quarterly
+              )
+              SELECT 
+                category,
+                period,
+                total_revenue,
+                project_count,
+                ROUND(((total_revenue - prev_revenue) / NULLIF(prev_revenue, 0) * 100)::numeric, 2) as growth_rate_pct
+              FROM with_lag
+              ORDER BY period DESC`,
+        params: ["category"],
+        param_types: ["str"],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "line",
+        chart_field: "total_revenue",
+      },
+
+      get_revenue_trend_by_state: {
+        sql: `WITH state_quarterly AS (
+                SELECT 
+                  "State Lookup" as state,
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  COUNT(*) as project_count
+                FROM "Sample"
+                WHERE "State Lookup" = $1
+                AND "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY state, year, quarter
+              ),
+              with_lag AS (
+                SELECT 
+                  state,
+                  period,
+                  year,
+                  quarter,
+                  total_revenue,
+                  project_count,
+                  LAG(total_revenue) OVER (PARTITION BY state ORDER BY year, quarter) as prev_revenue
+                FROM state_quarterly
+              )
+              SELECT 
+                state,
+                period,
+                total_revenue,
+                project_count,
+                ROUND(((total_revenue - prev_revenue) / NULLIF(prev_revenue, 0) * 100)::numeric, 2) as growth_rate_pct
+              FROM with_lag
+              ORDER BY year DESC, quarter DESC`,
+        params: ["state_code"],
+        param_types: ["str"],
+        optional_params: ["start_date", "end_date", "company", "status"],
+        chart_type: "line",
+        chart_field: "total_revenue",
+      },
+
+      get_revenue_trend_by_client: {
+        sql: `WITH client_quarterly AS (
+                SELECT 
+                  "Client",
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
+                  COUNT(*) as project_count
+                FROM "Sample"
+                WHERE "Client" ILIKE $1
+                AND "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY "Client", year, quarter
+              ),
+              with_lag AS (
+                SELECT 
+                  "Client",
+                  period,
+                  year,
+                  quarter,
+                  total_revenue,
+                  project_count,
+                  LAG(total_revenue) OVER (PARTITION BY "Client" ORDER BY year, quarter) as prev_revenue
+                FROM client_quarterly
+              )
+              SELECT 
+                "Client",
+                period,
+                total_revenue,
+                project_count,
+                ROUND(((total_revenue - prev_revenue) / NULLIF(prev_revenue, 0) * 100)::numeric, 2) as growth_rate_pct,
+                CASE 
+                  WHEN total_revenue > prev_revenue THEN 'Growing'
+                  WHEN total_revenue < prev_revenue THEN 'Declining'
+                  ELSE 'Stable'
+                END as trend
+              FROM with_lag
+              ORDER BY year DESC, quarter DESC`,
+        params: ["client"],
+        param_types: ["str"],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "line",
+        chart_field: "total_revenue",
+      },
+
+      get_pipeline_velocity: {
+        sql: `SELECT 
+              "Status",
+              COUNT(*) as project_count,
+              AVG(EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as avg_days_in_pipeline,
+              MIN(EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as min_days,
+              MAX(EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as max_days,
+              PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as median_days
+              FROM "Sample"
+              WHERE "Status" IN ('Won', 'Lost', 'In Progress', 'On Hold')
+              {additional_filters}
+              GROUP BY "Status"
+              ORDER BY avg_days_in_pipeline DESC`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "categories"],
+        chart_type: "bar",
+        chart_field: "avg_days_in_pipeline",
+      },
+
+      get_conversion_rate_trend: {
+        sql: `WITH quarterly_conversions AS (
+                SELECT 
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+                  COUNT(CASE WHEN "Status" = 'Lost' THEN 1 END) as lost_count,
+                  COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END) as closed_count,
+                  ROUND((COUNT(CASE WHEN "Status" = 'Won' THEN 1 END)::numeric / 
+                         NULLIF(COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END), 0) * 100)::numeric, 2) as win_rate
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY year, quarter
+              ),
+              with_lag AS (
+                SELECT 
+                  period,
+                  year,
+                  quarter,
+                  won_count,
+                  lost_count,
+                  closed_count,
+                  win_rate,
+                  LAG(win_rate) OVER (ORDER BY year, quarter) as prev_win_rate
+                FROM quarterly_conversions
+              )
+              SELECT 
+                period,
+                won_count,
+                lost_count,
+                closed_count,
+                win_rate,
+                prev_win_rate,
+                ROUND((win_rate - prev_win_rate)::numeric, 2) as win_rate_change
+              FROM with_lag
+              ORDER BY year DESC, quarter DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "categories", "limit"],
+        chart_type: "line",
+        chart_field: "win_rate",
+      },
+
+      get_deal_cycle_analysis: {
+        sql: `SELECT 
+              CASE 
+                WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 50000 THEN 'Small (<50K)'
+                WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 200000 THEN 'Medium (50-200K)'
+                WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 500000 THEN 'Large (200-500K)'
+                ELSE 'Mega (500K+)'
+              END as deal_size,
+              "Request Category" as category,
+              COUNT(*) as project_count,
+              AVG(EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as avg_cycle_days,
+              PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date"))) as median_cycle_days
+              FROM "Sample"
+              WHERE "Fee" IS NOT NULL AND "Fee" != ''
+              AND CAST(NULLIF("Fee", '') AS NUMERIC) > 0
+              AND "Status" IN ('Won', 'Lost')
+              {additional_filters}
+              GROUP BY deal_size, category
+              ORDER BY 
+                CASE deal_size
+                  WHEN 'Mega (500K+)' THEN 1
+                  WHEN 'Large (200-500K)' THEN 2
+                  WHEN 'Medium (50-200K)' THEN 3
+                  ELSE 4
+                END,
+                category`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "avg_cycle_days",
+      },
+
+      get_pipeline_coverage: {
+        sql: `WITH pipeline_stats AS (
+                SELECT 
+                  COUNT(*) as total_opportunities,
+                  COUNT(CASE WHEN "Status" NOT IN ('Won', 'Lost') THEN 1 END) as open_opportunities,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_pipeline_value,
+                  SUM(CASE WHEN "Status" NOT IN ('Won', 'Lost') 
+                      THEN CAST(NULLIF("Fee", '') AS NUMERIC) * CAST(NULLIF("Win %", '') AS NUMERIC) / 100 
+                      END) as weighted_pipeline_value,
+                  AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_probability
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+              )
+              SELECT 
+                total_opportunities,
+                open_opportunities,
+                total_pipeline_value,
+                weighted_pipeline_value,
+                avg_win_probability,
+                ROUND((open_opportunities::numeric / NULLIF(total_opportunities, 0) * 100)::numeric, 2) as pct_still_open
+              FROM pipeline_stats`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "categories"],
+        chart_type: "bar",
+        chart_field: "weighted_pipeline_value",
+      },
+
+      get_pipeline_quality: {
+        sql: `SELECT 
+              CASE 
+                WHEN CAST(NULLIF("Win %", '') AS NUMERIC) >= 70 THEN 'High Probability (70%+)'
+                WHEN CAST(NULLIF("Win %", '') AS NUMERIC) >= 40 THEN 'Medium Probability (40-70%)'
+                ELSE 'Low Probability (<40%)'
+              END as probability_tier,
+              COUNT(*) as opportunity_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_deal_size,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC) * CAST(NULLIF("Win %", '') AS NUMERIC) / 100) as weighted_value
+              FROM "Sample"
+              WHERE "Status" NOT IN ('Won', 'Lost')
+              AND "Win %" IS NOT NULL AND "Win %" != ''
+              {additional_filters}
+              GROUP BY probability_tier
+              ORDER BY 
+                CASE probability_tier
+                  WHEN 'High Probability (70%+)' THEN 1
+                  WHEN 'Medium Probability (40-70%)' THEN 2
+                  ELSE 3
+                END`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "categories"],
+        chart_type: "pie",
+        chart_field: "opportunity_count",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHASE 3: CLIENT INTELLIGENCE & PHASE 4: RISK/PERFORMANCE
+      // ═══════════════════════════════════════════════════════════════
+
+      get_clients_by_value_tier: {
+        sql: `WITH client_stats AS (
+                SELECT 
+                  "Client",
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+                  MAX("Start Date") as latest_project
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                {additional_filters}
+                GROUP BY "Client"
+              )
+              SELECT 
+                "Client",
+                project_count,
+                total_value,
+                avg_project_value,
+                latest_project,
+                CASE 
+                  WHEN total_value >= 1000000 THEN 'Platinum (1M+)'
+                  WHEN total_value >= 500000 THEN 'Gold (500K-1M)'
+                  WHEN total_value >= 100000 THEN 'Silver (100K-500K)'
+                  ELSE 'Bronze (<100K)'
+                END as client_tier
+              FROM client_stats
+              ORDER BY total_value DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_client_retention_rate: {
+        sql: `WITH client_years AS (
+                SELECT 
+                  "Client",
+                  COUNT(DISTINCT EXTRACT(YEAR FROM "Start Date")) as years_active,
+                  MIN(EXTRACT(YEAR FROM "Start Date")) as first_year,
+                  MAX(EXTRACT(YEAR FROM "Start Date")) as last_year,
+                  COUNT(*) as total_projects
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                AND "Start Date" > '2000-01-01'
+                GROUP BY "Client"
+              )
+              SELECT 
+                CASE 
+                  WHEN years_active = 1 THEN 'One-Time Client'
+                  WHEN years_active >= 5 THEN 'Long-Term (5+ years)'
+                  WHEN years_active >= 3 THEN 'Established (3-4 years)'
+                  ELSE 'Repeat (2 years)'
+                END as retention_category,
+                COUNT(*) as client_count,
+                SUM(total_projects) as total_projects,
+                ROUND(AVG(total_projects)::numeric, 2) as avg_projects_per_client
+              FROM client_years
+              GROUP BY retention_category
+              ORDER BY 
+                CASE retention_category
+                  WHEN 'Long-Term (5+ years)' THEN 1
+                  WHEN 'Established (3-4 years)' THEN 2
+                  WHEN 'Repeat (2 years)' THEN 3
+                  ELSE 4
+                END`,
+        params: [],
+        param_types: [],
+        chart_type: "pie",
+        chart_field: "client_count",
+      },
+
+      get_dormant_clients: {
+        sql: `WITH client_last_activity AS (
+                SELECT 
+                  "Client",
+                  MAX("Start Date") as last_project_date,
+                  EXTRACT(DAYS FROM (CURRENT_DATE - MAX("Start Date"))) as days_since_last_project,
+                  COUNT(*) as total_projects,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as lifetime_value
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                GROUP BY "Client"
+              )
+              SELECT 
+                "Client",
+                last_project_date,
+                days_since_last_project,
+                total_projects,
+                lifetime_value,
+                CASE 
+                  WHEN days_since_last_project > 730 THEN 'Dormant (2+ years)'
+                  WHEN days_since_last_project > 365 THEN 'At Risk (1-2 years)'
+                  ELSE 'Recent (<1 year)'
+                END as client_status
+              FROM client_last_activity
+              WHERE days_since_last_project > 365
+              ORDER BY lifetime_value DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "lifetime_value",
+      },
+
+      get_at_risk_clients: {
+        sql: `WITH client_trends AS (
+                SELECT 
+                  "Client",
+                  COUNT(*) as total_projects,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as lifetime_value,
+                  MAX("Start Date") as last_project,
+                  EXTRACT(DAYS FROM (CURRENT_DATE - MAX("Start Date"))) as days_inactive,
+                  COUNT(CASE WHEN "Start Date" >= CURRENT_DATE - INTERVAL '365 days' THEN 1 END) as projects_last_year,
+                  COUNT(CASE WHEN "Start Date" >= CURRENT_DATE - INTERVAL '730 days' AND "Start Date" < CURRENT_DATE - INTERVAL '365 days' THEN 1 END) as projects_prior_year
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                GROUP BY "Client"
+                HAVING COUNT(*) > 1
+              )
+              SELECT 
+                "Client",
+                total_projects,
+                lifetime_value,
+                last_project,
+                days_inactive,
+                projects_last_year,
+                projects_prior_year,
+                CASE 
+                  WHEN projects_last_year < projects_prior_year AND days_inactive > 180 THEN 'High Risk'
+                  WHEN projects_last_year < projects_prior_year THEN 'Medium Risk'
+                  WHEN days_inactive > 365 THEN 'Medium Risk'
+                  ELSE 'Low Risk'
+                END as risk_level
+              FROM client_trends
+              WHERE projects_last_year < projects_prior_year OR days_inactive > 180
+              ORDER BY 
+                CASE risk_level
+                  WHEN 'High Risk' THEN 1
+                  WHEN 'Medium Risk' THEN 2
+                  ELSE 3
+                END,
+                lifetime_value DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "lifetime_value",
+      },
+
+      get_client_expansion_opportunities: {
+        sql: `WITH client_categories AS (
+                SELECT 
+                  "Client",
+                  array_agg(DISTINCT "Request Category") as categories_purchased,
+                  COUNT(DISTINCT "Request Category") as category_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  COUNT(*) as project_count
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                AND "Request Category" IS NOT NULL
+                GROUP BY "Client"
+                HAVING COUNT(DISTINCT "Request Category") < 3
+              )
+              SELECT 
+                "Client",
+                category_count,
+                categories_purchased,
+                total_value,
+                project_count,
+                CASE 
+                  WHEN category_count = 1 THEN 'High Expansion Potential'
+                  WHEN category_count = 2 THEN 'Medium Expansion Potential'
+                  ELSE 'Low Expansion Potential'
+                END as expansion_opportunity
+              FROM client_categories
+              ORDER BY total_value DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_portfolio_diversity: {
+        sql: `WITH concentration_metrics AS (
+                SELECT 
+                  COUNT(DISTINCT "Client") as total_clients,
+                  COUNT(DISTINCT "State Lookup") as total_states,
+                  COUNT(DISTINCT "Request Category") as total_categories,
+                  COUNT(DISTINCT "Company") as total_companies,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+              ),
+              top_clients AS (
+                SELECT 
+                  SUM(client_value) as top_10_client_revenue
+                FROM (
+                  SELECT 
+                    SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as client_value
+                  FROM "Sample"
+                  WHERE "Client" IS NOT NULL
+                  GROUP BY "Client"
+                  ORDER BY client_value DESC
+                  LIMIT 10
+                ) top_10
+              )
+              SELECT 
+                c.total_clients,
+                c.total_states,
+                c.total_categories,
+                c.total_companies,
+                c.total_revenue,
+                t.top_10_client_revenue,
+                ROUND((t.top_10_client_revenue / NULLIF(c.total_revenue, 0) * 100)::numeric, 2) as top_10_concentration_pct
+              FROM concentration_metrics c, top_clients t`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "total_revenue",
+      },
+
+      get_client_concentration: {
+        sql: `WITH ranked_clients AS (
+                SELECT 
+                  "Client",
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as client_revenue,
+                  COUNT(*) as project_count,
+                  SUM(SUM(CAST(NULLIF("Fee", '') AS NUMERIC))) OVER () as total_revenue,
+                  ROW_NUMBER() OVER (ORDER BY SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) DESC) as revenue_rank
+                FROM "Sample"
+                WHERE "Client" IS NOT NULL AND "Client" != ''
+                {additional_filters}
+                GROUP BY "Client"
+              )
+              SELECT 
+                revenue_rank,
+                "Client",
+                client_revenue,
+                project_count,
+                ROUND((client_revenue / NULLIF(total_revenue, 0) * 100)::numeric, 2) as pct_of_total_revenue,
+                SUM(client_revenue) OVER (ORDER BY revenue_rank) as cumulative_revenue,
+                ROUND((SUM(client_revenue) OVER (ORDER BY revenue_rank) / NULLIF(total_revenue, 0) * 100)::numeric, 2) as cumulative_pct
+              FROM ranked_clients
+              WHERE revenue_rank <= 20
+              ORDER BY revenue_rank`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code"],
+        chart_type: "bar",
+        chart_field: "client_revenue",
+      },
+
+      get_declining_win_rates: {
+        sql: `WITH quarterly_win_rates AS (
+                SELECT 
+                  EXTRACT(YEAR FROM "Start Date") as year,
+                  EXTRACT(QUARTER FROM "Start Date") as quarter,
+                  CONCAT('Q', EXTRACT(QUARTER FROM "Start Date"), ' ', EXTRACT(YEAR FROM "Start Date")) as period,
+                  ROUND((COUNT(CASE WHEN "Status" = 'Won' THEN 1 END)::numeric / 
+                         NULLIF(COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END), 0) * 100)::numeric, 2) as win_rate,
+                  COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END) as closed_deals
+                FROM "Sample"
+                WHERE "Start Date" > '2000-01-01'
+                {additional_filters}
+                GROUP BY year, quarter
+                HAVING COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END) >= 3
+              ),
+              with_lag AS (
+                SELECT 
+                  period,
+                  year,
+                  quarter,
+                  win_rate,
+                  closed_deals,
+                  LAG(win_rate) OVER (ORDER BY year, quarter) as prev_win_rate,
+                  LAG(win_rate, 2) OVER (ORDER BY year, quarter) as two_quarters_ago_win_rate
+                FROM quarterly_win_rates
+              )
+              SELECT 
+                period,
+                win_rate,
+                prev_win_rate,
+                closed_deals,
+                ROUND((win_rate - prev_win_rate)::numeric, 2) as win_rate_change
+              FROM with_lag
+              WHERE win_rate < prev_win_rate 
+              AND prev_win_rate < two_quarters_ago_win_rate
+              ORDER BY year DESC, quarter DESC
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["start_date", "end_date", "company", "state_code", "categories", "limit"],
+        chart_type: "line",
+        chart_field: "win_rate",
+      },
+
+      get_underperforming_segments: {
+        sql: `WITH segment_performance AS (
+                SELECT 
+                  $1 as dimension,
+                  CASE 
+                    WHEN $1 = 'category' THEN "Request Category"
+                    WHEN $1 = 'state' THEN "State Lookup"
+                    WHEN $1 = 'company' THEN "Company"
+                  END as segment_name,
+                  COUNT(*) as project_count,
+                  SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+                  AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_project_value,
+                  ROUND((COUNT(CASE WHEN "Status" = 'Won' THEN 1 END)::numeric / 
+                         NULLIF(COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END), 0) * 100)::numeric, 2) as win_rate
+                FROM "Sample"
+                WHERE CASE 
+                  WHEN $1 = 'category' THEN "Request Category" IS NOT NULL
+                  WHEN $1 = 'state' THEN "State Lookup" IS NOT NULL
+                  WHEN $1 = 'company' THEN "Company" IS NOT NULL
+                END
+                {additional_filters}
+                GROUP BY segment_name
+                HAVING COUNT(*) >= 5
+              ),
+              averages AS (
+                SELECT 
+                  AVG(avg_project_value) as overall_avg_value,
+                  AVG(win_rate) as overall_avg_win_rate
+                FROM segment_performance
+              )
+              SELECT 
+                s.segment_name,
+                s.project_count,
+                s.total_value,
+                s.avg_project_value,
+                s.win_rate,
+                a.overall_avg_value,
+                a.overall_avg_win_rate,
+                ROUND(((s.avg_project_value - a.overall_avg_value) / NULLIF(a.overall_avg_value, 0) * 100)::numeric, 2) as pct_below_avg_value,
+                ROUND((s.win_rate - a.overall_avg_win_rate)::numeric, 2) as pct_below_avg_win_rate
+              FROM segment_performance s, averages a
+              WHERE s.avg_project_value < a.overall_avg_value 
+              OR s.win_rate < a.overall_avg_win_rate
+              ORDER BY s.total_value ASC
+              {limit_clause}`,
+        params: ["dimension"],
+        param_types: ["str"],
+        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        chart_type: "bar",
+        chart_field: "total_value",
+      },
+
+      get_stalled_deals: {
+        sql: `SELECT 
+              "Project Name",
+              "Client",
+              "State Lookup" as state,
+              "Request Category" as category,
+              "Status",
+              "Start Date",
+              CAST(NULLIF("Fee", '') AS NUMERIC) as fee,
+              CAST(NULLIF("Win %", '') AS NUMERIC) as win_probability,
+              EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date")) as days_in_pipeline,
+              "Point Of Contact" as poc
+              FROM "Sample"
+              WHERE "Status" NOT IN ('Won', 'Lost')
+              AND EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date")) > $1
+              AND "Fee" IS NOT NULL
+              {additional_filters}
+              ORDER BY EXTRACT(DAYS FROM (CURRENT_DATE - "Start Date")) DESC
+              {limit_clause}`,
+        params: ["min_days_stalled"],
+        param_types: ["int"],
+        optional_params: ["company", "state_code", "categories", "limit"],
+        chart_type: "bar",
+        chart_field: "fee",
+      },
     };
   }
 
@@ -2112,6 +2937,269 @@ export class QueryEngine {
           type: "object",
           properties: {},
           required: [],
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHASE 2: TREND & FORECASTING
+      // ═══════════════════════════════════════════════════════════════
+
+      {
+        name: "get_quarterly_trends",
+        description: "Show quarterly revenue trends with quarter-over-quarter growth rates. Use when user asks about 'quarterly trends', 'QoQ growth', 'quarter performance over time'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of quarters to show (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_best_worst_quarters",
+        description: "Identify the top 3 peak quarters and bottom 3 trough quarters by revenue. Use when user asks about 'best/worst quarters', 'strongest/weakest quarters', 'peak performance periods'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_monthly_momentum",
+        description: "Show month-over-month trends with acceleration/deceleration indicators (Accelerating, Decelerating, Growing, Declining, Stable). Use when user asks about 'monthly momentum', 'are we accelerating?', 'monthly trends'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of months to show (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_seasonal_patterns",
+        description: "Analyze seasonal patterns by showing average performance for each month across all years. Use when user asks about 'seasonality', 'which months are best', 'seasonal trends', 'Q4 spike'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_revenue_trend_by_category",
+        description: "Show revenue trend over time for a specific category with growth rates. Use when user asks about 'category growth over time', 'how is Design trending', 'category performance trend'.",
+        parameters: {
+          type: "object",
+          properties: {
+            category: { type: "string", description: "Request Category to analyze" },
+          },
+          required: ["category"],
+        },
+      },
+
+      {
+        name: "get_revenue_trend_by_state",
+        description: "Show revenue trend over time for a specific state with growth rates. Use when user asks about 'state growth over time', 'how is CA trending', 'geographic expansion trend'.",
+        parameters: {
+          type: "object",
+          properties: {
+            state_code: { type: "string", description: "State code to analyze (e.g., 'CA', 'TX')" },
+          },
+          required: ["state_code"],
+        },
+      },
+
+      {
+        name: "get_revenue_trend_by_client",
+        description: "Show revenue trend over time for a specific client with growth indicators. Use when user asks about 'client growth over time', 'is this client growing?', 'client relationship trend'.",
+        parameters: {
+          type: "object",
+          properties: {
+            client: { type: "string", description: "Client name or CLID" },
+          },
+          required: ["client"],
+        },
+      },
+
+      {
+        name: "get_pipeline_velocity",
+        description: "Calculate average time projects spend in pipeline by status. Use when user asks about 'pipeline velocity', 'deal cycle time', 'how long until close', 'time in pipeline'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_conversion_rate_trend",
+        description: "Show win rate trends over time by quarter with changes. Use when user asks about 'conversion rate trends', 'is our win rate improving?', 'win rate over time'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of quarters to show (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_deal_cycle_analysis",
+        description: "Analyze average deal cycle duration by deal size and category. Use when user asks about 'deal cycle by size', 'how long do large deals take?', 'cycle time analysis'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_pipeline_coverage",
+        description: "Calculate total pipeline value, weighted pipeline value, and coverage metrics. Use when user asks about 'pipeline coverage', 'pipeline value', 'what's in the pipeline?'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_pipeline_quality",
+        description: "Segment pipeline into High/Medium/Low probability tiers based on win percentage. Use when user asks about 'pipeline quality', 'how strong is our pipeline?', 'probability distribution'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      // ═══════════════════════════════════════════════════════════════
+      // PHASE 3: CLIENT INTELLIGENCE & PHASE 4: RISK/PERFORMANCE
+      // ═══════════════════════════════════════════════════════════════
+
+      {
+        name: "get_clients_by_value_tier",
+        description: "Segment clients into Platinum/Gold/Silver/Bronze tiers by total value. Use when user asks about 'top clients', 'client tiers', 'client segmentation', 'VIP clients'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of clients to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_client_retention_rate",
+        description: "Analyze client retention by categorizing into Long-Term (5+ years), Established (3-4 years), Repeat (2 years), or One-Time clients. Use when user asks about 'client retention', 'how loyal are clients?', 'repeat business'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_dormant_clients",
+        description: "Identify clients who haven't had projects in 1+ years but have lifetime value. Use when user asks about 'dormant clients', 'inactive clients', 'clients we lost', 'win-back opportunities'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of clients to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_at_risk_clients",
+        description: "Identify clients showing declining activity (fewer projects this year vs last year, or long inactivity). Use when user asks about 'at-risk clients', 'clients we might lose', 'declining clients'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of clients to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_client_expansion_opportunities",
+        description: "Find clients who only buy 1-2 categories (cross-sell/upsell potential). Use when user asks about 'expansion opportunities', 'cross-sell potential', 'clients who could buy more categories'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Maximum number of clients to return (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_portfolio_diversity",
+        description: "Analyze portfolio concentration risk (how much revenue comes from top 10 clients). Use when user asks about 'concentration risk', 'portfolio diversity', 'how dependent are we on top clients?'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_client_concentration",
+        description: "Show top 20 clients with revenue concentration and cumulative percentages (Pareto analysis). Use when user asks about 'client concentration', 'top 20 clients', '80/20 analysis', 'revenue distribution'.",
+        parameters: {
+          type: "object",
+          properties: {},
+          required: [],
+        },
+      },
+
+      {
+        name: "get_declining_win_rates",
+        description: "Identify quarters where win rate has declined for 2+ consecutive quarters (early warning signal). Use when user asks about 'declining win rates', 'is our win rate dropping?', 'performance alerts'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of declining periods to show (optional)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_underperforming_segments",
+        description: "Find categories/states/companies performing below average in value or win rate. Use when user asks about 'underperforming segments', 'which categories/states are struggling?', 'below average performance'.",
+        parameters: {
+          type: "object",
+          properties: {
+            dimension: {
+              type: "string",
+              enum: ["category", "state", "company"],
+              description: "What dimension to analyze (category, state, or company)",
+            },
+            limit: { type: "integer", description: "Maximum number of segments to return (optional)" },
+          },
+          required: ["dimension"],
+        },
+      },
+
+      {
+        name: "get_stalled_deals",
+        description: "Identify open deals that have been in pipeline longer than a threshold (e.g., 180 days). Use when user asks about 'stalled deals', 'deals stuck in pipeline', 'slow-moving opportunities'.",
+        parameters: {
+          type: "object",
+          properties: {
+            min_days_stalled: {
+              type: "integer",
+              description: "Minimum days in pipeline to be considered stalled (e.g., 180)",
+            },
+            limit: { type: "integer", description: "Maximum number of deals to return (optional)" },
+          },
+          required: ["min_days_stalled"],
         },
       },
 
