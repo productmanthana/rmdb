@@ -1119,7 +1119,18 @@ export class QueryEngine {
       // Step 1: Classify query with LLM (text understanding only)
       // If we have previous context, provide it to help maintain filters
       const enhancedQuestion = previousContext
-        ? `Previous query context: ${previousContext.question} (filters: ${JSON.stringify(previousContext.arguments)}). Follow-up question: ${userQuestion}`
+        ? `CONTEXT: The user previously asked: "${previousContext.question}"
+Applied filters: ${JSON.stringify(previousContext.arguments)}
+
+FOLLOW-UP REFINEMENT: ${userQuestion}
+
+IMPORTANT INSTRUCTIONS:
+- Keep ALL existing filters from the previous query (${JSON.stringify(previousContext.arguments)})
+- ADD any new filters mentioned in the follow-up refinement
+- If the follow-up changes a filter (like date range), UPDATE that specific filter while keeping others
+- Merge the contexts intelligently to create a refined search
+
+Extract the COMPLETE set of filters combining both previous and new requirements.`
         : userQuestion;
 
       const classification = await this.openaiClient.classifyQuery(
