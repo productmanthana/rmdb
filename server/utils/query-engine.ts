@@ -3704,13 +3704,16 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       paramIndex++;
     }
 
-    // Tags filter (array)
+    // Tags filter (array) - use OR logic: match if ANY tag matches
     if (args.tags && args.tags.length > 0) {
-      for (const tag of args.tags) {
-        filters.push(`"Tags" ILIKE $${paramIndex}`);
+      const tagConditions = args.tags.map((tag: string) => {
+        const condition = `"Tags" ILIKE $${paramIndex}`;
         params.push(`%${tag}%`);
         paramIndex++;
-      }
+        return condition;
+      });
+      // Use OR logic: (tag1 OR tag2 OR tag3)
+      filters.push(`(${tagConditions.join(' OR ')})`);
     }
 
     // Fee range filters
@@ -3823,11 +3826,14 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       }
 
       if (args.tags && args.tags.length > 0) {
-        for (const tag of args.tags) {
-          filters.push(`"Tags" ILIKE $${paramIndex}`);
+        const tagConditions = args.tags.map((tag: string) => {
+          const condition = `"Tags" ILIKE $${paramIndex}`;
           params.push(`%${tag}%`);
           paramIndex++;
-        }
+          return condition;
+        });
+        // Use OR logic: (tag1 OR tag2 OR tag3)
+        filters.push(`(${tagConditions.join(' OR ')})`);
       }
 
       if (args.client) {
