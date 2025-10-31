@@ -3684,6 +3684,29 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     return result;
   }
 
+  /**
+   * Security check: Validates that SQL is read-only (SELECT only)
+   */
+  private isReadOnlySQL(sql: string): boolean {
+    const sqlUpper = sql.toUpperCase().trim();
+    
+    // Block any destructive operations
+    const destructiveKeywords = [
+      'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'TRUNCATE', 
+      'CREATE', 'REPLACE', 'RENAME', 'GRANT', 'REVOKE'
+    ];
+    
+    for (const keyword of destructiveKeywords) {
+      // Check for keyword at start or after whitespace/semicolon
+      if (sqlUpper.includes(keyword)) {
+        return false;
+      }
+    }
+    
+    // Only allow SELECT statements (including WITH...SELECT)
+    return sqlUpper.startsWith('SELECT') || sqlUpper.startsWith('WITH');
+  }
+
   private async executeQuery(
     functionName: string,
     args: Record<string, any>,
@@ -3701,6 +3724,16 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       let sql = template.sql;
       const sqlParams: any[] = [];
+      
+      // SECURITY: Validate that SQL is read-only before building/executing
+      if (!this.isReadOnlySQL(sql)) {
+        console.error(`[SECURITY] ⛔ BLOCKED non-SELECT query: ${sql}`);
+        return {
+          success: false,
+          data: [],
+          error: `Security error: Only SELECT queries are allowed. Destructive operations are blocked.`,
+        };
+      }
 
       // First, add template's required parameters in order
       for (const paramName of template.params) {
