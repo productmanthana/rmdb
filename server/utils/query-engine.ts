@@ -1643,6 +1643,33 @@ Extract the COMPLETE set of filters combining both previous and new requirements
     return classification;
   }
 
+  /**
+   * Helper function to substitute parameters into SQL query for logging
+   */
+  private substituteParams(sql: string, params: any[]): string {
+    let result = sql;
+    params.forEach((param, index) => {
+      const placeholder = `$${index + 1}`;
+      let value: string;
+      
+      if (param === null || param === undefined) {
+        value = 'NULL';
+      } else if (typeof param === 'string') {
+        value = `'${param.replace(/'/g, "''")}'`;
+      } else if (Array.isArray(param)) {
+        value = `ARRAY[${param.map(v => typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : v).join(', ')}]`;
+      } else if (typeof param === 'number' || typeof param === 'boolean') {
+        value = String(param);
+      } else {
+        value = `'${String(param).replace(/'/g, "''")}'`;
+      }
+      
+      result = result.replace(new RegExp('\\$' + (index + 1) + '(?=\\D|$)', 'g'), value);
+    });
+    
+    return result;
+  }
+
   private async executeQuery(
     functionName: string,
     args: Record<string, any>,
@@ -1676,8 +1703,13 @@ Extract the COMPLETE set of filters combining both previous and new requirements
       // Then build SQL with dynamic replacements (this will add more params)
       sql = this.buildSql(sql, args, sqlParams, template.params.length);
 
-      console.log(`[QueryEngine] Executing SQL:`, sql);
-      console.log(`[QueryEngine] With params:`, sqlParams);
+      // Log the actual executed SQL with parameters substituted
+      const executedSql = this.substituteParams(sql, sqlParams);
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`[QueryEngine] EXECUTED SQL QUERY:`);
+      console.log(`${'='.repeat(80)}`);
+      console.log(executedSql);
+      console.log(`${'='.repeat(80)}\n`);
 
       const results = await externalDbQuery(sql, sqlParams);
 
