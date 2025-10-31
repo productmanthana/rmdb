@@ -3350,6 +3350,32 @@ export class QueryEngine {
       }
     }
 
+    // Step 2.5: Handle fee/win% range changes
+    // If user specifies a new min_fee but no max_fee, clear old max_fee
+    // (they want "greater than X", not "between X and old_max")
+    if (newArgs.min_fee !== undefined && newArgs.max_fee === undefined && previousArgs.max_fee !== undefined) {
+      console.log(`[SmartMerge] Fee range change detected: new min_fee without max_fee`);
+      console.log(`[SmartMerge]   Clearing old max_fee (${previousArgs.max_fee}) because user wants "greater than ${newArgs.min_fee}"`);
+      delete result.max_fee;
+    }
+    // Similarly, if user specifies a new max_fee but no min_fee, clear old min_fee
+    // (they want "less than X", not "between old_min and X")
+    if (newArgs.max_fee !== undefined && newArgs.min_fee === undefined && previousArgs.min_fee !== undefined) {
+      console.log(`[SmartMerge] Fee range change detected: new max_fee without min_fee`);
+      console.log(`[SmartMerge]   Clearing old min_fee (${previousArgs.min_fee}) because user wants "less than ${newArgs.max_fee}"`);
+      delete result.min_fee;
+    }
+    
+    // Same logic for win% ranges
+    if (newArgs.min_win !== undefined && newArgs.max_win === undefined && previousArgs.max_win !== undefined) {
+      console.log(`[SmartMerge] Win% range change detected: clearing old max_win`);
+      delete result.max_win;
+    }
+    if (newArgs.max_win !== undefined && newArgs.min_win === undefined && previousArgs.min_win !== undefined) {
+      console.log(`[SmartMerge] Win% range change detected: clearing old min_win`);
+      delete result.min_win;
+    }
+
     // Step 3: Handle special pivot cases
     console.log(`[SmartMerge] Checking pivot conditions...`);
     console.log(`[SmartMerge]   newArgs.categories? ${!!newArgs.categories}`);
