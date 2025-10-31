@@ -399,6 +399,7 @@ export class QueryEngine {
         sql: `SELECT * FROM "Sample" 
               WHERE "Status" NOT IN ('Won', 'Lost')
               AND "Win %" IS NOT NULL
+              {date_filter}
               ORDER BY CAST("Win %" AS NUMERIC) DESC,
                        CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
               LIMIT $1`,
