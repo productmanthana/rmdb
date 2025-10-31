@@ -272,11 +272,29 @@ export class SemanticTimeParser {
   }
 
   private parseSpecificYear(text: string): [string, string] | null {
-    const match = text.match(/\b(20\d{2})\b/);
-    if (match) {
-      const year = parseInt(match[1]);
+    // First try to match year ranges: "from 2026 and 2027", "2026-2027", "2026 to 2027", etc.
+    const rangePatterns = [
+      /\b(20\d{2})\s+(?:and|to|through|thru|-|–)\s+(20\d{2})\b/,  // "2026 and 2027", "2026 to 2027", "2026-2027"
+      /from\s+(20\d{2})\s+(?:and|to|through|thru)\s+(20\d{2})\b/,  // "from 2026 and 2027"
+    ];
+    
+    for (const pattern of rangePatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        const startYear = parseInt(match[1]);
+        const endYear = parseInt(match[2]);
+        // Return start of first year to end of last year
+        return [`${startYear}-01-01`, `${endYear}-12-31`];
+      }
+    }
+    
+    // Single year match: "2026", "in 2025", etc.
+    const singleMatch = text.match(/\b(20\d{2})\b/);
+    if (singleMatch) {
+      const year = parseInt(singleMatch[1]);
       return [`${year}-01-01`, `${year}-12-31`];
     }
+    
     return null;
   }
 
