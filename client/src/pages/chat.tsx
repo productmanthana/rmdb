@@ -1360,41 +1360,78 @@ export default function ChatPage() {
             </div>
           </ScrollArea>
 
-          {/* Glassmorphic Input Area */}
-          <div className="glass-dark border-t border-white/10 shrink-0">
-            <div className="max-w-4xl mx-auto px-4 py-4">
-              <form onSubmit={handleSubmit} className="relative">
-                <div className="glass-input rounded-3xl p-1 flex items-end gap-2">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Ask anything about your data..."
-                    className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-4 py-3"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSubmit(e);
-                      }
-                    }}
-                    data-testid="input-query"
-                    disabled={queryMutation.isPending}
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    className="gradient-accent rounded-2xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity shadow-lg"
-                    disabled={!input.trim() || queryMutation.isPending}
-                    data-testid="button-submit"
-                  >
-                    <Send className="h-5 w-5 text-white" />
-                  </Button>
+          {/* Glassmorphic Input Area - Hide when follow-ups are active */}
+          {(() => {
+            // Check if we should show follow-up input instead of main input
+            const lastMessage = messages[messages.length - 1];
+            const hasActiveFollowUps = 
+              lastMessage?.type === "bot" && 
+              lastMessage?.response?.success === true && 
+              lastMessage?.response?.data && 
+              lastMessage?.response?.data.length > 0 &&
+              ((lastMessage.aiAnalysisMessages || []).filter(m => m.type === "user").length < 3);
+
+            if (hasActiveFollowUps) {
+              // Show "Start New Question" button instead
+              return (
+                <div className="glass-dark border-t border-white/10 shrink-0">
+                  <div className="max-w-4xl mx-auto px-4 py-4">
+                    <div className="flex items-center justify-center gap-3">
+                      <p className="text-sm text-white/60">
+                        Use the follow-up input above, or
+                      </p>
+                      <Button
+                        onClick={handleNewChat}
+                        className="glass text-white hover:glass-hover"
+                        data-testid="button-new-question"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Start New Question
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-center text-white/50 mt-2">
-                  Press Enter to send, Shift + Enter for new line
-                </p>
-              </form>
-            </div>
-          </div>
+              );
+            }
+
+            // Show main input
+            return (
+              <div className="glass-dark border-t border-white/10 shrink-0">
+                <div className="max-w-4xl mx-auto px-4 py-4">
+                  <form onSubmit={handleSubmit} className="relative">
+                    <div className="glass-input rounded-3xl p-1 flex items-end gap-2">
+                      <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        placeholder="Ask anything about your data..."
+                        className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-4 py-3"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSubmit(e);
+                          }
+                        }}
+                        data-testid="input-query"
+                        disabled={queryMutation.isPending}
+                      />
+                      <Button
+                        type="submit"
+                        size="icon"
+                        className="gradient-accent rounded-2xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity shadow-lg"
+                        disabled={!input.trim() || queryMutation.isPending}
+                        data-testid="button-submit"
+                      >
+                        <Send className="h-5 w-5 text-white" />
+                      </Button>
+                    </div>
+                    <p className="text-xs text-center text-white/50 mt-2">
+                      Press Enter to send, Shift + Enter for new line
+                    </p>
+                  </form>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
