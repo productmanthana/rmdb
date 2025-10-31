@@ -2379,11 +2379,11 @@ export class QueryEngine {
       // Client
       {
         name: "get_projects_by_client",
-        description: "Get all projects for specific CLIENT or CLID (Client ID). Use 'client' parameter for CLID values like 'CLID 1573'. Do NOT use 'company' for CLID.",
+        description: "Get all projects for specific CLIENT ID (CLID). Use for client ID numbers like 'CLID 4885', '5057', etc. DO NOT use for person names like 'Amy Wincko' - use get_projects_by_poc for person names instead.",
         parameters: {
           type: "object",
           properties: {
-            client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573', 'CLID 3507')" },
+            client: { type: "string", description: "Client ID number or CLID (e.g., '4885', 'CLID 5057'). NOT for person names." },
           },
           required: ["client"],
         },
@@ -2391,11 +2391,11 @@ export class QueryEngine {
 
       {
         name: "get_projects_by_client_and_fee_range",
-        description: "Get projects for client within fee range",
+        description: "Get projects for CLIENT ID (CLID) within fee range. Use for client IDs like 'CLID 4885', '5057', etc. DO NOT use for person names - use get_projects_by_poc for person names.",
         parameters: {
           type: "object",
           properties: {
-            client: { type: "string" },
+            client: { type: "string", description: "Client ID number or CLID (e.g., '4885', 'CLID 5057'). NOT for person names." },
             min_fee: { type: "number" },
             max_fee: { type: "number" },
           },
@@ -2624,11 +2624,17 @@ export class QueryEngine {
 
       {
         name: "get_projects_by_poc",
-        description: "Get all projects managed by specific Point of Contact/POC/project manager/person name. Use when user mentions a PERSON'S NAME (e.g., 'Amy Wincko', 'Michael Luciani', 'John Smith'). DO NOT use for client/company names.",
+        description: "Get all projects managed by specific Point of Contact/POC/project manager - USE FOR PERSON NAMES ONLY. Examples: 'Amy Wincko', 'Michael Luciani', 'John Smith'. When user says 'projects with Amy Wincko' or 'Amy Wincko projects' or 'Amy Wincko projects with fee between X and Y', use THIS function, NOT get_projects_by_client. Supports optional filters like fee ranges, dates, status, etc. DO NOT use for client IDs or company names.",
         parameters: {
           type: "object",
           properties: {
-            poc: { type: "string", description: "Name of the Point of Contact/project manager" },
+            poc: { type: "string", description: "Person's full name (first and last name, e.g., 'Amy Wincko'). NOT for CLID or numbers." },
+            min_fee: { type: "number", description: "Minimum fee amount (optional)" },
+            max_fee: { type: "number", description: "Maximum fee amount (optional)" },
+            size: { type: "string", description: "Size filter (optional)" },
+            status: { type: "string", description: "Status filter (optional)" },
+            start_date: { type: "string", description: "Start date filter (optional)" },
+            end_date: { type: "string", description: "End date filter (optional)" },
           },
           required: ["poc"],
         },
@@ -3597,15 +3603,25 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     }
 
     // Client normalization - ensure all Client values start with "CLID "
+    // BUT: Only for actual client IDs (numbers), NOT person names
     if (args.client) {
       const client = args.client.trim();
-      // If it's just a number or doesn't start with "CLID", add the prefix
-      if (/^\d+$/.test(client)) {
+      
+      // Check if it looks like a person name (has space and letters, not just numbers)
+      const looksLikePersonName = /^[A-Za-z]+\s+[A-Za-z]+/.test(client);
+      
+      if (looksLikePersonName) {
+        // This is a person name like "Amy Wincko" - it was misclassified!
+        // It should use POC, not Client. Log warning but don't add CLID.
+        console.log(`[Normalize] ⚠️ WARNING: "${client}" looks like a person name (POC), not a client ID!`);
+        console.log(`[Normalize]   This query should probably use get_projects_by_poc instead.`);
+        // Don't add CLID prefix to person names
+      } else if (/^\d+$/.test(client)) {
         // Just a number like "4885" -> "CLID 4885"
         args.client = `CLID ${client}`;
         console.log(`[Normalize] Client normalized: "${args.client}"`);
       } else if (!client.toUpperCase().startsWith('CLID')) {
-        // Doesn't start with CLID -> add prefix
+        // Doesn't start with CLID and not a person name -> add prefix
         args.client = `CLID ${client}`;
         console.log(`[Normalize] Client normalized: "${args.client}"`);
       }
@@ -3615,7 +3631,14 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     if (args.clients && Array.isArray(args.clients)) {
       args.clients = args.clients.map(client => {
         const trimmed = client.trim();
-        if (/^\d+$/.test(trimmed)) {
+        
+        // Check if it looks like a person name
+        const looksLikePersonName = /^[A-Za-z]+\s+[A-Za-z]+/.test(trimmed);
+        
+        if (looksLikePersonName) {
+          console.log(`[Normalize] ⚠️ WARNING: "${trimmed}" looks like a person name (POC), not a client ID!`);
+          return trimmed; // Don't add CLID to person names
+        } else if (/^\d+$/.test(trimmed)) {
           return `CLID ${trimmed}`;
         } else if (!trimmed.toUpperCase().startsWith('CLID')) {
           return `CLID ${trimmed}`;
