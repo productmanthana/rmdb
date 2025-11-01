@@ -251,7 +251,7 @@ export class QueryEngine {
               FROM "Sample"
               WHERE "Tags" IS NOT NULL AND "Tags" != ''
               GROUP BY tag
-              HAVING TRIM(UNNEST(string_to_array("Tags", ','))) != ''
+              HAVING COUNT(*) > 0 AND TRIM(MIN("Tags")) != ''
               ORDER BY total_value DESC NULLS LAST
               {limit_clause}`,
         params: [],
@@ -481,6 +481,37 @@ export class QueryEngine {
         param_types: [],
         chart_type: "bar",
         chart_field: "avg_win_rate",
+      },
+
+      get_top_projects_by_win_rate: {
+        sql: `SELECT * FROM "Sample"
+              WHERE "Win %" IS NOT NULL AND "Win %" != ''
+              ORDER BY CAST(NULLIF("Win %", '') AS NUMERIC) DESC,
+                       CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "Win %",
+      },
+
+      get_clients_by_status_count: {
+        sql: `SELECT "Client",
+              COUNT(*) as project_count,
+              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value,
+              AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
+              FROM "Sample"
+              WHERE "Status" ILIKE $1
+              AND "Client" IS NOT NULL AND "Client" != ''
+              GROUP BY "Client"
+              ORDER BY project_count DESC
+              {limit_clause}`,
+        params: ["status"],
+        param_types: ["str"],
+        optional_params: ["limit"],
+        chart_type: "bar",
+        chart_field: "project_count",
       },
 
       // ═══════════════════════════════════════════════════════════════
@@ -2299,14 +2330,14 @@ export class QueryEngine {
       {
         name: "get_projects_by_multiple_tags",
         description:
-          "Get projects that match ANY of the specified tags (OR logic). Use when user asks for projects with specific tags like 'Rail', 'Transit', 'Healthcare', etc.",
+          "Get projects that match ANY of the specified tags (OR logic). Use when user asks for projects with specific tags like 'projects with tag Expansion and Emergency', 'Rail and Transit tags', 'tagged Healthcare or Medical', or lists multiple tags with 'and'/commas.",
         parameters: {
           type: "object",
           properties: {
             tags: {
               type: "array",
               items: { type: "string" },
-              description: "List of tags. Projects matching ANY tag will be returned (OR logic).",
+              description: "List of tags. Projects matching ANY tag will be returned (OR logic). Extract each tag name from the query.",
             },
           },
           required: ["tags"],
@@ -2328,11 +2359,11 @@ export class QueryEngine {
 
       {
         name: "get_top_tags",
-        description: "Get top tags across all projects",
+        description: "Get most frequently used tags across all projects, ranked by total value or count. Use for queries like 'show top 5 tags', 'most common tags', 'tag frequency', 'which tags are used most', or 'popular tags'.",
         parameters: {
           type: "object",
           properties: {
-            limit: { type: "integer" },
+            limit: { type: "integer", description: "Number of tags to return (default 10)" },
           },
           required: [],
         },
@@ -2511,6 +2542,31 @@ export class QueryEngine {
           type: "object",
           properties: {},
           required: [],
+        },
+      },
+
+      {
+        name: "get_top_projects_by_win_rate",
+        description: "Get projects sorted by win percentage/win rate from highest to lowest. Use for queries like 'list top 20 projects by win percentage', 'show highest win rate projects', 'projects sorted by win %', or 'best win rate projects'.",
+        parameters: {
+          type: "object",
+          properties: {
+            limit: { type: "integer", description: "Number of results to return (default 20)" },
+          },
+          required: [],
+        },
+      },
+
+      {
+        name: "get_clients_by_status_count",
+        description: "Get clients ranked by number of projects with a specific status. Use for queries like 'which clients lost most projects', 'clients with most won projects', 'clients by number of losses/wins', or 'clients ranked by status count'.",
+        parameters: {
+          type: "object",
+          properties: {
+            status: { type: "string", description: "Project status: 'Lost', 'Won', 'Submitted', etc." },
+            limit: { type: "integer", description: "Number of clients to return (default 20)" },
+          },
+          required: ["status"],
         },
       },
 
