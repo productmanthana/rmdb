@@ -2172,7 +2172,7 @@ export class QueryEngine {
       {
         name: "get_projects_by_combined_filters",
         description:
-          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. Use 'tags' parameter ONLY when user explicitly mentions 'tags' or 'tagged'. For general keywords without 'tags' mention, use get_projects_by_category instead. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead.",
+          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. DO NOT use for ranking/sorting queries like 'top by win rate' or 'sorted by fee' - use specific ranking functions instead. Use 'tags' parameter ONLY when user explicitly mentions 'tags' or 'tagged'. For general keywords without 'tags' mention, use get_projects_by_category instead. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead.",
         parameters: {
           type: "object",
           properties: {
@@ -2552,7 +2552,7 @@ export class QueryEngine {
 
       {
         name: "get_top_projects_by_win_rate",
-        description: "Get projects sorted by win percentage/win rate from highest to lowest. Use for queries like 'list top 20 projects by win percentage', 'show highest win rate projects', 'projects sorted by win %', or 'best win rate projects'.",
+        description: "RANKING/SORTING QUERY: Get projects RANKED/SORTED BY win percentage/win rate from highest to lowest. ALWAYS use this when user asks to 'list', 'show', 'top', 'rank', or 'sort' projects BY win percentage/rate. Examples: 'list top 20 projects by win percentage', 'show highest win rate projects', 'projects sorted by win %', 'rank by win rate', 'best win percentage', 'top 10 by win rate'.",
         parameters: {
           type: "object",
           properties: {
