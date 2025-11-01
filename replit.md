@@ -55,23 +55,12 @@ Preferred communication style: Simple, everyday language.
 **Query Template Coverage** (as of November 1, 2025):
 - **52 original queries**: Basic temporal, ranking, category, geographic, POC, and status queries
 - **37 advanced queries** (Phase 1-4): High-value comparisons, trends, forecasting, client intelligence, risk analysis
-- **3 new queries** (November 1, 2025):
+- **2 new queries** (November 1, 2025):
   - `get_top_projects_by_win_rate` - Sort projects by win percentage (for "top N by win rate" queries)
   - `get_clients_by_status_count` - Aggregate clients by status with project counts (for "which clients lost most" queries)
-  - `get_projects_with_same_attribute` - Two-step lookup for "same X as PID Y" queries (e.g., "same POC as PID 7", "same category as project 123")
-- **Total: 92 production-ready query templates**
+- **Total: 91 production-ready query templates**
 
 **Recent Improvements** (November 1, 2025):
-- **Added `get_projects_with_same_attribute` query function**: Two-step lookup for reference-based queries
-  - Handles queries like "same point of contact as PID 7", "same category as project 123"
-  - Step 1: Looks up reference project by ID or name
-  - Step 2: Finds all projects matching the extracted attribute value
-  - Supports attributes: POC, category, client, status, company
-  - Includes optional filters: fee ranges, date ranges
-- **Improved UI for empty results**: Hidden "Follow up questions" tab when query returns no data
-  - Before: Showed "No Data Available" message with suggestions
-  - After: Tab is completely hidden from the UI when there's no data to analyze
-  - Cleaner user experience, less visual clutter for unsuccessful queries
 - **Fixed `get_top_tags` SQL error**: Changed from HAVING clause with UNNEST to CTE-based filtering
   - Before: "set-returning functions not allowed in HAVING" error
   - After: CTE extracts tags first, then filters empty tags in WHERE clause
@@ -81,7 +70,6 @@ Preferred communication style: Simple, everyday language.
   - `get_projects_by_multiple_tags`: Added "tag X and Y" pattern examples
   - `get_top_projects_by_win_rate`: Added "highest win rate", "sorted by win percentage"
   - `get_clients_by_status_count`: Added "clients who lost most", "won most projects"
-  - `get_projects_with_same_attribute`: Added "same X as PID Y" pattern examples
 - **Comprehensive testing**: Identified Azure OpenAI rate limiting as primary testing blocker (not missing functionality)
   - Created test scripts: `test-all-queries.ts` (26 queries) and `test-critical-queries.ts` (13 queries)
   - Test results documented in `QUERY_TEST_RESULTS.md`
