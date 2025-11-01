@@ -384,7 +384,18 @@ export default function ChatPage() {
   // Query mutation
   const queryMutation = useMutation({
     mutationFn: async (question: string) => {
-      const res = await apiRequest("POST", "/api/query", { question });
+      // Get the last bot message to use as previous context for follow-up queries
+      const lastBotMessage = messages.filter(m => m.type === "bot").pop();
+      const previousContext = lastBotMessage?.response?.function_name && lastBotMessage?.response?.arguments ? {
+        question: lastBotMessage.response.question || "",
+        function_name: lastBotMessage.response.function_name,
+        arguments: lastBotMessage.response.arguments,
+      } : undefined;
+
+      const res = await apiRequest("POST", "/api/query", { 
+        question,
+        previousContext 
+      });
       return res.json() as Promise<QueryResponse>;
     },
     onSuccess: async (data, question) => {
