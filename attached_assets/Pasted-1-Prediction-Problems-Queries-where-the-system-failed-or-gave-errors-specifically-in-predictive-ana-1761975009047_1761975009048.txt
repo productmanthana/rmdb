@@ -1,0 +1,71 @@
+1. Prediction Problems
+Queries where the system failed or gave errors specifically in predictive analytics, forecasting, or win
+probability:
+Query: Will we win PID 17
+Error - predict win probability function failure
+Query: What is the predicted win rate for all projects submitted in 2025
+Pass - Only gives projects submitted in 2025 (does not actually predict individual outcome, just lists the
+projects)
+Query: List all projects with predicted win > 80% for the healthcare category
+Fail - Error, tuple index out of range
+Query: Which clients have the highest predicted win rate in their upcoming projects
+Pass - No Result (calculations are not meaningful or not implemented correctly)
+Query: Find all submitted projects for CLID 1573 with win rate between 75% and 85%
+Fail - Error (tuple index out of range)
+2. Reasoning/Relation Problems
+Queries that failed because the code cannot answer "why?", causal relationships, or relational connections
+(reasoning logic):
+Query: List projects with the same point of contact as PID 7
+Fail - Recognizes PID but can't extract other logic/relation
+Query: List lost projects with predicted win > 80%
+Fail - Error, can't combine status reasoning with win %
+Query: For projects similar to PID 8 (same category and tags), how many have been won vs. lost
+historically
+Pass - Wrong Result (logic for relation and win/loss reasoning is not correct)
+Query: Which clients have lost highest projects
+Fail - Error, unable to answer such questions (needs aggregation and comparative reasoning)
+Query: List upcoming projects with tags and status similar to previously lost projects
+Pass - Default 6 month if future reference not given (logic for similarity and how to compare status/tags is
+weak)
+3. Aggregation/Statistical Problems
+Queries failing due to limits in logic, sorting, grouping, or statistics (aggregation calculation issues):
+Query: List top 20 projects by win percentage
+Pass - Limit didn't work (sorting/top N logic)
+Query: List projects with the same point of contact as PID 7
+Fail - Recognized point of contact, but can't aggregate or filter properly
+Query: Show all projects with more than 4 tags
+Fail - Couldn't understand numeric (tag counting logic fails)
+Query: For all projects, show the top 5 tags used most frequently
+Fail - Error (aggregation and tag frequency logic broken)
+Query: Find project with tag Expansion and Emergency
+Fail - Error (tag matching and aggregation logic weak)
+4. Similarity/Relatedness Problems
+Queries that test "similar/related" logic, where code only has basic tag/category matching:
+Query: Find projects similar to 'PID 10', but not in Healthcare request category
+Fail - Only checks category/company; can't exclude category correctly
+Query: List projects that have the same client and status as PID 25
+Fail - Same as above
+Query: For projects similar to PID 8 (same category and tags), how many have been won vs. lost
+historically
+Pass - Wrong Result (relation flawed)
+Query: List upcoming projects with tags and status similar to previously lost projects
+Pass - Partial logic, not robust similarity
+5. Complex Filtering/Combination Problems
+Queries with multiple conditions, complex filters, or multi-field requirements:
+Query: Identify the year with the highest number of project wins
+Fail - Error, aggregation and multi-field grouping needed
+Query: Show projects in 2024 won by Company G with win% above 50%
+Fail - Error, min price is considered instead of win%, multi-condition logic fails
+6. General Logic/Implementation Errors
+Queries failing due to general logic, index errors, or improper assumptions:
+Query: Find projects similar to 'PID 10', but only those in a different category
+Remarks: Only two supported methods, not enough filtering logic
+Empty queries: No attempt or errors due to index or range in tuple processing
+Summary
+Problem Type Description
+Prediction Problems Reasoning/Relation Problems Aggregation/Statistical Problems Similarity/Relatedness Problems Complex Filtering Problems General Logic/Implementation Failures in predictive analytics, forecasting, or win probability calculations
+Cannot handle causal relationships, "why" questions, or relational connections
+Issues with sorting, grouping, counting, and statistical calculations
+Basic tag/category matching only; lacks robust similarity logic
+Cannot handle queries with multiple conditions or multi-field requirements
+Index errors, tuple range issues, and improper assumptions in core logic
