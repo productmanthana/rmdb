@@ -696,6 +696,17 @@ export class QueryEngine {
         chart_field: "Fee",
       },
 
+      get_projects_with_same_attribute: {
+        sql: `-- This is a two-step query handled specially in executeQuery
+              -- Step 1: Look up reference project
+              -- Step 2: Find all projects with matching attribute`,
+        params: ["reference_pid", "attribute"],
+        param_types: ["str", "str"],
+        optional_params: ["min_fee", "max_fee", "start_date", "end_date"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
       compare_pocs: {
         sql: `SELECT 
               "Point Of Contact" as poc,
@@ -2714,6 +2725,23 @@ export class QueryEngine {
         },
       },
 
+      {
+        name: "get_projects_with_same_attribute",
+        description: "Find all projects that share the same attribute value as a reference project. Use when user asks 'same X as PID Y' or 'projects with same X as project Y'. Examples: 'same point of contact as PID 7', 'same category as project 123', 'same client as PID 456'. This function looks up the reference project first, then finds all projects matching that attribute.",
+        parameters: {
+          type: "object",
+          properties: {
+            reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference" },
+            attribute: { type: "string", enum: ["poc", "category", "client", "status", "company"], description: "Which attribute to match: 'poc' for Point of Contact, 'category' for Category, 'client' for Client ID, 'status' for Status, 'company' for Company" },
+            min_fee: { type: "number", description: "Minimum fee filter (optional)" },
+            max_fee: { type: "number", description: "Maximum fee filter (optional)" },
+            start_date: { type: "string", description: "Start date filter (optional)" },
+            end_date: { type: "string", description: "End date filter (optional)" },
+          },
+          required: ["reference_pid", "attribute"],
+        },
+      },
+
       // Description Search
       {
         name: "search_description",
@@ -3817,6 +3845,119 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     return sqlUpper.startsWith('SELECT') || sqlUpper.startsWith('WITH');
   }
 
+  /**
+   * Handle "same attribute as PID X" queries (two-step lookup)
+   */
+  private async handleSameAttributeQuery(
+    args: Record<string, any>,
+    externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
+  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
+    try {
+      const { reference_pid, attribute } = args;
+
+      // Step 1: Look up the reference project
+      const lookupSql = `SELECT * FROM "Sample" 
+                         WHERE "Project Name" ILIKE $1 
+                         OR "Internal Id"::text ILIKE $1
+                         LIMIT 1`;
+      const lookupParams = [`%${reference_pid}%`];
+      
+      console.log(`[QueryEngine] Step 1: Looking up reference project "${reference_pid}"`);
+      const referenceProjects = await externalDbQuery(lookupSql, lookupParams);
+      
+      if (referenceProjects.length === 0) {
+        return {
+          success: false,
+          data: [],
+          error: `Reference project "${reference_pid}" not found`,
+        };
+      }
+
+      const referenceProject = referenceProjects[0];
+      
+      // Step 2: Extract the attribute value based on attribute type
+      const attributeMap: Record<string, string> = {
+        poc: "Point Of Contact",
+        category: "Category",
+        client: "CLID",
+        status: "Status",
+        company: "Company",
+      };
+
+      const columnName = attributeMap[attribute];
+      if (!columnName) {
+        return {
+          success: false,
+          data: [],
+          error: `Invalid attribute type: ${attribute}`,
+        };
+      }
+
+      const attributeValue = referenceProject[columnName];
+      if (!attributeValue) {
+        return {
+          success: false,
+          data: [],
+          error: `Reference project has no ${attribute} value`,
+        };
+      }
+
+      console.log(`[QueryEngine] Step 2: Found ${attribute} = "${attributeValue}"`);
+
+      // Step 3: Build query to find all projects with same attribute
+      let sql = `SELECT * FROM "Sample" WHERE "${columnName}" ILIKE $1`;
+      const sqlParams: any[] = [`%${attributeValue}%`];
+      let paramIndex = 2;
+
+      // Add optional filters
+      if (args.min_fee !== undefined) {
+        sql += ` AND CAST(NULLIF("Fee", '') AS NUMERIC) >= $${paramIndex}`;
+        sqlParams.push(args.min_fee);
+        paramIndex++;
+      }
+      if (args.max_fee !== undefined) {
+        sql += ` AND CAST(NULLIF("Fee", '') AS NUMERIC) <= $${paramIndex}`;
+        sqlParams.push(args.max_fee);
+        paramIndex++;
+      }
+      if (args.start_date) {
+        sql += ` AND TO_DATE("Start Date", 'MM/DD/YYYY') >= $${paramIndex}::date`;
+        sqlParams.push(args.start_date);
+        paramIndex++;
+      }
+      if (args.end_date) {
+        sql += ` AND TO_DATE("Start Date", 'MM/DD/YYYY') <= $${paramIndex}::date`;
+        sqlParams.push(args.end_date);
+        paramIndex++;
+      }
+
+      sql += ` ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST LIMIT 50`;
+
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`[QueryEngine] EXECUTED SQL QUERY (Two-step):`);
+      console.log(`${'='.repeat(80)}`);
+      console.log(this.substituteParams(sql, sqlParams));
+      console.log(`${'='.repeat(80)}\n`);
+
+      const results = await externalDbQuery(sql, sqlParams);
+      console.log(`[QueryEngine] Results count: ${results.length}`);
+
+      return {
+        success: true,
+        data: results,
+        sql_query: sql,
+        sql_params: sqlParams,
+      };
+    } catch (error) {
+      console.error(`Error in handleSameAttributeQuery:`, error);
+      return {
+        success: false,
+        data: [],
+        error: String(error),
+      };
+    }
+  }
+
   private async executeQuery(
     functionName: string,
     args: Record<string, any>,
@@ -3830,6 +3971,11 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
           data: [],
           error: `Unknown function: ${functionName}`,
         };
+      }
+
+      // Special handling for get_projects_with_same_attribute (two-step query)
+      if (functionName === "get_projects_with_same_attribute") {
+        return await this.handleSameAttributeQuery(args, externalDbQuery);
       }
 
       let sql = template.sql;
