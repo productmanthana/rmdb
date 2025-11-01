@@ -2760,12 +2760,12 @@ export class QueryEngine {
 
       {
         name: "get_projects_with_same_attribute",
-        description: "Find all projects that share the same attribute value as a reference project. Use when user asks 'same X as PID Y' or 'projects with same X as project Y'. Examples: 'same point of contact as PID 7', 'same category as project 123', 'same client as PID 456'. This function looks up the reference project first, then finds all projects matching that attribute.",
+        description: "Find all projects that share the same attribute value(s) as a reference project. Use when user asks 'same X as PID Y' or 'projects with same X as project Y'. CRITICAL: For multiple attributes (e.g., 'same client AND status'), provide comma-separated string. Examples: 'same point of contact as PID 7' → attribute:'poc', 'same category as project 123' → attribute:'category', 'same client and status as PID 456' → attribute:'client,status'. This function looks up the reference project first, then finds all projects matching those attributes.",
         parameters: {
           type: "object",
           properties: {
             reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference" },
-            attribute: { type: "string", enum: ["poc", "category", "client", "status", "company"], description: "Which attribute to match: 'poc' for Point of Contact, 'category' for Category, 'client' for Client ID, 'status' for Status, 'company' for Company" },
+            attribute: { type: "string", description: "Which attribute(s) to match. Single attribute: 'poc', 'category', 'client', 'status', 'company'. Multiple attributes: comma-separated like 'client,status' or 'category,company'. Values: 'poc' for Point of Contact, 'category' for Category, 'client' for Client ID, 'status' for Status, 'company' for Company" },
             min_fee: { type: "number", description: "Minimum fee filter (optional)" },
             max_fee: { type: "number", description: "Maximum fee filter (optional)" },
             start_date: { type: "string", description: "Start date filter (optional)" },
@@ -3982,7 +3982,9 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       const referenceProject = referenceProjects[0];
       
-      // Step 2: Extract the attribute value based on attribute type
+      // Step 2: Handle multiple attributes (comma-separated)
+      const attributes = attribute.split(',').map((a: string) => a.trim());
+      
       const attributeMap: Record<string, string> = {
         poc: "Point Of Contact",
         category: "Request Category",
@@ -3991,30 +3993,43 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         company: "Company",
       };
 
-      const columnName = attributeMap[attribute];
-      if (!columnName) {
+      // Build WHERE conditions for all attributes
+      const whereClauses: string[] = [];
+      const sqlParams: any[] = [];
+      let paramIndex = 1;
+
+      for (const attr of attributes) {
+        const columnName = attributeMap[attr];
+        if (!columnName) {
+          return {
+            success: false,
+            data: [],
+            error: `Invalid attribute type: ${attr}`,
+          };
+        }
+
+        const attributeValue = referenceProject[columnName];
+        if (!attributeValue) {
+          console.log(`[QueryEngine] ⚠️ Warning: Reference project has no ${attr} value, skipping this filter`);
+          continue;
+        }
+
+        console.log(`[QueryEngine] Step 2: Found ${attr} = "${attributeValue}"`);
+        whereClauses.push(`"${columnName}" ILIKE $${paramIndex}`);
+        sqlParams.push(`%${attributeValue}%`);
+        paramIndex++;
+      }
+
+      if (whereClauses.length === 0) {
         return {
           success: false,
           data: [],
-          error: `Invalid attribute type: ${attribute}`,
+          error: `Reference project has no values for the specified attributes: ${attributes.join(', ')}`,
         };
       }
 
-      const attributeValue = referenceProject[columnName];
-      if (!attributeValue) {
-        return {
-          success: false,
-          data: [],
-          error: `Reference project has no ${attribute} value`,
-        };
-      }
-
-      console.log(`[QueryEngine] Step 2: Found ${attribute} = "${attributeValue}"`);
-
-      // Step 3: Build query to find all projects with same attribute
-      let sql = `SELECT * FROM "Sample" WHERE "${columnName}" ILIKE $1`;
-      const sqlParams: any[] = [`%${attributeValue}%`];
-      let paramIndex = 2;
+      // Step 3: Build query to find all projects with same attributes
+      let sql = `SELECT * FROM "Sample" WHERE ${whereClauses.join(' AND ')}`;
 
       // Add optional filters
       if (args.min_fee !== undefined) {
