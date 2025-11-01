@@ -4022,14 +4022,29 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     try {
       const { reference_pid, attribute } = args;
 
-      // Step 1: Look up the reference project
+      // Step 1: Look up the reference project with flexible PID matching
+      // Handle variations: "PID7" vs "PID 7", "PID10" vs "PID 10", etc.
+      let normalizedPid = reference_pid;
+      let pidWithSpace = reference_pid;
+      
+      // If user typed "PID7" (no space), also try "PID 7" (with space)
+      if (/^PID\d+$/i.test(reference_pid)) {
+        pidWithSpace = reference_pid.replace(/^(PID)(\d+)$/i, '$1 $2');
+      }
+      // If user typed "PID 7" (with space), also try "PID7" (no space)
+      else if (/^PID\s+\d+$/i.test(reference_pid)) {
+        normalizedPid = reference_pid.replace(/\s+/g, '');
+      }
+      
       const lookupSql = `SELECT * FROM "Sample" 
                          WHERE "Project Name" ILIKE $1 
+                         OR "Project Name" ILIKE $2
                          OR "Internal Id"::text ILIKE $1
+                         OR "Internal Id"::text ILIKE $2
                          LIMIT 1`;
-      const lookupParams = [`%${reference_pid}%`];
+      const lookupParams = [`%${normalizedPid}%`, `%${pidWithSpace}%`];
       
-      console.log(`[QueryEngine] Step 1: Looking up reference project "${reference_pid}"`);
+      console.log(`[QueryEngine] Step 1: Looking up reference project "${reference_pid}" (also trying "${pidWithSpace}")`);
       const referenceProjects = await externalDbQuery(lookupSql, lookupParams);
       
       if (referenceProjects.length === 0) {
