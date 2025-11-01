@@ -3402,11 +3402,33 @@ export class QueryEngine {
 
     const result: Record<string, any> = {};
 
+    // Step 0: Detect if newArgs is essentially empty (only has optional params)
+    // Optional params that can be changed without affecting core query logic
+    const OPTIONAL_ONLY_PARAMS = new Set(['limit']);
+    const newArgKeys = Object.keys(newArgs);
+    const hasOnlyOptionalParams = newArgKeys.length === 0 || 
+                                   newArgKeys.every(key => OPTIONAL_ONLY_PARAMS.has(key));
+    
+    if (hasOnlyOptionalParams && newArgKeys.length > 0) {
+      console.log(`[SmartMerge] ⚠️  WARNING: New args only contain optional params (${newArgKeys.join(', ')})`);
+      console.log(`[SmartMerge]    This might lose required parameters! Preserving ALL previous args.`);
+    }
+
     // Step 1: Add all previous cumulative parameters (unless new ones override them)
     for (const [key, value] of Object.entries(previousArgs)) {
       if (CUMULATIVE_PARAMS.has(key) && !(key in newArgs)) {
         console.log(`[SmartMerge] Keeping cumulative param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
+      } else if (REPLACEABLE_PARAMS.has(key) && !(key in newArgs)) {
+        // CRITICAL FIX: If newArgs only has optional params (e.g., just 'limit'),
+        // we should KEEP replaceable params to avoid losing required parameters
+        if (hasOnlyOptionalParams) {
+          console.log(`[SmartMerge] Keeping replaceable param (avoiding data loss): ${key} = ${JSON.stringify(value)}`);
+          result[key] = value;
+        } else {
+          // User is providing meaningful new params, so we can drop old replaceables
+          console.log(`[SmartMerge] Dropping replaceable param: ${key} (new args provided)`);
+        }
       } else if (!CUMULATIVE_PARAMS.has(key) && !REPLACEABLE_PARAMS.has(key)) {
         // Unknown parameter - keep it for safety
         console.log(`[SmartMerge] Keeping unknown param: ${key} = ${JSON.stringify(value)}`);
