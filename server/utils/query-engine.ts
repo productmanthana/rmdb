@@ -3381,6 +3381,26 @@ export class QueryEngine {
           required: ["keyword"],
         },
       },
+
+      {
+        name: "get_upcoming_similar_to_group_pattern",
+        description: "TWO-STEP PATTERN ANALYSIS: Analyzes common characteristics (tags, status) in a reference group, then finds upcoming projects matching those patterns. Use for queries like 'upcoming projects similar to lost projects', 'future projects like won ones', 'upcoming matching successful project patterns'. Steps: (1) Query reference group, (2) Extract top 3 most common tags, (3) Find upcoming projects with those tags + same status.",
+        parameters: {
+          type: "object",
+          properties: {
+            reference_status: { 
+              type: "string", 
+              description: "Status of the reference group to analyze (e.g., 'lost', 'won', 'hold'). Will find patterns in this group first." 
+            },
+            time_reference: { 
+              type: "string", 
+              description: "Time reference for upcoming projects (e.g., 'upcoming', 'next 6 months', 'future')" 
+            },
+            limit: { type: "integer", description: "Number of upcoming projects to return" },
+          },
+          required: ["reference_status"],
+        },
+      },
     ];
   }
 
@@ -3903,6 +3923,36 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
   }
 
   /**
+   * Normalize status values to match database values
+   */
+  private normalizeStatus(status: string): string {
+    const statusLower = status.toLowerCase();
+    
+    if (["won", "win", "winning", "successful", "awarded"].includes(statusLower)) {
+      return "won";
+    } else if (["lost", "lose", "losing", "unsuccessful", "rejected"].includes(statusLower)) {
+      console.log(`[Status Normalization] ⚠️ WARNING: "Lost" status doesn't exist in database`);
+      console.log(`[Status Normalization]    Mapping "lost" → "Hold" (abandoned/paused projects)`);
+      console.log(`[Status Normalization]    Valid statuses: Hold, In Progress, Lead, Proposal Development, Qualified Lead, Submitted, Won`);
+      return "hold";
+    } else if (["submit", "submitted", "pending", "awaiting"].includes(statusLower)) {
+      return "submitted";
+    } else if (["lead", "leads", "opportunity", "opportunities"].includes(statusLower)) {
+      return "lead";
+    } else if (["proposal", "proposal development", "developing"].includes(statusLower)) {
+      return "proposal development";
+    } else if (["hold", "holding", "paused", "abandoned"].includes(statusLower)) {
+      return "hold";
+    } else if (["in progress", "progress", "active", "working"].includes(statusLower)) {
+      return "in progress";
+    } else if (["qualified", "qualified lead"].includes(statusLower)) {
+      return "qualified lead";
+    }
+    
+    return statusLower;
+  }
+
+  /**
    * Helper function to substitute parameters into SQL query for logging
    */
   private substituteParams(sql: string, params: any[]): string {
@@ -4114,6 +4164,170 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     }
   }
 
+  /**
+   * Handle pattern analysis queries: analyze reference group → find upcoming projects with similar patterns
+   */
+  private async handlePatternAnalysisQuery(
+    args: Record<string, any>,
+    externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
+  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
+    try {
+      let { reference_status, time_reference, limit } = args;
+
+      // Status normalization (critical for "lost" → "Hold" mapping)
+      const normalizedStatus = this.normalizeStatus(reference_status);
+      if (normalizedStatus !== reference_status.toLowerCase()) {
+        console.log(`[Pattern Analysis] Status normalization: "${reference_status}" → "${normalizedStatus}"`);
+        reference_status = normalizedStatus;
+      }
+
+      console.log(`[Pattern Analysis] Step 1: Querying all ${reference_status} projects to analyze patterns...`);
+
+      // Step 1: Query all projects with the reference status
+      const statusSql = `SELECT "Tags", "Status" FROM "Sample" WHERE "Status" ILIKE $1 AND "Tags" IS NOT NULL AND "Tags" != ''`;
+      const statusResults = await externalDbQuery(statusSql, [`%${reference_status}%`]);
+
+      if (statusResults.length === 0) {
+        return {
+          success: false,
+          data: [],
+          error: `No projects found with status "${reference_status}"`,
+        };
+      }
+
+      console.log(`[Pattern Analysis] Found ${statusResults.length} ${reference_status} projects`);
+
+      // Step 2: Extract and count tag frequencies
+      const tagCounts: Record<string, number> = {};
+      
+      for (const project of statusResults) {
+        if (!project.Tags) continue;
+        
+        const tags = project.Tags
+          .split(',')
+          .map((t: string) => t.trim())
+          .filter((t: string) => t.length > 0);
+        
+        for (const tag of tags) {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        }
+      }
+
+      // Step 3: Get top 3 most common tags
+      const sortedTags = Object.entries(tagCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3);
+
+      if (sortedTags.length === 0) {
+        return {
+          success: false,
+          data: [],
+          error: `No tags found in ${reference_status} projects`,
+        };
+      }
+
+      const topTags = sortedTags.map(([tag]) => tag);
+      const tagStats = sortedTags.map(([tag, count]) => `${tag} (${count})`).join(', ');
+      
+      console.log(`[Pattern Analysis] Top 3 most common tags: ${tagStats}`);
+
+      // Step 4: Parse time reference for upcoming projects
+      const today = new Date().toISOString().split('T')[0];
+      let startDate = today;
+      let endDate: string;
+
+      if (time_reference) {
+        try {
+          const parsedRange = this.timeParser.parse(time_reference);
+          if (parsedRange) {
+            [startDate, endDate] = parsedRange;
+            console.log(`[Pattern Analysis] Parsed "${time_reference}" → ${startDate} to ${endDate}`);
+          } else {
+            // Default to next 6 months if parsing fails
+            const sixMonthsLater = new Date();
+            sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+            endDate = sixMonthsLater.toISOString().split('T')[0];
+            console.log(`[Pattern Analysis] Parse failed, using default: ${startDate} to ${endDate}`);
+          }
+        } catch (e) {
+          // Default to next 6 months if parsing fails
+          const sixMonthsLater = new Date();
+          sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+          endDate = sixMonthsLater.toISOString().split('T')[0];
+          console.log(`[Pattern Analysis] Parse error, using default: ${startDate} to ${endDate}`);
+        }
+      } else {
+        // Default to next 6 months
+        const sixMonthsLater = new Date();
+        sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6);
+        endDate = sixMonthsLater.toISOString().split('T')[0];
+        console.log(`[Pattern Analysis] No time reference, using next 6 months: ${startDate} to ${endDate}`);
+      }
+
+      // Step 5: Build query for upcoming projects with top tags + same status
+      const whereClauses: string[] = [];
+      const sqlParams: any[] = [];
+      let paramIndex = 1;
+
+      // Add status filter
+      whereClauses.push(`"Status" ILIKE $${paramIndex}`);
+      sqlParams.push(`%${reference_status}%`);
+      paramIndex++;
+
+      // Add date range filter
+      whereClauses.push(`"Start Date" >= $${paramIndex}::date`);
+      sqlParams.push(startDate);
+      paramIndex++;
+
+      whereClauses.push(`"Start Date" <= $${paramIndex}::date`);
+      sqlParams.push(endDate);
+      paramIndex++;
+
+      // Add tag filters (AND logic - must have ALL top 3 tags)
+      const tagConditions = topTags.map(() => {
+        const condition = `"Tags" ILIKE $${paramIndex}`;
+        paramIndex++;
+        return condition;
+      });
+      whereClauses.push(`(${tagConditions.join(' AND ')})`);
+
+      topTags.forEach((tag: string) => {
+        sqlParams.push(`%${tag}%`);
+      });
+
+      const sql = `SELECT * FROM "Sample" 
+              WHERE ${whereClauses.join(' AND ')}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              LIMIT ${limit || 50}`;
+
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`[QueryEngine] EXECUTED SQL QUERY (Pattern Analysis - Two-step):`);
+      console.log(`${'='.repeat(80)}`);
+      console.log(`Step 1: Analyzed ${statusResults.length} ${reference_status} projects`);
+      console.log(`Step 2: Found top 3 tags: ${topTags.join(', ')}`);
+      console.log(`Step 3: Finding upcoming projects with these patterns:`);
+      console.log(this.substituteParams(sql, sqlParams));
+      console.log(`${'='.repeat(80)}\n`);
+
+      const results = await externalDbQuery(sql, sqlParams);
+      console.log(`[Pattern Analysis] Results count: ${results.length} upcoming projects matching pattern`);
+
+      return {
+        success: true,
+        data: results,
+        sql_query: sql,
+        sql_params: sqlParams,
+      };
+    } catch (error) {
+      console.error(`Error in handlePatternAnalysisQuery:`, error);
+      return {
+        success: false,
+        data: [],
+        error: String(error),
+      };
+    }
+  }
+
   private async executeQuery(
     functionName: string,
     args: Record<string, any>,
@@ -4132,6 +4346,11 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       // Special handling for get_projects_with_same_attribute (two-step query)
       if (functionName === "get_projects_with_same_attribute") {
         return await this.handleSameAttributeQuery(args, externalDbQuery);
+      }
+
+      // Special handling for get_upcoming_similar_to_group_pattern (two-step pattern analysis)
+      if (functionName === "get_upcoming_similar_to_group_pattern") {
+        return await this.handlePatternAnalysisQuery(args, externalDbQuery);
       }
 
       // Special handling for status="all" - user wants ALL projects regardless of status

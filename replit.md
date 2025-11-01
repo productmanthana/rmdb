@@ -55,17 +55,32 @@ Preferred communication style: Simple, everyday language.
 **Query Template Coverage** (as of November 1, 2025):
 - **52 original queries**: Basic temporal, ranking, category, geographic, POC, and status queries
 - **37 advanced queries** (Phase 1-4): High-value comparisons, trends, forecasting, client intelligence, risk analysis
-- **3 new queries added on November 1, 2025**:
+- **4 new queries added on November 1, 2025**:
   - `get_top_projects_by_win_rate` - Sort projects by win percentage (for "top N by win rate" queries)
   - `get_clients_by_status_count` - Aggregate clients by status with project counts (for "which clients lost most" queries)
   - `search_projects_by_keyword` - Full-text search in Description field (e.g., "projects mentioning bridge", "search for water treatment")
-- **Total: 97+ production-ready query templates**
+  - `get_upcoming_similar_to_group_pattern` - **TWO-STEP PATTERN ANALYSIS**: Analyzes common tags in a reference group, then finds upcoming projects matching those patterns (e.g., "upcoming projects similar to lost projects")
+- **Total: 98 production-ready query templates**
 - **Note**: Client and company comparison templates (`compare_clients`, `compare_companies`) already existed in the system
 - **Coverage: 100% of all 13 database columns fully supported** (see QUERY_COVERAGE_MATRIX.md)
 
 **Recent Improvements** (November 1, 2025):
 
-### Latest Session - Comprehensive Query Coverage & Bug Fixes
+### Latest Session - Pattern Analysis & Tags Support
+- **Added pattern analysis query template**: New `get_upcoming_similar_to_group_pattern` function
+  - Analyzes reference group (e.g., "lost projects") to extract top 3 most common tags
+  - Finds upcoming projects matching those tag patterns + same status
+  - Enables queries like "upcoming projects similar to lost projects", "future projects like won ones"
+  - TWO-STEP PROCESS:
+    1. Query all projects with reference status
+    2. Count tag frequencies and extract top 3 tags
+    3. Find upcoming projects with those tags + same status
+- **Added tags support to similarity matching**: `get_projects_with_same_attribute` now supports tags attribute
+  - Can query "projects similar to PID 8 (same category and tags)"
+  - Uses AND logic: projects must contain ALL reference tags (can have additional tags)
+  - Multi-attribute support: `attribute: "category,tags"` or `attribute: "client,status,tags"`
+
+### Earlier Session - Comprehensive Query Coverage & Bug Fixes
 - **Achieved 100% query coverage**: Added keyword search template and improved AI classifications
   - Created `QUERY_COVERAGE_MATRIX.md` analyzing all 13 database columns vs 6 query patterns
   - Added `search_projects_by_keyword` for Description field text search (previously missing)
