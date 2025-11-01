@@ -4334,15 +4334,9 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
   ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
     try {
-      let template = this.queryTemplates[functionName];
-      if (!template) {
-        return {
-          success: false,
-          data: [],
-          error: `Unknown function: ${functionName}`,
-        };
-      }
-
+      // Check for special handlers FIRST (before template lookup)
+      // These functions have custom logic and don't use standard SQL templates
+      
       // Special handling for get_projects_with_same_attribute (two-step query)
       if (functionName === "get_projects_with_same_attribute") {
         return await this.handleSameAttributeQuery(args, externalDbQuery);
@@ -4351,6 +4345,16 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       // Special handling for get_upcoming_similar_to_group_pattern (two-step pattern analysis)
       if (functionName === "get_upcoming_similar_to_group_pattern") {
         return await this.handlePatternAnalysisQuery(args, externalDbQuery);
+      }
+
+      // Now check for standard SQL template
+      let template = this.queryTemplates[functionName];
+      if (!template) {
+        return {
+          success: false,
+          data: [],
+          error: `Unknown function: ${functionName}`,
+        };
       }
 
       // Special handling for status="all" - user wants ALL projects regardless of status
