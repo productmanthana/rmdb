@@ -1109,15 +1109,9 @@ export default function ChatPage() {
                                               </div>
                                               <div>
                                                 <p className="text-base font-medium text-white mb-2">No Data Available</p>
-                                                <p className="text-sm text-white/60 mb-4">
-                                                  The query returned no results. Follow-up questions require data to analyze.
+                                                <p className="text-sm text-white/60">
+                                                  The query returned no results. Try a different question.
                                                 </p>
-                                                <p className="text-xs text-white/50 mb-3">Try asking:</p>
-                                                <div className="space-y-2 text-xs text-white/70">
-                                                  <p>• "Show me all projects from 2024"</p>
-                                                  <p>• "What are the top 10 largest projects?"</p>
-                                                  <p>• "Compare revenue between companies"</p>
-                                                </div>
                                               </div>
                                             </div>
                                           </div>
