@@ -359,6 +359,7 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
+  const messagesRef = useRef<Message[]>([]);
   const [input, setInput] = useState("");
   const [copied, setCopied] = useState(false);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
@@ -370,6 +371,11 @@ export default function ChatPage() {
   const [maximizedTable, setMaximizedTable] = useState<{ messageId: string; data: any[] } | null>(null);
   const [activeTabPerMessage, setActiveTabPerMessage] = useState<Record<string, string>>({});
   const { toast } = useToast();
+
+  // Keep ref in sync with messages state
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   // Fetch chat history
   const { data: chatHistory = [] } = useQuery<ChatHistory[]>({
@@ -385,18 +391,24 @@ export default function ChatPage() {
   const queryMutation = useMutation({
     mutationFn: async (question: string) => {
       // Get the last bot message to use as previous context for follow-up queries
-      const lastBotMessage = messages.filter(m => m.type === "bot").pop();
+      // Use messagesRef.current to get the latest messages (not stale closure)
+      const lastBotMessage = messagesRef.current.filter(m => m.type === "bot").pop();
       const previousContext = lastBotMessage?.response?.function_name && lastBotMessage?.response?.arguments ? {
         question: lastBotMessage.response.question || "",
         function_name: lastBotMessage.response.function_name,
         arguments: lastBotMessage.response.arguments,
       } : undefined;
 
+      console.log('[ChatPage] Sending query:', question);
+      console.log('[ChatPage] Previous context:', previousContext);
+
       const res = await apiRequest("POST", "/api/query", { 
         question,
         previousContext 
       });
-      return res.json() as Promise<QueryResponse>;
+      const data = await res.json() as Promise<QueryResponse>;
+      console.log('[ChatPage] Response:', data);
+      return data;
     },
     onSuccess: async (data, question) => {
       const botMessage: Message = {
