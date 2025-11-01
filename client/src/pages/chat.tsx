@@ -1332,8 +1332,10 @@ export default function ChatPage() {
                                             </div>
                                           )}
                                         </div>
+                                          </>
+                                        )}
 
-                                        {/* AI Analysis Input */}
+                                        {/* AI Analysis Input - Always show */}
                                         {(() => {
                                           const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
                                           const limitReached = userFollowUpCount >= 3;
@@ -1404,8 +1406,6 @@ export default function ChatPage() {
                                             </div>
                                           );
                                         })()}
-                                          </>
-                                        )}
                                       </div>
                                     </TabsContent>
                                   </Tabs>
