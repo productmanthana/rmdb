@@ -245,13 +245,18 @@ export class QueryEngine {
       },
 
       get_top_tags: {
-        sql: `SELECT TRIM(UNNEST(string_to_array("Tags", ','))) as tag,
-              COUNT(*) as project_count,
-              SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value
-              FROM "Sample"
-              WHERE "Tags" IS NOT NULL AND "Tags" != ''
+        sql: `WITH tag_data AS (
+                SELECT TRIM(UNNEST(string_to_array("Tags", ','))) as tag,
+                       CAST(NULLIF("Fee", '') AS NUMERIC) as fee
+                FROM "Sample"
+                WHERE "Tags" IS NOT NULL AND "Tags" != ''
+              )
+              SELECT tag,
+                     COUNT(*) as project_count,
+                     SUM(fee) as total_value
+              FROM tag_data
+              WHERE tag != ''
               GROUP BY tag
-              HAVING COUNT(*) > 0 AND TRIM(MIN("Tags")) != ''
               ORDER BY total_value DESC NULLS LAST
               {limit_clause}`,
         params: [],
