@@ -593,7 +593,9 @@ export class QueryEngine {
         optional_params: [
           "size",
           "categories",
+          "exclude_categories",
           "tags",
+          "exclude_tags",
           "status",
           "company",
           "state_code",
@@ -2200,7 +2202,7 @@ export class QueryEngine {
       {
         name: "get_projects_by_combined_filters",
         description:
-          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. DO NOT use for ranking/sorting queries like 'top by win rate' or 'sorted by fee' - use specific ranking functions instead. Use 'tags' parameter ONLY when user explicitly mentions 'tags' or 'tagged'. For general keywords without 'tags' mention, use get_projects_by_category instead. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead.",
+          "Get projects matching MULTIPLE filters simultaneously. Use for complex queries with size, tags, status, dates, etc. DO NOT use for ranking/sorting queries like 'top by win rate' or 'sorted by fee' - use specific ranking functions instead. Use 'tags' parameter ONLY when user explicitly mentions 'tags' or 'tagged'. For general keywords without 'tags' mention, use get_projects_by_category instead. For CLID (Client ID), use 'client' field, NOT 'company'. DO NOT use this for person names - use get_projects_by_poc instead. CRITICAL: Use 'exclude_categories' for negations like 'NOT in Healthcare', 'except Transportation', 'excluding Corporate'.",
         parameters: {
           type: "object",
           properties: {
@@ -2211,12 +2213,22 @@ export class QueryEngine {
             categories: {
               type: "array",
               items: { type: "string" },
-              description: "Request Category values (use single category with get_projects_by_category instead)",
+              description: "Request Category values to INCLUDE (use single category with get_projects_by_category instead)",
+            },
+            exclude_categories: {
+              type: "array",
+              items: { type: "string" },
+              description: "Request Category values to EXCLUDE. Use when query has 'NOT in X', 'except Y', 'excluding Z', 'but not in X' (e.g., 'but not in Healthcare' → exclude_categories: ['Healthcare'])",
             },
             tags: {
               type: "array",
               items: { type: "string" },
-              description: "Keywords/tags ONLY when user explicitly says 'tags' or 'tagged' (e.g., 'show tags: Rail, Transit'). For general category queries without 'tags' keyword, use get_projects_by_category instead.",
+              description: "Keywords/tags to INCLUDE. Only when user explicitly says 'tags' or 'tagged' (e.g., 'show tags: Rail, Transit'). For general category queries without 'tags' keyword, use get_projects_by_category instead.",
+            },
+            exclude_tags: {
+              type: "array",
+              items: { type: "string" },
+              description: "Keywords/tags to EXCLUDE. Use when query has 'NOT tagged with X', 'except tag Y', 'excluding tags Z'",
             },
             status: { type: "string", description: "Project status" },
             client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573'). Use this for Client IDs, NOT company." },
@@ -4347,6 +4359,13 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         paramIndex++;
       }
 
+      // Exclude categories (for "NOT in Healthcare", "except Transportation", etc.)
+      if (args.exclude_categories && args.exclude_categories.length > 0) {
+        filters.push(`"Request Category" NOT ILIKE ALL($${paramIndex})`);
+        params.push(args.exclude_categories.map((c: string) => `%${c}%`));
+        paramIndex++;
+      }
+
       if (args.tags && args.tags.length > 0) {
         const tagConditions = args.tags.map((tag: string) => {
           const condition = `"Tags" ILIKE $${paramIndex}`;
@@ -4356,6 +4375,18 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         });
         // Use OR logic: (tag1 OR tag2 OR tag3)
         filters.push(`(${tagConditions.join(' OR ')})`);
+      }
+
+      // Exclude tags (for "NOT tagged with X", "except tag Y", etc.)
+      if (args.exclude_tags && args.exclude_tags.length > 0) {
+        const excludeTagConditions = args.exclude_tags.map((tag: string) => {
+          const condition = `"Tags" NOT ILIKE $${paramIndex}`;
+          params.push(`%${tag}%`);
+          paramIndex++;
+          return condition;
+        });
+        // Use AND logic: (NOT tag1 AND NOT tag2 AND NOT tag3)
+        filters.push(`(${excludeTagConditions.join(' AND ')})`);
       }
 
       if (args.client) {
