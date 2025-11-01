@@ -3660,10 +3660,35 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       const results = await this.executeQuery(functionName, args, externalDbQuery);
 
       if (!results.success) {
+        // Convert technical errors to user-friendly messages
+        const errorMessage = results.error || "Query execution failed";
+        
+        // Treat "not found" and "no data" errors as 0 results instead of errors
+        if (
+          errorMessage.includes("not found") ||
+          errorMessage.includes("has no") ||
+          errorMessage.includes("No data available")
+        ) {
+          return {
+            success: true,
+            question: userQuestion,
+            function_name: functionName,
+            arguments: args,
+            data: [],
+            row_count: 0,
+            summary: {},
+            chart_config: null,
+            message: "Found 0 results",
+            sql_query: results.sql_query,
+            sql_params: results.sql_params,
+          };
+        }
+        
+        // For other errors, return friendly message
         return {
           success: false,
-          error: results.error || "Query execution failed",
-          message: "An error occurred while executing the query",
+          error: errorMessage,
+          message: "Unable to process this query. Please try rephrasing your question.",
           data: [],
         };
       }
