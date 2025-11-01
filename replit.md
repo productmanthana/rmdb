@@ -61,6 +61,20 @@ Preferred communication style: Simple, everyday language.
 - **Total: 91 production-ready query templates**
 
 **Recent Improvements** (November 1, 2025):
+
+### Latest Session - UI/UX and Query Engine Fixes
+- **Fixed follow-up input visibility**: Input box now appears in "No Data Available" section
+  - Users can ask follow-up questions even when initial query returns zero results
+  - Improves UX by removing dead-end states
+- **Fixed follow-up response rendering bug**: Follow-up responses now display correctly when original query had no data
+  - Changed conditional logic in chat.tsx to show conversation area when `aiAnalysisMessages` exist
+  - Previously, responses were sent to server but not rendered in UI
+- **Fixed "all projects" bug**: Asking for "all projects" now works correctly in follow-up questions
+  - Added special handling for `status="all"` in query-engine.ts
+  - Redirects `get_projects_by_status` with `status="all"` to `get_largest_projects` (no status filter)
+  - Previous behavior: Generated incorrect SQL `WHERE Status ILIKE 'all'` returning zero results
+
+### Earlier Today - Query Template Improvements
 - **Fixed `get_top_tags` SQL error**: Changed from HAVING clause with UNNEST to CTE-based filtering
   - Before: "set-returning functions not allowed in HAVING" error
   - After: CTE extracts tags first, then filters empty tags in WHERE clause
