@@ -2253,7 +2253,7 @@ export class QueryEngine {
 
       {
         name: "get_smallest_projects",
-        description: "Get smallest/lowest projects by fee",
+        description: "Get smallest/lowest/bottom/cheapest projects by fee. Use for queries like 'bottom projects', 'smallest fee', 'lowest value', 'cheapest projects', 'least expensive'.",
         parameters: {
           type: "object",
           properties: {
@@ -3595,7 +3595,9 @@ Applied filters: ${JSON.stringify(previousContext.arguments)}
 FOLLOW-UP REFINEMENT: ${userQuestion}
 
 CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
-1. **USE THE SAME QUERY TYPE** (${previousContext.function_name}) unless the user explicitly asks for something completely different
+1. **DETERMINE THE CORRECT QUERY TYPE** based on what the user is asking NOW:
+   - If asking for opposite/different intent (e.g., "bottom" after "top", "smallest" after "largest", "lost" after "won"), choose the appropriate function
+   - If just refining filters (e.g., "with status won", "limit to 5"), keep same function type (${previousContext.function_name})
 2. **EXTRACT ONLY NEW/CHANGED PARAMETERS** from the follow-up question - DO NOT repeat previous parameters
 3. The system will automatically merge your extracted parameters with previous ones
 
