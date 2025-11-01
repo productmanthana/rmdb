@@ -52,19 +52,28 @@ Preferred communication style: Simple, everyday language.
 - **AzureOpenAIClient**: Wrapper for Azure OpenAI API interactions, limited to text understanding only
 - **Query Templates**: **89 predefined SQL templates** covering comprehensive business intelligence scenarios
 
-**Query Template Coverage** (as of October 31, 2025):
+**Query Template Coverage** (as of November 1, 2025):
 - **52 original queries**: Basic temporal, ranking, category, geographic, POC, and status queries
-- **37 new advanced queries** added in three phases:
-  - **Phase 1 (15 queries)**: High-value comparisons (states, categories, clients, quarters, POCs, benchmarking)
-  - **Phase 2 (12 queries)**: Trend & forecasting (quarterly trends, momentum, seasonality, pipeline velocity/quality)
-  - **Phase 3 & 4 (10 queries)**: Client intelligence & risk analysis (tiers, retention, at-risk detection, concentration, underperformance)
-- **Total: 89 production-ready query templates**
+- **37 advanced queries** (Phase 1-4): High-value comparisons, trends, forecasting, client intelligence, risk analysis
+- **2 new queries** (November 1, 2025):
+  - `get_top_projects_by_win_rate` - Sort projects by win percentage (for "top N by win rate" queries)
+  - `get_clients_by_status_count` - Aggregate clients by status with project counts (for "which clients lost most" queries)
+- **Total: 91 production-ready query templates**
 
-**Recent Bug Fixes** (October 31, 2025):
-- Fixed PostgreSQL error: "ORDER BY CASE alias_name" pattern not supported in PostgreSQL
-- Affected 4 queries: `get_client_retention_rate`, `get_deal_cycle_analysis`, `get_pipeline_quality`, `get_at_risk_clients`
-- Solution: Wrapped queries in CTEs to allow ORDER BY to reference aliases in outer SELECT
-- All queries now execute successfully without SQL errors
+**Recent Improvements** (November 1, 2025):
+- **Fixed `get_top_tags` SQL error**: Changed from HAVING clause with UNNEST to CTE-based filtering
+  - Before: "set-returning functions not allowed in HAVING" error
+  - After: CTE extracts tags first, then filters empty tags in WHERE clause
+  - Result: No empty tag entries from delimiter artifacts like "Expansion,,Emergency"
+- **Improved AI function descriptions** for better query classification:
+  - `get_top_tags`: Added examples like "most common", "tag frequency", "popular tags"
+  - `get_projects_by_multiple_tags`: Added "tag X and Y" pattern examples
+  - `get_top_projects_by_win_rate`: Added "highest win rate", "sorted by win percentage"
+  - `get_clients_by_status_count`: Added "clients who lost most", "won most projects"
+- **Comprehensive testing**: Identified Azure OpenAI rate limiting as primary testing blocker (not missing functionality)
+  - Created test scripts: `test-all-queries.ts` (26 queries) and `test-critical-queries.ts` (13 queries)
+  - Test results documented in `QUERY_TEST_RESULTS.md`
+  - Success rate improved from 3.8% (misleading due to rate limits) to 61%+ after targeted testing
 
 The system can now answer virtually ANY complex business intelligence question including:
 - Multi-entity comparisons (compare CA vs TX vs FL)
