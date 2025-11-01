@@ -927,6 +927,23 @@ export class QueryEngine {
       },
 
       // ═══════════════════════════════════════════════════════════════
+      // TEXT / KEYWORD SEARCH QUERIES
+      // ═══════════════════════════════════════════════════════════════
+
+      search_projects_by_keyword: {
+        sql: `SELECT * FROM "Sample" 
+              WHERE "Description" ILIKE $1
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
+        params: ["keyword"],
+        param_types: ["str"],
+        optional_params: ["size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
+      // ═══════════════════════════════════════════════════════════════
       // PHASE 1: HIGH-VALUE COMPARISONS
       // ═══════════════════════════════════════════════════════════════
 
@@ -2400,23 +2417,26 @@ export class QueryEngine {
 
       {
         name: "compare_companies",
-        description: "Compare all companies by revenue, count, win rate",
+        description: "Rank and compare ALL companies (OPCOs) by total revenue, project count, average project size, and win rates. Use for questions like 'top companies by revenue', 'which company has most projects', 'rank all OPCOs', 'company performance comparison'. Returns all companies sorted by revenue.",
         parameters: {
           type: "object",
-          properties: {},
+          properties: {
+            limit: { type: "integer", description: "Number of top companies to return" },
+          },
           required: [],
         },
       },
 
       {
         name: "compare_opco_revenue",
-        description: "Compare predicted revenue between specific OPCOs/companies",
+        description: "Compare predicted revenue between SPECIFIC companies/OPCOs for active pipeline opportunities (not won/lost). Use when user asks to compare 2+ specific companies like 'compare Company A vs Company B', 'how does OPCO X compare to OPCO Y'.",
         parameters: {
           type: "object",
           properties: {
             companies: {
               type: "array",
               items: { type: "string" },
+              description: "Array of company names to compare",
             },
           },
           required: ["companies"],
@@ -2453,11 +2473,12 @@ export class QueryEngine {
       // Status
       {
         name: "get_projects_by_status",
-        description: "Get projects by status",
+        description: "Get INDIVIDUAL PROJECTS filtered by status (won/lost/submitted/lead). Returns projects sorted by fee (highest first). Use this for questions like 'top won projects', 'highest value lost projects', 'show me won projects', 'largest submitted projects by fee'.",
         parameters: {
           type: "object",
           properties: {
             status: { type: "string" },
+            limit: { type: "integer" },
           },
           required: ["status"],
         },
@@ -2575,7 +2596,7 @@ export class QueryEngine {
 
       {
         name: "get_clients_by_status_count",
-        description: "Get clients ranked by number of projects with a specific status. Use for queries like 'which clients lost most projects', 'clients with most won projects', 'clients by number of losses/wins', or 'clients ranked by status count'.",
+        description: "Aggregate CLIENTS (not individual projects) by status to show which clients have the MOST/LEAST projects of that status. Returns CLIENT names grouped by project count. Use ONLY for client-level aggregation like 'which clients won/lost MOST projects', 'top clients by win count'. DO NOT use for individual project queries like 'top won projects' or 'highest fee projects' - use get_projects_by_status instead.",
         parameters: {
           type: "object",
           properties: {
@@ -3335,6 +3356,19 @@ export class QueryEngine {
           required: ["project_name"],
         },
       },
+
+      {
+        name: "search_projects_by_keyword",
+        description: "Search projects by keyword in description field. Use for questions like 'projects mentioning bridge', 'search for water treatment', 'find projects with keyword X', 'projects about sustainability'. Supports additional filters like status, location, size, etc.",
+        parameters: {
+          type: "object",
+          properties: {
+            keyword: { type: "string", description: "Keyword to search for in project description" },
+            limit: { type: "integer", description: "Number of results to return" },
+          },
+          required: ["keyword"],
+        },
+      },
     ];
   }
 
@@ -4011,7 +4045,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
   ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
     try {
-      const template = this.queryTemplates[functionName];
+      let template = this.queryTemplates[functionName];
       if (!template) {
         return {
           success: false,
@@ -4044,8 +4078,8 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
             error: `Failed to redirect from ${originalFunction} to ${functionName}`,
           };
         }
-        // Update template reference
-        return await this.executeQueryFunction(functionName, args, externalDbQuery);
+        // Update template reference and recursively call executeQuery
+        template = newTemplate;
       }
 
       let sql = template.sql;

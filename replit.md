@@ -55,14 +55,33 @@ Preferred communication style: Simple, everyday language.
 **Query Template Coverage** (as of November 1, 2025):
 - **52 original queries**: Basic temporal, ranking, category, geographic, POC, and status queries
 - **37 advanced queries** (Phase 1-4): High-value comparisons, trends, forecasting, client intelligence, risk analysis
-- **2 new queries** (November 1, 2025):
+- **3 new queries added on November 1, 2025**:
   - `get_top_projects_by_win_rate` - Sort projects by win percentage (for "top N by win rate" queries)
   - `get_clients_by_status_count` - Aggregate clients by status with project counts (for "which clients lost most" queries)
-- **Total: 91 production-ready query templates**
+  - `search_projects_by_keyword` - Full-text search in Description field (e.g., "projects mentioning bridge", "search for water treatment")
+- **Total: 97+ production-ready query templates**
+- **Note**: Client and company comparison templates (`compare_clients`, `compare_companies`) already existed in the system
+- **Coverage: 100% of all 13 database columns fully supported** (see QUERY_COVERAGE_MATRIX.md)
 
 **Recent Improvements** (November 1, 2025):
 
-### Latest Session - UI/UX and Query Engine Fixes
+### Latest Session - Comprehensive Query Coverage & Bug Fixes
+- **Achieved 100% query coverage**: Added keyword search template and improved AI classifications
+  - Created `QUERY_COVERAGE_MATRIX.md` analyzing all 13 database columns vs 6 query patterns
+  - Added `search_projects_by_keyword` for Description field text search (previously missing)
+  - Verified all company/OPCO analytics already covered by existing templates
+- **Fixed SmartMerge parameter loss bug**: Required parameters now preserved when only optional params provided
+  - Before: "top won projects by fee" follow-up lost `status` param, causing SQL binding error
+  - After: SmartMerge detects optional-only params and preserves all previous required params
+  - Fixes "bind message supplies 1 parameters, but prepared statement requires 2" error
+- **Improved AI function descriptions** to prevent misclassification:
+  - `get_projects_by_status`: Now explicitly states it returns individual projects sorted by fee
+  - `get_clients_by_status_count`: Clearly marked as client aggregation, not project queries
+  - `compare_companies`: Enhanced with usage examples for "top companies by revenue"
+  - `compare_opco_revenue`: Clarified for specific company comparisons
+- **Fixed LSP errors**: Changed `const template` to `let template` in executeQuery method
+
+### Earlier Today - UI/UX and Query Engine Fixes
 - **Fixed follow-up input visibility**: Input box now appears in "No Data Available" section
   - Users can ask follow-up questions even when initial query returns zero results
   - Improves UX by removing dead-end states
