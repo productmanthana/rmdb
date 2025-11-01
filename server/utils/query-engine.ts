@@ -2760,12 +2760,12 @@ export class QueryEngine {
 
       {
         name: "get_projects_with_same_attribute",
-        description: "Find all projects that share the same attribute value(s) as a reference project. Use when user asks 'same X as PID Y' or 'projects with same X as project Y'. CRITICAL: For multiple attributes (e.g., 'same client AND status'), provide comma-separated string. Examples: 'same point of contact as PID 7' → attribute:'poc', 'same category as project 123' → attribute:'category', 'same client and status as PID 456' → attribute:'client,status'. This function looks up the reference project first, then finds all projects matching those attributes.",
+        description: "Find all projects that share the same attribute value(s) as a reference project. Use when user asks 'same X as PID Y', 'projects similar to PID Y', or 'projects with same X as project Y'. CRITICAL: For multiple attributes (e.g., 'same client AND status', 'similar to PID 8 (same category and tags)'), provide comma-separated string. Examples: 'same point of contact as PID 7' → attribute:'poc', 'same category as project 123' → attribute:'category', 'same client and status as PID 456' → attribute:'client,status', 'similar to PID 8 (same category and tags)' → attribute:'category,tags'. This function looks up the reference project first, then finds all projects matching those attributes.",
         parameters: {
           type: "object",
           properties: {
             reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference" },
-            attribute: { type: "string", description: "Which attribute(s) to match. Single attribute: 'poc', 'category', 'client', 'status', 'company'. Multiple attributes: comma-separated like 'client,status' or 'category,company'. Values: 'poc' for Point of Contact, 'category' for Category, 'client' for Client ID, 'status' for Status, 'company' for Company" },
+            attribute: { type: "string", description: "Which attribute(s) to match. Single attribute: 'poc', 'category', 'client', 'status', 'company', 'tags'. Multiple attributes: comma-separated like 'client,status' or 'category,tags'. Values: 'poc' for Point of Contact, 'category' for Request Category, 'client' for Client ID, 'status' for Status, 'company' for Company/OPCO, 'tags' for Tags" },
             min_fee: { type: "number", description: "Minimum fee filter (optional)" },
             max_fee: { type: "number", description: "Maximum fee filter (optional)" },
             start_date: { type: "string", description: "Start date filter (optional)" },
@@ -3991,6 +3991,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         client: "Client",
         status: "Status",
         company: "Company",
+        tags: "Tags",
       };
 
       // Build WHERE conditions for all attributes
@@ -4014,10 +4015,43 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
           continue;
         }
 
-        console.log(`[QueryEngine] Step 2: Found ${attr} = "${attributeValue}"`);
-        whereClauses.push(`"${columnName}" ILIKE $${paramIndex}`);
-        sqlParams.push(`%${attributeValue}%`);
-        paramIndex++;
+        // Special handling for tags - for simplicity, match projects with ALL the reference tags
+        // Note: This will also match projects that have additional tags beyond the reference set
+        if (attr === 'tags') {
+          // Extract individual tags from the reference project's tag string
+          const referenceTags = attributeValue
+            .split(',')
+            .map((t: string) => t.trim())
+            .filter((t: string) => t.length > 0);
+          
+          if (referenceTags.length === 0) {
+            console.log(`[QueryEngine] ⚠️ Warning: Reference project has empty tags, skipping this filter`);
+            continue;
+          }
+
+          console.log(`[QueryEngine] Step 2: Found tags = ${JSON.stringify(referenceTags)} (must contain all these tags)`);
+          
+          // Build ILIKE conditions for each tag (AND logic - project must contain ALL reference tags)
+          // Note: Projects with additional tags will also match (e.g., "Education, Academic, Healthcare" matches "Education, Academic")
+          const tagConditions = referenceTags.map(() => {
+            const condition = `"Tags" ILIKE $${paramIndex}`;
+            paramIndex++;
+            return condition;
+          });
+          
+          whereClauses.push(`(${tagConditions.join(' AND ')})`);
+          
+          // Add all tags as parameters with wildcards
+          referenceTags.forEach((tag: string) => {
+            sqlParams.push(`%${tag}%`);
+          });
+        } else {
+          // Normal attribute matching
+          console.log(`[QueryEngine] Step 2: Found ${attr} = "${attributeValue}"`);
+          whereClauses.push(`"${columnName}" ILIKE $${paramIndex}`);
+          sqlParams.push(`%${attributeValue}%`);
+          paramIndex++;
+        }
       }
 
       if (whereClauses.length === 0) {
