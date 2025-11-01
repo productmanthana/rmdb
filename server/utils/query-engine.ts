@@ -4003,6 +4003,29 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         return await this.handleSameAttributeQuery(args, externalDbQuery);
       }
 
+      // Special handling for status="all" - user wants ALL projects regardless of status
+      // Redirect to get_largest_projects which returns all projects without status filter
+      if ((functionName === "get_projects_by_status" || functionName === "get_clients_by_status_count") 
+          && args.status && args.status.toLowerCase() === 'all') {
+        console.log(`[QueryEngine] Detected status='all', redirecting from ${functionName} to get_largest_projects`);
+        const originalFunction = functionName;
+        functionName = "get_largest_projects";
+        // Remove status from args since get_largest_projects doesn't use it
+        const { status, ...restArgs } = args;
+        args = restArgs;
+        // Re-fetch the template for the new function
+        const newTemplate = this.queryTemplates[functionName];
+        if (!newTemplate) {
+          return {
+            success: false,
+            data: [],
+            error: `Failed to redirect from ${originalFunction} to ${functionName}`,
+          };
+        }
+        // Update template reference
+        return await this.executeQueryFunction(functionName, args, externalDbQuery);
+      }
+
       let sql = template.sql;
       const sqlParams: any[] = [];
       
@@ -4091,8 +4114,8 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       paramIndex++;
     }
 
-    // Status filter
-    if (args.status) {
+    // Status filter (skip if "all" - user wants all statuses)
+    if (args.status && args.status.toLowerCase() !== 'all') {
       filters.push(`"Status" ILIKE $${paramIndex}`);
       params.push(`%${args.status}%`);
       paramIndex++;

@@ -1102,19 +1102,93 @@ export default function ChatPage() {
 
                                         {/* Check if there's data to analyze */}
                                         {!message.response.data || message.response.data.length === 0 ? (
-                                          <div className="glass-dark rounded-xl p-6 border border-white/10">
-                                            <div className="flex flex-col items-center justify-center gap-4 text-center">
-                                              <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center">
-                                                <AlertCircle className="h-8 w-8 text-white/70" />
-                                              </div>
-                                              <div>
-                                                <p className="text-base font-medium text-white mb-2">No Data Available</p>
-                                                <p className="text-sm text-white/60">
-                                                  The query returned no results. Try a different question.
-                                                </p>
+                                          <>
+                                            <div className="glass-dark rounded-xl p-6 border border-white/10 mb-4">
+                                              <div className="flex flex-col items-center justify-center gap-4 text-center">
+                                                <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center">
+                                                  <AlertCircle className="h-8 w-8 text-white/70" />
+                                                </div>
+                                                <div>
+                                                  <p className="text-base font-medium text-white mb-2">No Data Available</p>
+                                                  <p className="text-sm text-white/60">
+                                                    The query returned no results. Ask a different question below.
+                                                  </p>
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
+
+                                            {/* Show input box even when there's no data */}
+                                            {(() => {
+                                              const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
+                                              const limitReached = userFollowUpCount >= 3;
+
+                                              return limitReached ? (
+                                                <div className="glass-dark rounded-xl p-4 border border-white/10">
+                                                  <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                                                      <AlertCircle className="h-5 w-5 text-white/70" />
+                                                    </div>
+                                                    <div>
+                                                      <p className="text-sm font-medium text-white">Follow-up Limit Reached</p>
+                                                      <p className="text-xs text-white/60 mt-1">
+                                                        You've asked 3 follow-up questions. Please start a new query to continue exploring the data.
+                                                      </p>
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              ) : (
+                                                <div className="space-y-2">
+                                                  <div className="glass-input rounded-xl p-1">
+                                                    <form
+                                                      onSubmit={(e) => {
+                                                        e.preventDefault();
+                                                        handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                      }}
+                                                      className="flex items-end gap-2"
+                                                    >
+                                                      <Textarea
+                                                        value={aiAnalysisInputs[message.id] || ""}
+                                                        onChange={(e) =>
+                                                          setAiAnalysisInputs((prev) => ({
+                                                            ...prev,
+                                                            [message.id]: e.target.value,
+                                                          }))
+                                                        }
+                                                        onKeyDown={(e) => {
+                                                          if (e.key === "Enter" && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            if (aiAnalysisInputs[message.id]?.trim() && !aiAnalysisLoading[message.id]) {
+                                                              handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                            }
+                                                          }
+                                                        }}
+                                                        placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
+                                                        className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                                        disabled={aiAnalysisLoading[message.id]}
+                                                        data-testid={`input-ai-analysis-${message.id}`}
+                                                      />
+                                                      <Button
+                                                        type="submit"
+                                                        size="icon"
+                                                        className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
+                                                        disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
+                                                        data-testid={`button-submit-ai-analysis-${message.id}`}
+                                                      >
+                                                        {aiAnalysisLoading[message.id] ? (
+                                                          <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        ) : (
+                                                          <Send className="h-4 w-4 text-white" />
+                                                        )}
+                                                      </Button>
+                                                    </form>
+                                                  </div>
+                                                  <p className="text-xs text-white/50 px-2">
+                                                    {userFollowUpCount}/3 follow-up questions used
+                                                  </p>
+                                                </div>
+                                              );
+                                            })()}
+                                          </>
                                         ) : (
                                           <>
                                             {/* Follow-up Chat Interface */}
