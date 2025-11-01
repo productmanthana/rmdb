@@ -136,6 +136,9 @@ The system can now answer virtually ANY complex business intelligence question i
   - Connection pooling with max 20 connections
   - SSL disabled (internal network)
   - 10-second connection timeout
+- **Database Schema - Sample Table**:
+  - **Status field values**: Hold, In Progress, Lead, Proposal Development, Qualified Lead, Submitted, Won
+  - **Note**: There is NO "Lost" status in the database (legacy code assumed it existed)
 
 **Database Schema Management**: Drizzle Kit for migrations and schema management
 - Schema defined in `shared/schema.ts`

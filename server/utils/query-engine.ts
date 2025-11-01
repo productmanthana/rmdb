@@ -3852,13 +3852,25 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       if (["won", "win", "winning", "successful", "awarded"].includes(status)) {
         args.status = "won";
       } else if (["lost", "lose", "losing", "unsuccessful", "rejected"].includes(status)) {
-        args.status = "lost";
+        // "Lost" status doesn't exist in database. Valid statuses are:
+        // Hold, In Progress, Lead, Proposal Development, Qualified Lead, Submitted, Won
+        // For now, interpret "lost" as "Hold" (projects that were abandoned/paused)
+        console.log(`[Status Normalization] ⚠️ WARNING: "Lost" status doesn't exist in database`);
+        console.log(`[Status Normalization]    Mapping "lost" → "Hold" (abandoned/paused projects)`);
+        console.log(`[Status Normalization]    Valid statuses: Hold, In Progress, Lead, Proposal Development, Qualified Lead, Submitted, Won`);
+        args.status = "hold";
       } else if (["submit", "submitted", "pending", "awaiting"].includes(status)) {
         args.status = "submitted";
       } else if (["lead", "leads", "opportunity", "opportunities"].includes(status)) {
         args.status = "lead";
       } else if (["proposal", "proposal development", "developing"].includes(status)) {
         args.status = "proposal development";
+      } else if (["hold", "holding", "paused", "abandoned"].includes(status)) {
+        args.status = "hold";
+      } else if (["in progress", "progress", "active", "working"].includes(status)) {
+        args.status = "in progress";
+      } else if (["qualified", "qualified lead"].includes(status)) {
+        args.status = "qualified lead";
       }
     }
 
