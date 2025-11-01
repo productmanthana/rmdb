@@ -709,7 +709,7 @@ export class QueryEngine {
               -- Step 2: Find all projects with matching attribute`,
         params: ["reference_pid", "attribute"],
         param_types: ["str", "str"],
-        optional_params: ["min_fee", "max_fee", "start_date", "end_date"],
+        optional_params: ["min_fee", "max_fee", "start_date", "end_date", "exclude_category", "exclude_status", "exclude_client"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -2767,12 +2767,15 @@ export class QueryEngine {
 
       {
         name: "get_projects_with_same_attribute",
-        description: "Find all projects that share the same attribute value(s) as a reference project. Use when user asks 'same X as PID Y', 'projects similar to PID Y', or 'projects with same X as project Y'. CRITICAL: For multiple attributes (e.g., 'same client AND status', 'similar to PID 8 (same category and tags)'), provide comma-separated string. Examples: 'same point of contact as PID 7' → attribute:'poc', 'same category as project 123' → attribute:'category', 'same client and status as PID 456' → attribute:'client,status', 'similar to PID 8 (same category and tags)' → attribute:'category,tags'. This function looks up the reference project first, then finds all projects matching those attributes.",
+        description: "Find all projects that share the same attribute value(s) as a reference project, with optional exclusion filters. Use for: (1) 'similar to PID X' queries, (2) 'same [attribute] as PID X', (3) 'similar but different [attribute]', (4) 'like PID X but not in same [attribute]'. EXCLUSION EXAMPLES: 'similar to PID 10 but different category' → {reference_pid:'PID 10', attribute:'tags', exclude_category:true}, 'like PID 5 but not same client' → {reference_pid:'PID 5', attribute:'tags', exclude_client:true}, 'find projects similar to PID 10, but only those in a different category' → {reference_pid:'PID 10', attribute:'tags', exclude_category:true}. MATCHING EXAMPLES: 'same point of contact as PID 7' → {reference_pid:'PID 7', attribute:'poc'}, 'similar to PID 8 (same category and tags)' → {reference_pid:'PID 8', attribute:'category,tags'}. This two-step function: (1) looks up reference project, (2) finds matching projects while excluding specified fields.",
         parameters: {
           type: "object",
           properties: {
-            reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference" },
-            attribute: { type: "string", description: "Which attribute(s) to match. Single attribute: 'poc', 'category', 'client', 'status', 'company', 'tags'. Multiple attributes: comma-separated like 'client,status' or 'category,tags'. Values: 'poc' for Point of Contact, 'category' for Request Category, 'client' for Client ID, 'status' for Status, 'company' for Company/OPCO, 'tags' for Tags" },
+            reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference. Examples: 'PID 10', '10', 'Project ABC'" },
+            attribute: { type: "string", description: "Which attribute(s) to match. For 'similar' queries without specific attributes mentioned, use 'tags'. For specific attributes: 'poc' (Point of Contact), 'category' (Request Category), 'client' (Client ID), 'status' (Status), 'company' (Company/OPCO), 'tags' (Tags). Multi-attribute: comma-separated like 'client,status' or 'category,tags'" },
+            exclude_category: { type: "boolean", description: "Set to true when query says 'different category', 'not same category', 'but only those in a different category', or 'except same category'. Excludes projects in same category as reference." },
+            exclude_status: { type: "boolean", description: "Set to true when query says 'different status', 'not same status', 'but different status'. Excludes projects with same status as reference." },
+            exclude_client: { type: "boolean", description: "Set to true when query says 'different client', 'not same client', 'but different client'. Excludes projects from same client as reference." },
             min_fee: { type: "number", description: "Minimum fee filter (optional)" },
             max_fee: { type: "number", description: "Maximum fee filter (optional)" },
             start_date: { type: "string", description: "Start date filter (optional)" },
@@ -4121,6 +4124,26 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       // Step 3: Build query to find all projects with same attributes
       let sql = `SELECT * FROM "Sample" WHERE ${whereClauses.join(' AND ')}`;
+
+      // Add exclusion filters (e.g., "similar but different category")
+      if (args.exclude_category && referenceProject["Request Category"]) {
+        sql += ` AND "Request Category" NOT ILIKE $${paramIndex}`;
+        sqlParams.push(`%${referenceProject["Request Category"]}%`);
+        paramIndex++;
+        console.log(`[QueryEngine] Excluding category: "${referenceProject["Request Category"]}"`);
+      }
+      if (args.exclude_status && referenceProject["Status"]) {
+        sql += ` AND "Status" NOT ILIKE $${paramIndex}`;
+        sqlParams.push(`%${referenceProject["Status"]}%`);
+        paramIndex++;
+        console.log(`[QueryEngine] Excluding status: "${referenceProject["Status"]}"`);
+      }
+      if (args.exclude_client && referenceProject["Client"]) {
+        sql += ` AND "Client" NOT ILIKE $${paramIndex}`;
+        sqlParams.push(`%${referenceProject["Client"]}%`);
+        paramIndex++;
+        console.log(`[QueryEngine] Excluding client: "${referenceProject["Client"]}"`);
+      }
 
       // Add optional filters
       if (args.min_fee !== undefined) {
