@@ -3879,7 +3879,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       const attributeMap: Record<string, string> = {
         poc: "Point Of Contact",
         category: "Request Category",
-        client: "CLID",
+        client: "Client",
         status: "Status",
         company: "Company",
       };
