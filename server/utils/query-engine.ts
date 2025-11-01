@@ -650,13 +650,18 @@ export class QueryEngine {
               EXTRACT(YEAR FROM "Start Date") as year,
               COUNT(*) as project_count,
               SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_revenue,
-              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee
+              AVG(CAST(NULLIF("Fee", '') AS NUMERIC)) as avg_fee,
+              COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count,
+              COUNT(CASE WHEN "Status" = 'Submitted' THEN 1 END) as submitted_count
               FROM "Sample"
-              WHERE EXTRACT(YEAR FROM "Start Date") IN ($1, $2)
+              WHERE EXTRACT(YEAR FROM "Start Date") >= 2000
+              {year_filter}
+              {status_filter}
               GROUP BY year
-              ORDER BY year`,
-        params: ["year1", "year2"],
-        param_types: ["int", "int"],
+              ORDER BY {order_by}`,
+        params: [],
+        param_types: [],
+        optional_params: ["year1", "year2", "status", "limit"],
         chart_type: "bar",
         chart_field: "total_revenue",
       },
@@ -2608,7 +2613,7 @@ export class QueryEngine {
 
       {
         name: "get_clients_by_status_count",
-        description: "Aggregate CLIENTS (not individual projects) by status to show which clients have the MOST/LEAST projects of that status. Returns CLIENT names grouped by project count. Use ONLY for client-level aggregation like 'which clients won/lost MOST projects', 'top clients by win count'. DO NOT use for individual project queries like 'top won projects' or 'highest fee projects' - use get_projects_by_status instead.",
+        description: "Aggregate CLIENTS (not individual projects) by status to show which clients have the MOST/LEAST projects of that status. Returns CLIENT names grouped by project count. Use ONLY for client-level aggregation like 'which clients won/lost MOST projects', 'top clients by win count'. DO NOT use for: (1) individual project queries like 'top won projects' - use get_projects_by_status instead, (2) TIME/YEAR-based queries like 'which year had most wins' or 'identify year with highest wins' - use compare_years instead, (3) any grouping by time period, quarter, month, or year.",
         parameters: {
           type: "object",
           properties: {
@@ -2703,14 +2708,16 @@ export class QueryEngine {
       // Year Comparisons
       {
         name: "compare_years",
-        description: "Compare two specific years side-by-side. Use for 'compare 2025 vs 2026', 'year over year'.",
+        description: "Compare project performance across multiple years OR identify the best/worst year. Use for: 'compare 2025 vs 2026', 'year over year', 'which year had the most wins', 'identify the year with highest number of project wins', 'what year was best', 'top performing year', 'year with most projects'. If no specific years mentioned, analyzes ALL years. Returns aggregated counts and revenue by year with won_count column.",
         parameters: {
           type: "object",
           properties: {
-            year1: { type: "integer" },
-            year2: { type: "integer" },
+            year1: { type: "integer", description: "First year to compare (optional - if omitted, shows all years)" },
+            year2: { type: "integer", description: "Second year to compare (optional)" },
+            status: { type: "string", description: "Filter by status (e.g., 'Won') - optional" },
+            limit: { type: "integer", description: "Limit results (optional)" },
           },
-          required: ["year1", "year2"],
+          required: [],
         },
       },
 
@@ -4788,6 +4795,36 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         paramIndex++;
       } else {
         result = result.replace("{status_filter}", "");
+      }
+    }
+
+    // Year filter for compare_years template
+    if (result.includes("{year_filter}")) {
+      if (args.year1 && args.year2) {
+        result = result.replace("{year_filter}", `AND EXTRACT(YEAR FROM "Start Date") IN ($${paramIndex}, $${paramIndex + 1})`);
+        params.push(args.year1, args.year2);
+        paramIndex += 2;
+      } else if (args.year1) {
+        result = result.replace("{year_filter}", `AND EXTRACT(YEAR FROM "Start Date") = $${paramIndex}`);
+        params.push(args.year1);
+        paramIndex++;
+      } else {
+        // No year filter - show all years
+        result = result.replace("{year_filter}", "");
+      }
+    }
+
+    // Order by clause for compare_years template
+    if (result.includes("{order_by}")) {
+      if (args.status && args.status.toLowerCase().includes("won")) {
+        // If status is "won", order by won_count descending
+        result = result.replace("{order_by}", "won_count DESC, year DESC");
+      } else if (args.status) {
+        // If other status, order by project_count descending
+        result = result.replace("{order_by}", "project_count DESC, year DESC");
+      } else {
+        // Default: order by year
+        result = result.replace("{order_by}", "year DESC");
       }
     }
 
