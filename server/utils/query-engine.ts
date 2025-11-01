@@ -3878,7 +3878,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       // Step 2: Extract the attribute value based on attribute type
       const attributeMap: Record<string, string> = {
         poc: "Point Of Contact",
-        category: "Category",
+        category: "Request Category",
         client: "CLID",
         status: "Status",
         company: "Company",
