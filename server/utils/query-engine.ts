@@ -4693,6 +4693,34 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       }
     }
 
+    // Handle separate start_date and end_date filters
+    if (result.includes("{start_date_filter}")) {
+      if (args.start_date) {
+        result = result.replace(
+          "{start_date_filter}",
+          `AND "Start Date" >= $${paramIndex}::date`
+        );
+        params.push(args.start_date);
+        paramIndex++;
+      } else {
+        result = result.replace("{start_date_filter}", "");
+      }
+    }
+
+    if (result.includes("{end_date_filter}")) {
+      if (args.end_date) {
+        result = result.replace(
+          "{end_date_filter}",
+          `AND "Start Date" <= $${paramIndex}::date`
+        );
+        params.push(args.end_date);
+        paramIndex++;
+        args._date_already_applied = true; // Mark dates as applied to avoid duplication
+      } else {
+        result = result.replace("{end_date_filter}", "");
+      }
+    }
+
     // Handle limit clause
     if (result.includes("{limit_clause}")) {
       if (args.limit) {
