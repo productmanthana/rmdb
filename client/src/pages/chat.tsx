@@ -1252,25 +1252,6 @@ export default function ChatPage() {
                                                           </AlertDescription>
                                                         </Alert>
                                                       )}
-
-                                                      {/* Hide Button after each follow-up response */}
-                                                      <div className="flex justify-center mt-4">
-                                                        <Button
-                                                          size="sm"
-                                                          variant="ghost"
-                                                          className="glass text-white hover:glass-hover"
-                                                          onClick={() => {
-                                                            setFollowUpVisible(prev => ({
-                                                              ...prev,
-                                                              [message.id]: false
-                                                            }));
-                                                          }}
-                                                          data-testid={`button-hide-followup-after-${msg.id}`}
-                                                        >
-                                                          <X className="h-4 w-4 mr-1" />
-                                                          Hide
-                                                        </Button>
-                                                      </div>
                                                     </div>
                                                   ))}
                                                 </div>

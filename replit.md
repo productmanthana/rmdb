@@ -62,10 +62,10 @@ Currently, in-memory user storage is used for development/demo purposes. The `IS
   - Frontend displays blue alert with Clock icon: "Our AI service is currently busy. Please try again in X seconds."
   - Applies to both main queries and follow-up questions
 
-### Follow-Up Question UX Enhancement
-- **Added Hide buttons to all follow-up responses**: Users can now collapse the follow-up section after viewing any response (1st, 2nd, or 3rd)
-  - Each follow-up response displays its own "Hide" button
-  - Improves UX by allowing users to collapse immediately after getting their answer
+### Follow-Up Question UX
+- **Clean toggle interface**: Follow-up section uses a single "Hide" button in the top right corner
+  - Toggles between "Ask Question" (to expand) and "Hide" (to collapse)
+  - Maintains conversation history while allowing users to minimize the section when not needed
 
 ### "Completed" Status Mapping Fix
 - **Fixed "completed projects" queries**: System now correctly maps "completed" to "Won" status
