@@ -8,14 +8,21 @@ let queryEngine: QueryEngine | null = null;
 
 function getQueryEngine(): QueryEngine {
   if (!queryEngine) {
-    // Require environment variables in production
-    if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_KEY) {
-      throw new Error("Missing required Azure OpenAI credentials. Please set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables.");
-    }
+    // In production, require environment variables
+    // In development, allow fallback to default credentials
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT || 
+      (process.env.NODE_ENV === 'production' 
+        ? (() => { throw new Error("AZURE_OPENAI_ENDPOINT required in production") })()
+        : "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/");
+    
+    const apiKey = process.env.AZURE_OPENAI_KEY || 
+      (process.env.NODE_ENV === 'production'
+        ? (() => { throw new Error("AZURE_OPENAI_KEY required in production") })()
+        : "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU");
 
     const openaiClient = new AzureOpenAIClient({
-      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-      apiKey: process.env.AZURE_OPENAI_KEY,
+      endpoint,
+      apiKey,
       apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
       deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
     });
@@ -52,13 +59,19 @@ export function registerRoutes(app: Express): Express {
       // Generate AI insights automatically if query was successful
       if (response.success && response.data && response.data.length > 0) {
         try {
-          if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_KEY) {
-            throw new Error("Missing required Azure OpenAI credentials");
-          }
+          const endpoint = process.env.AZURE_OPENAI_ENDPOINT || 
+            (process.env.NODE_ENV === 'production'
+              ? (() => { throw new Error("AZURE_OPENAI_ENDPOINT required in production") })()
+              : "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/");
+          
+          const apiKey = process.env.AZURE_OPENAI_KEY || 
+            (process.env.NODE_ENV === 'production'
+              ? (() => { throw new Error("AZURE_OPENAI_KEY required in production") })()
+              : "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU");
 
           const openaiClient = new AzureOpenAIClient({
-            endpoint: process.env.AZURE_OPENAI_ENDPOINT,
-            apiKey: process.env.AZURE_OPENAI_KEY,
+            endpoint,
+            apiKey,
             apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
             deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
           });
