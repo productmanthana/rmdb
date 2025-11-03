@@ -3687,6 +3687,17 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       console.log(`[QueryEngine] AI extracted params:`, JSON.stringify(classification.arguments, null, 2));
 
       if (!classification.function_name || classification.function_name === "none") {
+        // Check if it's a rate limit error
+        if (classification.error === "rate_limit") {
+          const retrySeconds = classification.retryAfter || 10;
+          return {
+            success: false,
+            error: "rate_limit",
+            message: `Our AI service is currently busy. Please try again in ${retrySeconds} seconds.`,
+            data: [],
+          };
+        }
+        
         return {
           success: false,
           error: "cannot_classify",

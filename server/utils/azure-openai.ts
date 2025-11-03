@@ -19,6 +19,7 @@ export interface Classification {
   function_name: string;
   arguments: Record<string, any>;
   error?: string;
+  retryAfter?: number;
 }
 
 export class AzureOpenAIClient {
@@ -83,8 +84,29 @@ Return ONLY valid JSON with "function_name" and "arguments" fields.`;
       });
 
       if (!response.ok) {
-        const error = await response.text();
-        console.error("Azure OpenAI API Error:", error);
+        const errorText = await response.text();
+        console.error("Azure OpenAI API Error:", errorText);
+        
+        // Check if it's a rate limit error
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData.error?.code === "RateLimitReached") {
+            // Extract retry-after time from the message if available
+            const message = errorData.error?.message || "";
+            const retryMatch = message.match(/retry after (\d+) second/i);
+            const retrySeconds = retryMatch ? parseInt(retryMatch[1]) : 10;
+            
+            return {
+              function_name: "none",
+              arguments: {},
+              error: "rate_limit",
+              retryAfter: retrySeconds,
+            };
+          }
+        } catch (e) {
+          // If parsing fails, continue with generic error
+        }
+        
         return {
           function_name: "none",
           arguments: {},

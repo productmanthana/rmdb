@@ -48,6 +48,7 @@ import {
   Brain,
   Maximize2,
   Download,
+  Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -903,8 +904,16 @@ export default function ChatPage() {
 
                                 {/* Error Display */}
                                 {!message.response.success && (
-                                  <Alert variant="destructive" className="glass-dark border-red-500/50" data-testid="alert-error">
-                                    <AlertCircle className="h-4 w-4" />
+                                  <Alert 
+                                    variant={message.response.error === "rate_limit" ? "default" : "destructive"} 
+                                    className={message.response.error === "rate_limit" ? "glass-dark border-blue-500/50 bg-blue-500/10" : "glass-dark border-red-500/50"} 
+                                    data-testid="alert-error"
+                                  >
+                                    {message.response.error === "rate_limit" ? (
+                                      <Clock className="h-4 w-4 text-blue-400" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4" />
+                                    )}
                                     <AlertDescription className="text-white">
                                       {message.response.message || "An error occurred"}
                                     </AlertDescription>
@@ -1229,8 +1238,15 @@ export default function ChatPage() {
 
                                                       {/* Error Display */}
                                                       {msg.response && !msg.response.success && (
-                                                        <Alert variant="destructive" className="glass-dark border-red-500/50">
-                                                          <AlertCircle className="h-4 w-4" />
+                                                        <Alert 
+                                                          variant={msg.response.error === "rate_limit" ? "default" : "destructive"} 
+                                                          className={msg.response.error === "rate_limit" ? "glass-dark border-blue-500/50 bg-blue-500/10" : "glass-dark border-red-500/50"}
+                                                        >
+                                                          {msg.response.error === "rate_limit" ? (
+                                                            <Clock className="h-4 w-4 text-blue-400" />
+                                                          ) : (
+                                                            <AlertCircle className="h-4 w-4" />
+                                                          )}
                                                           <AlertDescription className="text-white">
                                                             {msg.response.message || "Query failed"}
                                                           </AlertDescription>
