@@ -1048,7 +1048,7 @@ export default function ChatPage() {
                                         {/* Follow-up Questions Integration */}
                                         {(message.response.data && message.response.data.length > 0) && (
                                           <div className="mt-4 pt-4 border-t border-white/10">
-                                            <div className="flex items-center justify-between mb-4">
+                                            <div className="sticky top-0 z-10 glass-dark -mx-6 px-6 py-3 mb-4 flex items-center justify-between">
                                               <div className="flex items-center gap-2">
                                                 <MessageSquare className="h-5 w-5 text-white/70" />
                                                 <span className="text-sm text-white/70">Follow up questions</span>
