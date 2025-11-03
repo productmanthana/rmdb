@@ -28,7 +28,7 @@ EXTERNAL_DB_PASSWORD=Vyaasai@rmone
 
 | Setting | Value |
 |---------|-------|
-| **Build Command** | `npm install && npm run build` |
+| **Build Command** | `npm install --include=dev && npm run build` |
 | **Start Command** | `npm start` |
 | **Environment** | `Node` |
 | **Node Version** | `20.x` |
@@ -59,9 +59,11 @@ git push -u origin main
 4. Configure settings:
    - **Name**: `nlp-chatbot` (or any name)
    - **Environment**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npm start`
    - **Instance Type**: Choose based on traffic (Free tier available)
+
+⚠️ **Important**: Use `npm install --include=dev` to install build tools (vite, esbuild, TypeScript) which are in devDependencies.
 
 ### **3. Add Environment Variables**
 
