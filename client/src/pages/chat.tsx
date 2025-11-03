@@ -1090,31 +1090,9 @@ export default function ChatPage() {
                                                         </div>
                                                       </div>
 
-                                                      {/* Close Button - Centered between question and response */}
-                                                      <div className="flex justify-center -my-1">
-                                                        <Button
-                                                          size="icon"
-                                                          variant="ghost"
-                                                          className="glass text-white/70 hover:text-white hover:glass-hover h-8 w-8"
-                                                          onClick={() => {
-                                                            setMessages(prev => prev.map(m => {
-                                                              if (m.id === message.id) {
-                                                                return {
-                                                                  ...m,
-                                                                  aiAnalysisMessages: m.aiAnalysisMessages?.filter(am => am.id !== msg.id)
-                                                                };
-                                                              }
-                                                              return m;
-                                                            }));
-                                                          }}
-                                                          data-testid={`button-close-followup-${msg.id}`}
-                                                        >
-                                                          <X className="h-4 w-4" />
-                                                        </Button>
-                                                      </div>
-
                                                       {/* Query Response with Tabs */}
                                                       {msg.response && msg.response.success && (
+                                                        <>
                                                         <Tabs defaultValue="data" className="w-full">
                                                           <TabsList className="glass border-0">
                                                             <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
@@ -1250,6 +1228,30 @@ export default function ChatPage() {
                                                             </div>
                                                           </TabsContent>
                                                         </Tabs>
+                                                        
+                                                        {/* Close Button - After response */}
+                                                        <div className="flex justify-center mt-4">
+                                                          <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="glass text-white/70 hover:text-white hover:glass-hover h-8 w-8"
+                                                            onClick={() => {
+                                                              setMessages(prev => prev.map(m => {
+                                                                if (m.id === message.id) {
+                                                                  return {
+                                                                    ...m,
+                                                                    aiAnalysisMessages: m.aiAnalysisMessages?.filter(am => am.id !== msg.id)
+                                                                  };
+                                                                }
+                                                                return m;
+                                                              }));
+                                                            }}
+                                                            data-testid={`button-close-followup-${msg.id}`}
+                                                          >
+                                                            <X className="h-4 w-4" />
+                                                          </Button>
+                                                        </div>
+                                                        </>
                                                       )}
 
                                                       {/* Error Display */}
