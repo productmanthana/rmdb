@@ -491,12 +491,14 @@ export class QueryEngine {
       get_top_projects_by_win_rate: {
         sql: `SELECT * FROM "Sample"
               WHERE "Win %" IS NOT NULL AND "Win %" != ''
+              {start_date_filter}
+              {end_date_filter}
               ORDER BY CAST(NULLIF("Win %", '') AS NUMERIC) DESC,
                        CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["limit"],
+        optional_params: ["start_date", "end_date", "limit"],
         chart_type: "bar",
         chart_field: "Win %",
       },
@@ -2601,10 +2603,12 @@ export class QueryEngine {
 
       {
         name: "get_top_projects_by_win_rate",
-        description: "RANKING/SORTING QUERY: Get projects RANKED/SORTED BY win percentage/win rate from highest to lowest. ALWAYS use this when user asks to 'list', 'show', 'top', 'rank', or 'sort' projects BY win percentage/rate. Examples: 'list top 20 projects by win percentage', 'show highest win rate projects', 'projects sorted by win %', 'rank by win rate', 'best win percentage', 'top 10 by win rate'.",
+        description: "RANKING/SORTING QUERY: Get projects RANKED/SORTED BY win percentage/win rate from highest to lowest. ALWAYS use this when user asks to 'list', 'show', 'top', 'rank', or 'sort' projects BY win percentage/rate. Supports optional date filters. Examples: 'list top 20 projects by win percentage', 'show highest win rate projects', 'projects sorted by win %', 'rank by win rate', 'best win percentage', 'top 10 by win rate'.",
         parameters: {
           type: "object",
           properties: {
+            start_date: { type: "string", description: "Optional start date filter (YYYY-MM-DD)" },
+            end_date: { type: "string", description: "Optional end date filter (YYYY-MM-DD)" },
             limit: { type: "integer", description: "Number of results to return (default 20)" },
           },
           required: [],
