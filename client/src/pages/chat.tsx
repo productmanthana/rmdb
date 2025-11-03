@@ -392,21 +392,14 @@ export default function ChatPage() {
   // Query mutation
   const queryMutation = useMutation({
     mutationFn: async (question: string) => {
-      // Get the last bot message to use as previous context for follow-up queries
-      // Use messagesRef.current to get the latest messages (not stale closure)
-      const lastBotMessage = messagesRef.current.filter(m => m.type === "bot").pop();
-      const previousContext = lastBotMessage?.response?.function_name && lastBotMessage?.response?.arguments ? {
-        question: lastBotMessage.response.question || "",
-        function_name: lastBotMessage.response.function_name,
-        arguments: lastBotMessage.response.arguments,
-      } : undefined;
-
+      // Main chat queries should NOT use previous context
+      // Only follow-up questions use context from their parent query
       console.log('[ChatPage] Sending query:', question);
-      console.log('[ChatPage] Previous context:', previousContext);
+      console.log('[ChatPage] Previous context:', null);
 
       const res = await apiRequest("POST", "/api/query", { 
         question,
-        previousContext 
+        previousContext: null
       });
       const data = await res.json() as Promise<QueryResponse>;
       console.log('[ChatPage] Response:', data);
