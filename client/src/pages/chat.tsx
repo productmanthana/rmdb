@@ -1048,7 +1048,7 @@ export default function ChatPage() {
                                         {/* Follow-up Questions Integration */}
                                         {(message.response.data && message.response.data.length > 0) && (
                                           <div className="mt-4 pt-4 border-t border-white/10">
-                                            <div className="sticky top-0 z-10 glass-dark -mx-6 px-6 py-3 mb-4 flex items-center justify-between">
+                                            <div className="flex items-center justify-between mb-4">
                                               <div className="flex items-center gap-2">
                                                 <MessageSquare className="h-5 w-5 text-white/70" />
                                                 <span className="text-sm text-white/70">Follow up questions</span>
@@ -1056,31 +1056,24 @@ export default function ChatPage() {
                                                   ({((message.aiAnalysisMessages || []).filter(m => m.type === "user").length)}/3)
                                                 </span>
                                               </div>
-                                              <Button
-                                              size="sm"
-                                              variant="ghost"
-                                              className="glass text-white hover:glass-hover"
-                                              onClick={() => {
-                                                setFollowUpVisible(prev => ({
-                                                  ...prev,
-                                                  [message.id]: !prev[message.id]
-                                                }));
-                                              }}
-                                              data-testid={`button-toggle-followup-${message.id}`}
-                                            >
-                                              {followUpVisible[message.id] ? (
-                                                <>
-                                                  <X className="h-4 w-4 mr-1" />
-                                                  Hide
-                                                </>
-                                              ) : (
-                                                <>
+                                              {!followUpVisible[message.id] && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="glass text-white hover:glass-hover"
+                                                  onClick={() => {
+                                                    setFollowUpVisible(prev => ({
+                                                      ...prev,
+                                                      [message.id]: true
+                                                    }));
+                                                  }}
+                                                  data-testid={`button-toggle-followup-${message.id}`}
+                                                >
                                                   <Plus className="h-4 w-4 mr-1" />
                                                   Ask Question
-                                                </>
+                                                </Button>
                                               )}
-                                            </Button>
-                                          </div>
+                                            </div>
 
                                           {/* Follow-up Content - Only show when visible */}
                                           {followUpVisible[message.id] && (
@@ -1099,6 +1092,26 @@ export default function ChatPage() {
 
                                                       {/* Query Response with Tabs */}
                                                       {msg.response && msg.response.success && (
+                                                        <div className="relative">
+                                                          <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="absolute top-2 right-2 z-20 glass text-white/70 hover:text-white hover:glass-hover"
+                                                            onClick={() => {
+                                                              setMessages(prev => prev.map(m => {
+                                                                if (m.id === message.id) {
+                                                                  return {
+                                                                    ...m,
+                                                                    aiAnalysisMessages: m.aiAnalysisMessages?.filter(am => am.id !== msg.id)
+                                                                  };
+                                                                }
+                                                                return m;
+                                                              }));
+                                                            }}
+                                                            data-testid={`button-close-followup-${msg.id}`}
+                                                          >
+                                                            <X className="h-4 w-4" />
+                                                          </Button>
                                                         <Tabs defaultValue="data" className="w-full">
                                                           <TabsList className="glass border-0">
                                                             <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
@@ -1234,6 +1247,7 @@ export default function ChatPage() {
                                                             </div>
                                                           </TabsContent>
                                                         </Tabs>
+                                                        </div>
                                                       )}
 
                                                       {/* Error Display */}
