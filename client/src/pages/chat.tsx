@@ -1112,17 +1112,65 @@ export default function ChatPage() {
                                                           </TabsList>
 
                                                           <TabsContent value="data" className="space-y-4 mt-4">
-                                                            {msg.response.data && msg.response.data.length > 0 ? (
-                                                              <TableWithExternalScrollbar 
-                                                                data={msg.response.data}
-                                                                messageId={`followup-${msg.id}`}
-                                                                height="300px"
-                                                              />
-                                                            ) : (
-                                                              <div className="glass rounded-lg p-8 text-center text-white/50">
-                                                                No data available
+                                                            <div className="glass rounded-xl p-6">
+                                                              <div className="flex items-center justify-between mb-4">
+                                                                <h3 className="font-semibold text-white">Data Table</h3>
+                                                                <div className="flex items-center gap-2">
+                                                                  <Button
+                                                                    size="sm"
+                                                                    className="glass text-white hover:glass-hover"
+                                                                    onClick={() => {
+                                                                      const data = msg.response?.data || [];
+                                                                      if (data.length > 0) {
+                                                                        const headers = Object.keys(data[0]);
+                                                                        const csv = [
+                                                                          headers.join(","),
+                                                                          ...data.map((row: any) =>
+                                                                            headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
+                                                                          ),
+                                                                        ].join("\n");
+                                                                        copyToClipboard(csv);
+                                                                      }
+                                                                    }}
+                                                                    data-testid={`button-copy-data-followup-${msg.id}`}
+                                                                  >
+                                                                    {copied ? (
+                                                                      <Check className="h-4 w-4" />
+                                                                    ) : (
+                                                                      <Copy className="h-4 w-4" />
+                                                                    )}
+                                                                    <span className="ml-2">Copy CSV</span>
+                                                                  </Button>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    className="glass text-white hover:glass-hover"
+                                                                    onClick={() => {
+                                                                      if (msg.response?.data) {
+                                                                        setMaximizedTable({
+                                                                          messageId: `followup-${msg.id}`,
+                                                                          data: msg.response.data,
+                                                                        });
+                                                                      }
+                                                                    }}
+                                                                    data-testid={`button-maximize-table-followup-${msg.id}`}
+                                                                  >
+                                                                    <Maximize2 className="h-4 w-4" />
+                                                                    <span className="ml-2">Maximize</span>
+                                                                  </Button>
+                                                                </div>
                                                               </div>
-                                                            )}
+                                                              {msg.response.data && msg.response.data.length > 0 ? (
+                                                                <TableWithExternalScrollbar 
+                                                                  data={msg.response.data}
+                                                                  messageId={`followup-${msg.id}`}
+                                                                  height="300px"
+                                                                />
+                                                              ) : (
+                                                                <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
+                                                                  No data available
+                                                                </div>
+                                                              )}
+                                                            </div>
                                                           </TabsContent>
 
                                                           <TabsContent value="chart" className="space-y-4 mt-4">
