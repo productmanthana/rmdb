@@ -1351,9 +1351,27 @@ export default function ChatPage() {
             </div>
           </ScrollArea>
 
-          {/* Glassmorphic Input Area */}
+          {/* Glassmorphic Input Area - Hide when follow-up section is open */}
           {(() => {
-            // Always show main input since follow-ups are now in a togglable section
+            // Check if any follow-up section is currently visible
+            const anyFollowUpVisible = Object.values(followUpVisible).some(visible => visible === true);
+            
+            // Hide main input if a follow-up section is open
+            if (anyFollowUpVisible) {
+              return (
+                <div className="glass-dark border-t border-white/10 shrink-0">
+                  <div className="max-w-4xl mx-auto px-4 py-4">
+                    <div className="flex items-center justify-center gap-3">
+                      <p className="text-sm text-white/60">
+                        Close the follow-up section above to ask a new question
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Show main input
             return (
               <div className="glass-dark border-t border-white/10 shrink-0">
                 <div className="max-w-4xl mx-auto px-4 py-4">
