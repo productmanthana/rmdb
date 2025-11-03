@@ -1078,7 +1078,7 @@ export default function ChatPage() {
                                             {/* Collapsed View - Show questions only */}
                                             {!followUpVisible[message.id] && message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
                                               <div className="space-y-2 mb-4">
-                                                {message.aiAnalysisMessages.map((msg) => (
+                                                {message.aiAnalysisMessages.filter(msg => msg.type === "user").map((msg) => (
                                                   <div key={msg.id} className="flex justify-end">
                                                     <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
                                                       <p className="text-sm text-white font-medium">{msg.content}</p>
