@@ -395,11 +395,11 @@ export default function ChatPage() {
       // Main chat queries should NOT use previous context
       // Only follow-up questions use context from their parent query
       console.log('[ChatPage] Sending query:', question);
-      console.log('[ChatPage] Previous context:', null);
+      console.log('[ChatPage] Previous context:', undefined);
 
       const res = await apiRequest("POST", "/api/query", { 
         question,
-        previousContext: null
+        // Don't send previousContext at all for main queries
       });
       const data = await res.json() as Promise<QueryResponse>;
       console.log('[ChatPage] Response:', data);
