@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: nlp-chatbot
+    runtime: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AZURE_OPENAI_ENDPOINT
+        sync: false
+      - key: AZURE_OPENAI_KEY
+        sync: false
+      - key: AZURE_OPENAI_API_VERSION
+        value: 2024-12-01-preview
+      - key: AZURE_OPENAI_DEPLOYMENT
+        value: gpt-4o
+      - key: EXTERNAL_DB_HOST
+        sync: false
+      - key: EXTERNAL_DB_PORT
+        value: 6543
+      - key: EXTERNAL_DB_NAME
+        value: postgres
+      - key: EXTERNAL_DB_USER
+        sync: false
+      - key: EXTERNAL_DB_PASSWORD
+        sync: false

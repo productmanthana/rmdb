@@ -1,3 +1,7 @@
+// This file is kept for potential future use (user sessions, chat history, etc.)
+// Currently NOT required for production deployment
+// The app only uses external Supabase database for project queries
+
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
@@ -5,11 +9,8 @@ import * as schema from "@shared/schema";
 
 neonConfig.webSocketConstructor = ws;
 
-if (!process.env.DATABASE_URL) {
-  throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
-  );
-}
+// Make DATABASE_URL optional - not required for current functionality
+const DATABASE_URL = process.env.DATABASE_URL;
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-export const db = drizzle({ client: pool, schema });
+export const pool = DATABASE_URL ? new Pool({ connectionString: DATABASE_URL }) : null;
+export const db = pool ? drizzle({ client: pool, schema }) : null;

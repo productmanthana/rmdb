@@ -8,13 +8,14 @@ let queryEngine: QueryEngine | null = null;
 
 function getQueryEngine(): QueryEngine {
   if (!queryEngine) {
+    // Require environment variables in production
+    if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_KEY) {
+      throw new Error("Missing required Azure OpenAI credentials. Please set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY environment variables.");
+    }
+
     const openaiClient = new AzureOpenAIClient({
-      endpoint:
-        process.env.AZURE_OPENAI_ENDPOINT ||
-        "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/",
-      apiKey:
-        process.env.AZURE_OPENAI_KEY ||
-        "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU",
+      endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+      apiKey: process.env.AZURE_OPENAI_KEY,
       apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
       deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
     });
@@ -51,13 +52,13 @@ export function registerRoutes(app: Express): Express {
       // Generate AI insights automatically if query was successful
       if (response.success && response.data && response.data.length > 0) {
         try {
+          if (!process.env.AZURE_OPENAI_ENDPOINT || !process.env.AZURE_OPENAI_KEY) {
+            throw new Error("Missing required Azure OpenAI credentials");
+          }
+
           const openaiClient = new AzureOpenAIClient({
-            endpoint:
-              process.env.AZURE_OPENAI_ENDPOINT ||
-              "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/",
-            apiKey:
-              process.env.AZURE_OPENAI_KEY ||
-              "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU",
+            endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+            apiKey: process.env.AZURE_OPENAI_KEY,
             apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
             deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
           });
