@@ -1006,7 +1006,7 @@ export default function ChatPage() {
                                         )}
                                       </div>
 
-                                      {/* AI Analysis Section */}
+                                      {/* AI Analysis Section with Integrated Follow-up */}
                                       <div className="glass rounded-xl p-6">
                                         <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
                                           <Brain className="h-5 w-5" />
@@ -1033,20 +1033,19 @@ export default function ChatPage() {
                                             </div>
                                           </div>
                                         )}
-                                      </div>
 
-                                      {/* Follow-up Questions Section */}
-                                      {(message.response.data && message.response.data.length > 0) && (
-                                        <div className="glass rounded-xl p-6">
-                                          <div className="flex items-center justify-between mb-4">
-                                            <h3 className="font-semibold text-white flex items-center gap-2">
-                                              <MessageSquare className="h-5 w-5" />
-                                              Follow up questions
-                                              <span className="text-xs text-white/50 font-normal ml-2">
-                                                ({((message.aiAnalysisMessages || []).filter(m => m.type === "user").length)}/3)
-                                              </span>
-                                            </h3>
-                                            <Button
+                                        {/* Follow-up Questions Integration */}
+                                        {(message.response.data && message.response.data.length > 0) && (
+                                          <div className="mt-4 pt-4 border-t border-white/10">
+                                            <div className="flex items-center justify-between mb-4">
+                                              <div className="flex items-center gap-2">
+                                                <MessageSquare className="h-5 w-5 text-white/70" />
+                                                <span className="text-sm text-white/70">Follow up questions</span>
+                                                <span className="text-xs text-white/50 ml-2">
+                                                  ({((message.aiAnalysisMessages || []).filter(m => m.type === "user").length)}/3)
+                                                </span>
+                                              </div>
+                                              <Button
                                               size="sm"
                                               variant="ghost"
                                               className="glass text-white hover:glass-hover"
@@ -1274,8 +1273,9 @@ export default function ChatPage() {
                                               })()}
                                             </div>
                                           )}
-                                        </div>
-                                      )}
+                                          </div>
+                                        )}
+                                      </div>
                                     </TabsContent>
 
                                     <TabsContent value="logs" className="space-y-4 mt-4">
