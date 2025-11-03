@@ -1070,7 +1070,7 @@ export default function ChatPage() {
                                                   data-testid={`button-toggle-followup-${message.id}`}
                                                 >
                                                   <Plus className="h-4 w-4 mr-1" />
-                                                  Ask Question
+                                                  {(message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0) ? "Show Questions" : "Ask Question"}
                                                 </Button>
                                               )}
                                             </div>
