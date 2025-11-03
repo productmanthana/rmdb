@@ -370,6 +370,7 @@ export default function ChatPage() {
   const [aiAnalysisLoading, setAiAnalysisLoading] = useState<Record<string, boolean>>({});
   const [maximizedTable, setMaximizedTable] = useState<{ messageId: string; data: any[] } | null>(null);
   const [activeTabPerMessage, setActiveTabPerMessage] = useState<Record<string, string>>({});
+  const [followUpVisible, setFollowUpVisible] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
   // Keep ref in sync with messages state
@@ -927,10 +928,6 @@ export default function ChatPage() {
                                       <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input" data-testid="tab-chart">
                                         Chart
                                       </TabsTrigger>
-                                      <TabsTrigger value="analysis" className="text-white data-[state=active]:glass-input" data-testid="tab-analysis">
-                                        <Brain className="h-4 w-4 mr-1" />
-                                        Follow up questions
-                                      </TabsTrigger>
                                       <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input" data-testid="tab-logs">
                                         <FileText className="h-4 w-4 mr-1" />
                                         Logs
@@ -1037,6 +1034,248 @@ export default function ChatPage() {
                                           </div>
                                         )}
                                       </div>
+
+                                      {/* Follow-up Questions Section */}
+                                      {(message.response.data && message.response.data.length > 0) && (
+                                        <div className="glass rounded-xl p-6">
+                                          <div className="flex items-center justify-between mb-4">
+                                            <h3 className="font-semibold text-white flex items-center gap-2">
+                                              <MessageSquare className="h-5 w-5" />
+                                              Follow up questions
+                                              <span className="text-xs text-white/50 font-normal ml-2">
+                                                ({((message.aiAnalysisMessages || []).filter(m => m.type === "user").length)}/3)
+                                              </span>
+                                            </h3>
+                                            <Button
+                                              size="sm"
+                                              variant="ghost"
+                                              className="glass text-white hover:glass-hover"
+                                              onClick={() => {
+                                                setFollowUpVisible(prev => ({
+                                                  ...prev,
+                                                  [message.id]: !prev[message.id]
+                                                }));
+                                              }}
+                                              data-testid={`button-toggle-followup-${message.id}`}
+                                            >
+                                              {followUpVisible[message.id] ? (
+                                                <>
+                                                  <X className="h-4 w-4 mr-1" />
+                                                  Hide
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Plus className="h-4 w-4 mr-1" />
+                                                  Ask Question
+                                                </>
+                                              )}
+                                            </Button>
+                                          </div>
+
+                                          {/* Follow-up Content - Only show when visible */}
+                                          {followUpVisible[message.id] && (
+                                            <div className="space-y-4">
+                                              {/* Follow-up Chat History */}
+                                              {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
+                                                <div className="space-y-6 mb-4">
+                                                  {message.aiAnalysisMessages.map((msg) => (
+                                                    <div key={msg.id} className="space-y-3">
+                                                      {/* User Question */}
+                                                      <div className="flex justify-end">
+                                                        <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
+                                                          <p className="text-sm text-white font-medium">{msg.content}</p>
+                                                        </div>
+                                                      </div>
+
+                                                      {/* Query Response with Tabs */}
+                                                      {msg.response && msg.response.success && (
+                                                        <Tabs defaultValue="data" className="w-full">
+                                                          <TabsList className="glass border-0">
+                                                            <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
+                                                              Response
+                                                            </TabsTrigger>
+                                                            <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input">
+                                                              Chart
+                                                            </TabsTrigger>
+                                                            <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input">
+                                                              Logs
+                                                            </TabsTrigger>
+                                                          </TabsList>
+
+                                                          <TabsContent value="data" className="space-y-4 mt-4">
+                                                            {msg.response.data && msg.response.data.length > 0 ? (
+                                                              <TableWithExternalScrollbar 
+                                                                data={msg.response.data}
+                                                                messageId={`followup-${msg.id}`}
+                                                                height="300px"
+                                                              />
+                                                            ) : (
+                                                              <div className="glass rounded-lg p-8 text-center text-white/50">
+                                                                No data available
+                                                              </div>
+                                                            )}
+                                                          </TabsContent>
+
+                                                          <TabsContent value="chart" className="space-y-4 mt-4">
+                                                            {msg.response.chart_config ? (
+                                                              <div className="glass-dark rounded-lg p-4">
+                                                                <ChartVisualization config={msg.response.chart_config} />
+                                                              </div>
+                                                            ) : (
+                                                              <div className="glass rounded-lg p-6 text-center text-white/50">
+                                                                No chart available
+                                                              </div>
+                                                            )}
+                                                          </TabsContent>
+
+                                                          <TabsContent value="logs" className="space-y-4 mt-4">
+                                                            <div className="glass-dark rounded-lg p-4">
+                                                              {/* SQL Query */}
+                                                              <div className="mb-3">
+                                                                <p className="text-xs text-white/70 mb-2 font-mono">SQL QUERY:</p>
+                                                                <div className="glass rounded-lg p-3 overflow-x-auto">
+                                                                  <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                                                                    {msg.response.sql_query || "No SQL query available"}
+                                                                  </pre>
+                                                                </div>
+                                                              </div>
+
+                                                              {/* SQL Parameters */}
+                                                              <div className="mb-3">
+                                                                <p className="text-xs text-white/70 mb-2 font-mono">PARAMETERS:</p>
+                                                                <div className="glass rounded-lg p-3 overflow-x-auto">
+                                                                  <pre className="text-xs text-blue-400 font-mono">
+                                                                    {JSON.stringify(msg.response.sql_params || [], null, 2)}
+                                                                  </pre>
+                                                                </div>
+                                                              </div>
+
+                                                              {/* Raw JSON Response */}
+                                                              <div>
+                                                                <div className="flex items-center justify-between mb-2">
+                                                                  <p className="text-xs text-white/70 font-mono">RAW JSON RESPONSE:</p>
+                                                                  <Button
+                                                                    size="sm"
+                                                                    className="glass text-white hover:glass-hover h-6"
+                                                                    onClick={() => {
+                                                                      copyToClipboard(JSON.stringify(msg.response, null, 2));
+                                                                    }}
+                                                                  >
+                                                                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                                                    <span className="ml-1 text-xs">Copy</span>
+                                                                  </Button>
+                                                                </div>
+                                                                <div className="glass rounded-lg p-3 overflow-x-auto">
+                                                                  <ScrollArea className="h-[200px]">
+                                                                    <pre className="text-xs text-purple-400 font-mono">
+                                                                      {JSON.stringify(msg.response, null, 2)}
+                                                                    </pre>
+                                                                  </ScrollArea>
+                                                                </div>
+                                                              </div>
+                                                            </div>
+                                                          </TabsContent>
+                                                        </Tabs>
+                                                      )}
+
+                                                      {/* Error Display */}
+                                                      {msg.response && !msg.response.success && (
+                                                        <Alert variant="destructive" className="glass-dark border-red-500/50">
+                                                          <AlertCircle className="h-4 w-4" />
+                                                          <AlertDescription className="text-white">
+                                                            {msg.response.message || "Query failed"}
+                                                          </AlertDescription>
+                                                        </Alert>
+                                                      )}
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+
+                                              {/* Typing Indicator */}
+                                              {aiAnalysisLoading[message.id] && (
+                                                <div className="flex items-start gap-3">
+                                                  <div className="glass-dark rounded-xl p-4">
+                                                    <TypingIndicator />
+                                                  </div>
+                                                </div>
+                                              )}
+
+                                              {/* Follow-up Input */}
+                                              {(() => {
+                                                const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
+                                                const limitReached = userFollowUpCount >= 3;
+
+                                                return limitReached ? (
+                                                  <div className="glass-dark rounded-xl p-4 border border-white/10">
+                                                    <div className="flex items-center gap-3">
+                                                      <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                                                        <AlertCircle className="h-5 w-5 text-white/70" />
+                                                      </div>
+                                                      <div>
+                                                        <p className="text-sm font-medium text-white">Follow-up Limit Reached</p>
+                                                        <p className="text-xs text-white/60 mt-1">
+                                                          You've asked 3 follow-up questions. Please start a new query to continue exploring the data.
+                                                        </p>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div className="space-y-2">
+                                                    <div className="glass-input rounded-xl p-1">
+                                                      <form
+                                                        onSubmit={(e) => {
+                                                          e.preventDefault();
+                                                          handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                        }}
+                                                        className="flex items-end gap-2"
+                                                      >
+                                                        <Textarea
+                                                          value={aiAnalysisInputs[message.id] || ""}
+                                                          onChange={(e) =>
+                                                            setAiAnalysisInputs((prev) => ({
+                                                              ...prev,
+                                                              [message.id]: e.target.value,
+                                                            }))
+                                                          }
+                                                          onKeyDown={(e) => {
+                                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                              e.preventDefault();
+                                                              if (aiAnalysisInputs[message.id]?.trim() && !aiAnalysisLoading[message.id]) {
+                                                                handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                              }
+                                                            }
+                                                          }}
+                                                          placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
+                                                          className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                                          disabled={aiAnalysisLoading[message.id]}
+                                                          data-testid={`input-ai-analysis-${message.id}`}
+                                                        />
+                                                        <Button
+                                                          type="submit"
+                                                          size="icon"
+                                                          className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
+                                                          disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
+                                                          data-testid={`button-submit-ai-analysis-${message.id}`}
+                                                        >
+                                                          {aiAnalysisLoading[message.id] ? (
+                                                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                          ) : (
+                                                            <Send className="h-4 w-4 text-white" />
+                                                          )}
+                                                        </Button>
+                                                      </form>
+                                                    </div>
+                                                    <p className="text-xs text-white/50 px-2">
+                                                      {userFollowUpCount}/3 follow-up questions used
+                                                    </p>
+                                                  </div>
+                                                );
+                                              })()}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </TabsContent>
 
                                     <TabsContent value="logs" className="space-y-4 mt-4">
@@ -1092,322 +1331,6 @@ export default function ChatPage() {
                                         </div>
                                       </div>
                                     </TabsContent>
-
-                                    <TabsContent value="analysis" className="space-y-4 mt-4">
-                                      <div className="glass rounded-xl p-6">
-                                        <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
-                                          <Brain className="h-5 w-5" />
-                                          Follow up questions
-                                        </h3>
-
-                                        {/* Check if there's data to analyze OR follow-up messages to show */}
-                                        {(!message.response.data || message.response.data.length === 0) && 
-                                         (!message.aiAnalysisMessages || message.aiAnalysisMessages.length === 0) ? (
-                                          <div className="glass-dark rounded-xl p-6 border border-white/10">
-                                            <div className="flex flex-col items-center justify-center gap-4 text-center">
-                                              <div className="h-16 w-16 rounded-full bg-white/10 flex items-center justify-center">
-                                                <AlertCircle className="h-8 w-8 text-white/70" />
-                                              </div>
-                                              <div>
-                                                <p className="text-base font-medium text-white mb-2">No Data Available</p>
-                                                <p className="text-sm text-white/60">
-                                                  The query returned no results. Ask a different question below.
-                                                </p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <>
-                                            {/* Follow-up Chat Interface */}
-                                            <div className="mb-4 space-y-6 min-h-[200px]">
-                                              {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 ? (
-                                            <div className="space-y-6">
-                                              {message.aiAnalysisMessages.map((msg) => (
-                                                <div key={msg.id} className="space-y-3">
-                                                  {/* User Question */}
-                                                  <div className="flex justify-end">
-                                                    <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
-                                                      <p className="text-sm text-white font-medium">{msg.content}</p>
-                                                    </div>
-                                                  </div>
-
-                                                  {/* Query Response with Tabs */}
-                                                  {msg.response && msg.response.success && (
-                                                    <Tabs defaultValue="data" className="w-full">
-                                                      <TabsList className="glass border-0">
-                                                        <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
-                                                          Response
-                                                        </TabsTrigger>
-                                                        <TabsTrigger value="chart" className="text-white data-[state=active]:glass-input">
-                                                          Chart
-                                                        </TabsTrigger>
-                                                        <TabsTrigger value="logs" className="text-white data-[state=active]:glass-input">
-                                                          <FileText className="h-4 w-4 mr-1" />
-                                                          Logs
-                                                        </TabsTrigger>
-                                                      </TabsList>
-
-                                                      <TabsContent value="data" className="space-y-4 mt-4">
-                                                        <div className="glass-dark rounded-xl p-4">
-                                                          {/* Summary Stats */}
-                                                          {msg.response.summary && (
-                                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
-                                                              {msg.response.summary.total_records !== undefined && (
-                                                                <div className="glass rounded-lg p-2">
-                                                                  <p className="text-xs text-white/60">Records</p>
-                                                                  <p className="text-lg font-bold text-white">{msg.response.summary.total_records}</p>
-                                                                </div>
-                                                              )}
-                                                              {msg.response.summary.total_value !== undefined && (
-                                                                <div className="glass rounded-lg p-2">
-                                                                  <p className="text-xs text-white/60">Total Value</p>
-                                                                  <p className="text-lg font-bold text-white">${(msg.response.summary.total_value / 1e6).toFixed(1)}M</p>
-                                                                </div>
-                                                              )}
-                                                              {msg.response.summary.avg_fee !== undefined && (
-                                                                <div className="glass rounded-lg p-2">
-                                                                  <p className="text-xs text-white/60">Avg Fee</p>
-                                                                  <p className="text-lg font-bold text-white">${(msg.response.summary.avg_fee / 1e6).toFixed(1)}M</p>
-                                                                </div>
-                                                              )}
-                                                              {msg.response.summary.avg_win_rate !== undefined && (
-                                                                <div className="glass rounded-lg p-2">
-                                                                  <p className="text-xs text-white/60">Win Rate</p>
-                                                                  <p className="text-lg font-bold text-white">{msg.response.summary.avg_win_rate.toFixed(1)}%</p>
-                                                                </div>
-                                                              )}
-                                                            </div>
-                                                          )}
-
-                                                          {/* Data Table with Maximize */}
-                                                          <div className="flex items-center justify-between mb-3">
-                                                            <h4 className="font-semibold text-white text-sm">Data Table</h4>
-                                                            <div className="flex items-center gap-2">
-                                                              <Button
-                                                                size="sm"
-                                                                className="glass text-white hover:glass-hover h-7"
-                                                                onClick={() => {
-                                                                  const data = msg.response?.data || [];
-                                                                  if (data.length > 0) {
-                                                                    const headers = Object.keys(data[0]);
-                                                                    const csv = [
-                                                                      headers.join(","),
-                                                                      ...data.map((row: any) =>
-                                                                        headers.map((h) => JSON.stringify(row[h] ?? "")).join(",")
-                                                                      ),
-                                                                    ].join("\n");
-                                                                    copyToClipboard(csv);
-                                                                  }
-                                                                }}
-                                                              >
-                                                                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                                                                <span className="ml-1 text-xs">Copy CSV</span>
-                                                              </Button>
-                                                              <Button
-                                                                size="sm"
-                                                                className="glass text-white hover:glass-hover h-7"
-                                                                onClick={() => {
-                                                                  if (msg.response?.data) {
-                                                                    setMaximizedTable({
-                                                                      messageId: msg.id,
-                                                                      data: msg.response.data,
-                                                                    });
-                                                                  }
-                                                                }}
-                                                              >
-                                                                <Maximize2 className="h-3 w-3" />
-                                                                <span className="ml-1 text-xs">Maximize</span>
-                                                              </Button>
-                                                            </div>
-                                                          </div>
-
-                                                          {msg.response.data && msg.response.data.length > 0 ? (
-                                                            <TableWithExternalScrollbar 
-                                                              data={msg.response.data}
-                                                              messageId={`followup-${msg.id}`}
-                                                              height="300px"
-                                                            />
-                                                          ) : (
-                                                            <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
-                                                              No results found for this query. The filters may be too restrictive, or no data matches these criteria.
-                                                            </div>
-                                                          )}
-
-                                                          {/* AI Insights */}
-                                                          {msg.response.ai_insights && (
-                                                            <div className="glass rounded-lg p-3 mt-4">
-                                                              <p className="text-xs text-white/60 mb-2">AI Insights</p>
-                                                              <p className="text-sm text-white/90 whitespace-pre-wrap">{msg.response.ai_insights}</p>
-                                                            </div>
-                                                          )}
-                                                        </div>
-                                                      </TabsContent>
-
-                                                      <TabsContent value="chart" className="space-y-4 mt-4">
-                                                        {msg.response.chart_config ? (
-                                                          <div className="glass-dark rounded-xl p-6">
-                                                            <ChartVisualization config={msg.response.chart_config} />
-                                                          </div>
-                                                        ) : (
-                                                          <div className="glass-dark rounded-xl p-6 text-center text-white/70">
-                                                            No chart available
-                                                          </div>
-                                                        )}
-                                                      </TabsContent>
-
-                                                      <TabsContent value="logs" className="space-y-4 mt-4">
-                                                        <div className="glass-dark rounded-xl p-4">
-                                                          {/* SQL Query */}
-                                                          <div className="mb-3">
-                                                            <p className="text-xs text-white/70 mb-2 font-mono">SQL QUERY:</p>
-                                                            <div className="glass rounded-lg p-3 overflow-x-auto">
-                                                              <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
-                                                                {msg.response.sql_query || "No SQL query available"}
-                                                              </pre>
-                                                            </div>
-                                                          </div>
-
-                                                          {/* SQL Parameters */}
-                                                          <div className="mb-3">
-                                                            <p className="text-xs text-white/70 mb-2 font-mono">PARAMETERS:</p>
-                                                            <div className="glass rounded-lg p-3 overflow-x-auto">
-                                                              <pre className="text-xs text-blue-400 font-mono">
-                                                                {JSON.stringify(msg.response.sql_params || [], null, 2)}
-                                                              </pre>
-                                                            </div>
-                                                          </div>
-
-                                                          {/* Raw JSON Response */}
-                                                          <div>
-                                                            <div className="flex items-center justify-between mb-2">
-                                                              <p className="text-xs text-white/70 font-mono">RAW JSON RESPONSE:</p>
-                                                              <Button
-                                                                size="sm"
-                                                                className="glass text-white hover:glass-hover h-6"
-                                                                onClick={() => {
-                                                                  copyToClipboard(JSON.stringify(msg.response, null, 2));
-                                                                }}
-                                                              >
-                                                                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                                                                <span className="ml-1 text-xs">Copy</span>
-                                                              </Button>
-                                                            </div>
-                                                            <div className="glass rounded-lg p-3 overflow-x-auto">
-                                                              <ScrollArea className="h-[250px]">
-                                                                <pre className="text-xs text-purple-400 font-mono">
-                                                                  {JSON.stringify(msg.response, null, 2)}
-                                                                </pre>
-                                                              </ScrollArea>
-                                                            </div>
-                                                          </div>
-                                                        </div>
-                                                      </TabsContent>
-                                                    </Tabs>
-                                                  )}
-
-                                                  {/* Error Display */}
-                                                  {msg.response && !msg.response.success && (
-                                                    <Alert variant="destructive" className="glass-dark border-red-500/50">
-                                                      <AlertCircle className="h-4 w-4" />
-                                                      <AlertDescription className="text-white">
-                                                        {msg.response.message || "Query failed"}
-                                                      </AlertDescription>
-                                                    </Alert>
-                                                  )}
-                                                </div>
-                                              ))}
-                                            </div>
-                                          ) : (
-                                            <div className="flex items-center justify-center h-[200px]">
-                                              <p className="text-white/50 text-sm">Start a conversation by asking a question below</p>
-                                            </div>
-                                          )}
-                                          
-                                          {/* Typing Indicator - Show when loading */}
-                                          {aiAnalysisLoading[message.id] && (
-                                            <div className="flex items-start gap-3">
-                                              <div className="glass-dark rounded-xl p-4">
-                                                <TypingIndicator />
-                                              </div>
-                                            </div>
-                                          )}
-                                        </div>
-                                          </>
-                                        )}
-
-                                        {/* AI Analysis Input - Always show */}
-                                        {(() => {
-                                          const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
-                                          const limitReached = userFollowUpCount >= 3;
-
-                                          return limitReached ? (
-                                            <div className="glass-dark rounded-xl p-4 border border-white/10">
-                                              <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center shrink-0">
-                                                  <AlertCircle className="h-5 w-5 text-white/70" />
-                                                </div>
-                                                <div>
-                                                  <p className="text-sm font-medium text-white">Follow-up Limit Reached</p>
-                                                  <p className="text-xs text-white/60 mt-1">
-                                                    You've asked 3 follow-up questions. Please start a new query to continue exploring the data.
-                                                  </p>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <div className="space-y-2">
-                                              <div className="glass-input rounded-xl p-1">
-                                                <form
-                                                  onSubmit={(e) => {
-                                                    e.preventDefault();
-                                                    handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
-                                                  }}
-                                                  className="flex items-end gap-2"
-                                                >
-                                                  <Textarea
-                                                    value={aiAnalysisInputs[message.id] || ""}
-                                                    onChange={(e) =>
-                                                      setAiAnalysisInputs((prev) => ({
-                                                        ...prev,
-                                                        [message.id]: e.target.value,
-                                                      }))
-                                                    }
-                                                    onKeyDown={(e) => {
-                                                      if (e.key === "Enter" && !e.shiftKey) {
-                                                        e.preventDefault();
-                                                        if (aiAnalysisInputs[message.id]?.trim() && !aiAnalysisLoading[message.id]) {
-                                                          handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
-                                                        }
-                                                      }
-                                                    }}
-                                                    placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
-                                                    className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
-                                                    disabled={aiAnalysisLoading[message.id]}
-                                                    data-testid={`input-ai-analysis-${message.id}`}
-                                                  />
-                                                  <Button
-                                                    type="submit"
-                                                    size="icon"
-                                                    className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
-                                                    disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
-                                                    data-testid={`button-submit-ai-analysis-${message.id}`}
-                                                  >
-                                                    {aiAnalysisLoading[message.id] ? (
-                                                      <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                    ) : (
-                                                      <Send className="h-4 w-4 text-white" />
-                                                    )}
-                                                  </Button>
-                                                </form>
-                                              </div>
-                                              <p className="text-xs text-white/50 px-2">
-                                                {userFollowUpCount}/3 follow-up questions used
-                                              </p>
-                                            </div>
-                                          );
-                                        })()}
-                                      </div>
-                                    </TabsContent>
                                   </Tabs>
                                 )}
                               </div>
@@ -1428,43 +1351,9 @@ export default function ChatPage() {
             </div>
           </ScrollArea>
 
-          {/* Glassmorphic Input Area - Hide when follow-ups are active */}
+          {/* Glassmorphic Input Area */}
           {(() => {
-            // Check if we should show follow-up input instead of main input
-            const lastMessage = messages[messages.length - 1];
-            const hasActiveFollowUps = 
-              lastMessage?.type === "bot" && 
-              lastMessage?.response?.success === true && 
-              lastMessage?.response?.data && 
-              lastMessage?.response?.data.length > 0 &&
-              ((lastMessage.aiAnalysisMessages || []).filter(m => m.type === "user").length < 3);
-            
-            const isAnalysisTabActive = lastMessage && activeTabPerMessage[lastMessage.id] === "analysis";
-
-            if (hasActiveFollowUps && isAnalysisTabActive) {
-              // Show "Start New Question" button instead (only when on analysis tab)
-              return (
-                <div className="glass-dark border-t border-white/10 shrink-0">
-                  <div className="max-w-4xl mx-auto px-4 py-4">
-                    <div className="flex items-center justify-center gap-3">
-                      <p className="text-sm text-white/60">
-                        Use the follow-up input above, or
-                      </p>
-                      <Button
-                        onClick={handleNewChat}
-                        className="glass text-white hover:glass-hover"
-                        data-testid="button-new-question"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Start New Question
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            }
-
-            // Show main input
+            // Always show main input since follow-ups are now in a togglable section
             return (
               <div className="glass-dark border-t border-white/10 shrink-0">
                 <div className="max-w-4xl mx-auto px-4 py-4">
