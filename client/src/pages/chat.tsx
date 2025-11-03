@@ -1236,14 +1236,9 @@ export default function ChatPage() {
                                                             variant="ghost"
                                                             className="glass text-white/70 hover:text-white hover:glass-hover h-8 w-8"
                                                             onClick={() => {
-                                                              setMessages(prev => prev.map(m => {
-                                                                if (m.id === message.id) {
-                                                                  return {
-                                                                    ...m,
-                                                                    aiAnalysisMessages: m.aiAnalysisMessages?.filter(am => am.id !== msg.id)
-                                                                  };
-                                                                }
-                                                                return m;
+                                                              setFollowUpVisible(prev => ({
+                                                                ...prev,
+                                                                [message.id]: false
                                                               }));
                                                             }}
                                                             data-testid={`button-close-followup-${msg.id}`}
