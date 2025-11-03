@@ -617,14 +617,6 @@ export default function ChatPage() {
             data.arguments;
 
           const updatedMessages = [...(m.aiAnalysisMessages || []), assistantMsg];
-          const newUserCount = updatedMessages.filter(msg => msg.type === "user").length;
-
-          // If we've reached 3 follow-ups, automatically close the follow-up section
-          if (newUserCount >= 3) {
-            setTimeout(() => {
-              setFollowUpVisible(prev => ({ ...prev, [messageId]: false }));
-            }, 1500); // Small delay to let user see the response before closing
-          }
 
           return {
             ...m,
