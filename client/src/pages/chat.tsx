@@ -1084,7 +1084,7 @@ export default function ChatPage() {
 
                                           {/* Follow-up Content - Only show when visible */}
                                           {followUpVisible[message.id] && (
-                                            <div className="space-y-4">
+                                            <div>
                                               {/* Follow-up Chat History */}
                                               {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
                                                 <div className="space-y-6 mb-4">
