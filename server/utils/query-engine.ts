@@ -4522,9 +4522,28 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     // Size filter (uses CASE statement)
     if (args.size) {
       const sizeCase = this.sizeCalculator.getSqlCaseStatement();
-      filters.push(`(${sizeCase}) = $${paramIndex}`);
-      params.push(args.size);
-      paramIndex++;
+      
+      // Handle multiple size values (e.g., "Small, Medium" or "Small and Medium")
+      const sizeString = args.size.toString();
+      const multipleSizes = sizeString.includes(',') || sizeString.toLowerCase().includes(' and ');
+      
+      if (multipleSizes) {
+        // Split by comma or "and", trim, and filter out empty values
+        const sizes = sizeString
+          .split(/,|\s+and\s+/i)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0);
+        
+        // Use IN clause for multiple sizes: (size_case) IN ('Small', 'Medium')
+        filters.push(`(${sizeCase}) = ANY($${paramIndex})`);
+        params.push(sizes);
+        paramIndex++;
+      } else {
+        // Single size value
+        filters.push(`(${sizeCase}) = $${paramIndex}`);
+        params.push(args.size);
+        paramIndex++;
+      }
     }
 
     // Status filter (skip if "all" - user wants all statuses)
@@ -4673,9 +4692,33 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       if (args.size) {
         const sizeCase = this.sizeCalculator.getSqlCaseStatement();
-        filters.push(`(${sizeCase}) = $${paramIndex}`);
-        params.push(args.size);
-        paramIndex++;
+        
+        // Handle both array format and comma-separated string format
+        const isArray = Array.isArray(args.size);
+        const isCommaSeparatedString = typeof args.size === 'string' && 
+                                      (args.size.includes(',') || args.size.toLowerCase().includes(' and '));
+        
+        if (isArray) {
+          // AI returned array: ["Small", "Medium"]
+          filters.push(`(${sizeCase}) = ANY($${paramIndex})`);
+          params.push(args.size);
+          paramIndex++;
+        } else if (isCommaSeparatedString) {
+          // AI returned comma-separated string: "Small, Medium" or "Small and Medium"
+          const sizes = args.size
+            .split(/,|\s+and\s+/i)
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0);
+          
+          filters.push(`(${sizeCase}) = ANY($${paramIndex})`);
+          params.push(sizes);
+          paramIndex++;
+        } else {
+          // Single size value
+          filters.push(`(${sizeCase}) = $${paramIndex}`);
+          params.push(args.size);
+          paramIndex++;
+        }
       }
 
       if (args.status) {
