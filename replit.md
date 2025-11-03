@@ -66,3 +66,11 @@ Currently, in-memory user storage is used for development/demo purposes. The `IS
 - **Added Hide buttons to all follow-up responses**: Users can now collapse the follow-up section after viewing any response (1st, 2nd, or 3rd)
   - Each follow-up response displays its own "Hide" button
   - Improves UX by allowing users to collapse immediately after getting their answer
+
+### "Completed" Status Mapping Fix
+- **Fixed "completed projects" queries**: System now correctly maps "completed" to "Won" status
+  - Problem: Database has no "Completed" status (only Won, Lost, Lead, Submitted, In Progress, Proposal Development, Qualified Lead, Hold)
+  - Solution: Added automatic mapping for common completion terms → "Won" status
+  - Supported terms: "completed", "complete", "finished", "done", "closed" all map to "Won"
+  - Example: "Projects completed in 2024" now correctly returns projects with Status="Won"
+  - Updated function descriptions to clarify accepted status values

@@ -2235,7 +2235,7 @@ export class QueryEngine {
               items: { type: "string" },
               description: "Keywords/tags to EXCLUDE. Use when query has 'NOT tagged with X', 'except tag Y', 'excluding tags Z'",
             },
-            status: { type: "string", description: "Project status" },
+            status: { type: "string", description: "Project status: Won, Lost, Lead, Submitted, In Progress, Proposal Development, Qualified Lead, Hold. Also accepts: completed, finished (mapped to Won)" },
             client: { type: "string", description: "Client name or CLID (e.g., 'CLID 1573'). Use this for Client IDs, NOT company." },
             company: { type: "string", description: "Company/OPCO operating company name (NOT for CLID)" },
             state_code: { type: "string", description: "State lookup code" },
@@ -2490,11 +2490,11 @@ export class QueryEngine {
       // Status
       {
         name: "get_projects_by_status",
-        description: "Get INDIVIDUAL PROJECTS filtered by status (won/lost/submitted/lead). Returns projects sorted by fee (highest first). Use this for questions like 'top won projects', 'highest value lost projects', 'show me won projects', 'largest submitted projects by fee'.",
+        description: "Get INDIVIDUAL PROJECTS filtered by status (won/lost/submitted/lead/completed/finished). Returns projects sorted by fee (highest first). Use this for questions like 'top won projects', 'highest value lost projects', 'show me won projects', 'largest submitted projects by fee', 'completed projects', 'finished projects'. Note: 'completed' and 'finished' are automatically mapped to 'Won' status.",
         parameters: {
           type: "object",
           properties: {
-            status: { type: "string" },
+            status: { type: "string", description: "Project status: Won, Lost, Lead, Submitted, In Progress, Proposal Development, Qualified Lead, Hold. Also accepts: completed, finished (mapped to Won)" },
             limit: { type: "integer" },
           },
           required: ["status"],
@@ -3745,6 +3745,22 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
             
             console.log(`[QueryEngine]   Corrected: get_projects_by_category with category="${tagsArray[0]}"`);
           }
+        }
+      }
+
+      // Step 1.4.5: Map "completed" and "finished" status to actual database values
+      // The database doesn't have "completed" or "finished" status
+      if (classification.arguments.status) {
+        const statusLower = classification.arguments.status.toLowerCase();
+        
+        if (statusLower === 'completed' || statusLower === 'complete') {
+          // "Completed" typically means successfully finished projects
+          console.log(`[QueryEngine] ⚠️ STATUS MAPPING: "completed" → "Won"`);
+          classification.arguments.status = 'Won';
+        } else if (statusLower === 'finished' || statusLower === 'done' || statusLower === 'closed') {
+          // "Finished" could mean either won or lost, but won is more common interpretation
+          console.log(`[QueryEngine] ⚠️ STATUS MAPPING: "${statusLower}" → "Won"`);
+          classification.arguments.status = 'Won';
         }
       }
 
