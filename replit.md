@@ -53,3 +53,16 @@ Currently, in-memory user storage is used for development/demo purposes. The `IS
 - **TypeScript**: Ensures type safety throughout the codebase.
 - **Tailwind CSS**: Utility-first CSS framework for styling.
 - **Zod**: Runtime type validation.
+
+## Recent Improvements (November 3, 2025)
+
+### Friendly Rate Limit Error Handling
+- **Improved UX for rate limit errors**: Azure OpenAI rate limit errors now show friendly blue info alerts instead of alarming red errors
+  - Detects "RateLimitReached" error code and extracts retry-after seconds
+  - Frontend displays blue alert with Clock icon: "Our AI service is currently busy. Please try again in X seconds."
+  - Applies to both main queries and follow-up questions
+
+### Follow-Up Question UX Enhancement
+- **Added Hide buttons to all follow-up responses**: Users can now collapse the follow-up section after viewing any response (1st, 2nd, or 3rd)
+  - Each follow-up response displays its own "Hide" button
+  - Improves UX by allowing users to collapse immediately after getting their answer
