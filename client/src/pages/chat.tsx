@@ -527,6 +527,10 @@ export default function ChatPage() {
   const handleNewChat = () => {
     setMessages([]);
     setCurrentChatId(null);
+    setFollowUpVisible({});
+    setAiAnalysisInputs({});
+    setAiAnalysisLoading({});
+    setActiveTabPerMessage({});
   };
 
   const handleSelectChat = (chatId: string) => {
