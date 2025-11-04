@@ -13,18 +13,18 @@ function getQueryEngine(): QueryEngine {
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT || 
       (process.env.NODE_ENV === 'production' 
         ? (() => { throw new Error("AZURE_OPENAI_ENDPOINT required in production") })()
-        : "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/");
+        : "https://rmone.openai.azure.com/");
     
     const apiKey = process.env.AZURE_OPENAI_KEY || 
       (process.env.NODE_ENV === 'production'
         ? (() => { throw new Error("AZURE_OPENAI_KEY required in production") })()
-        : "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU");
+        : "6wPl6eJkfHt16UgF87ytZlo6xMjpKzH5P2zagHfe3l6TuUbErOYtJQQJ99BJACYeBjFXJ3w3AAABACOGCsJD");
 
     const openaiClient = new AzureOpenAIClient({
       endpoint,
       apiKey,
       apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
-      deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
+      deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
     });
 
     queryEngine = new QueryEngine(openaiClient);
@@ -62,18 +62,18 @@ export function registerRoutes(app: Express): Express {
           const endpoint = process.env.AZURE_OPENAI_ENDPOINT || 
             (process.env.NODE_ENV === 'production'
               ? (() => { throw new Error("AZURE_OPENAI_ENDPOINT required in production") })()
-              : "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/");
+              : "https://rmone.openai.azure.com/");
           
           const apiKey = process.env.AZURE_OPENAI_KEY || 
             (process.env.NODE_ENV === 'production'
               ? (() => { throw new Error("AZURE_OPENAI_KEY required in production") })()
-              : "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU");
+              : "6wPl6eJkfHt16UgF87ytZlo6xMjpKzH5P2zagHfe3l6TuUbErOYtJQQJ99BJACYeBjFXJ3w3AAABACOGCsJD");
 
           const openaiClient = new AzureOpenAIClient({
             endpoint,
             apiKey,
             apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
-            deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
+            deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
           });
 
           const dataContext = `
@@ -141,12 +141,12 @@ Provide key insights.`,
       const openaiClient = new AzureOpenAIClient({
         endpoint:
           process.env.AZURE_OPENAI_ENDPOINT ||
-          "https://aiage-mh4lk8m5-eastus2.cognitiveservices.azure.com/",
+          "https://rmone.openai.azure.com/",
         apiKey:
           process.env.AZURE_OPENAI_KEY ||
-          "1jSEw3gXJYnZWcSsb5WKEg2kdNPJaOchCp64BgVzEUkgbsPJ5Y5KJQQJ99BJACHYHv6XJ3w3AAAAACOGx3MU",
+          "6wPl6eJkfHt16UgF87ytZlo6xMjpKzH5P2zagHfe3l6TuUbErOYtJQQJ99BJACYeBjFXJ3w3AAABACOGCsJD",
         apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
-        deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o",
+        deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
       });
 
       // Create context from query data
