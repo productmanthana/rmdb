@@ -493,12 +493,13 @@ export class QueryEngine {
               WHERE "Win %" IS NOT NULL AND "Win %" != ''
               {start_date_filter}
               {end_date_filter}
+              {additional_filters}
               ORDER BY CAST(NULLIF("Win %", '') AS NUMERIC) DESC,
                        CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_date", "end_date", "limit"],
+        optional_params: ["start_date", "end_date", "limit", "size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee"],
         chart_type: "bar",
         chart_field: "Win %",
       },
@@ -3847,6 +3848,11 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         };
       }
 
+      // Merge extracted args from special handlers (e.g., tag values from get_projects_with_same_attribute)
+      const finalArgs = results.extracted_args 
+        ? { ...args, ...results.extracted_args }
+        : args;
+
       // Step 4: Generate chart and summary
       const chartConfig = this.generateChartConfig(results.data, functionName);
       const summary = this.calculateSummaryStats(results.data);
@@ -3855,7 +3861,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         success: true,
         question: userQuestion,
         function_name: functionName,
-        arguments: args,
+        arguments: finalArgs, // Use merged args with extracted values
         data: results.data,
         row_count: results.data.length,
         summary,
@@ -4112,7 +4118,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
   private async handleSameAttributeQuery(
     args: Record<string, any>,
     externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
-  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
+  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[]; extracted_args?: Record<string, any> }> {
     try {
       const { reference_pid, attribute } = args;
 
@@ -4199,6 +4205,9 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       const whereClauses: string[] = [];
       const sqlParams: any[] = [];
       let paramIndex = 1;
+      
+      // Store extracted values for follow-up queries
+      const extractedArgs: Record<string, any> = {};
 
       for (const attr of attributes) {
         const columnName = attributeMap[attr];
@@ -4232,6 +4241,9 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
           console.log(`[QueryEngine] Step 2: Found tags = ${JSON.stringify(referenceTags)} (must contain all these tags)`);
           
+          // Store extracted tags for follow-up queries
+          extractedArgs.tags = referenceTags;
+          
           // Build ILIKE conditions for each tag (AND logic - project must contain ALL reference tags)
           // Note: Projects with additional tags will also match (e.g., "Education, Academic, Healthcare" matches "Education, Academic")
           const tagConditions = referenceTags.map(() => {
@@ -4252,6 +4264,13 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
           whereClauses.push(`"${columnName}" ILIKE $${paramIndex}`);
           sqlParams.push(`%${attributeValue}%`);
           paramIndex++;
+          
+          // Store extracted value for follow-up queries
+          if (attr === 'category') extractedArgs.categories = [attributeValue];
+          else if (attr === 'status') extractedArgs.status = attributeValue;
+          else if (attr === 'client') extractedArgs.client = attributeValue;
+          else if (attr === 'company') extractedArgs.company = attributeValue;
+          else if (attr === 'poc') extractedArgs.poc = attributeValue;
         }
       }
 
@@ -4318,12 +4337,14 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       const results = await externalDbQuery(sql, sqlParams);
       console.log(`[QueryEngine] Results count: ${results.length}`);
+      console.log(`[QueryEngine] Extracted args for follow-up context:`, JSON.stringify(extractedArgs, null, 2));
 
       return {
         success: true,
         data: results,
         sql_query: sql,
         sql_params: sqlParams,
+        extracted_args: extractedArgs, // Store for follow-up queries
       };
     } catch (error) {
       console.error(`Error in handleSameAttributeQuery:`, error);
@@ -4503,7 +4524,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     functionName: string,
     args: Record<string, any>,
     externalDbQuery: (sql: string, params?: any[]) => Promise<any[]>
-  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[] }> {
+  ): Promise<{ success: boolean; data: any[]; error?: string; sql_query?: string; sql_params?: any[]; extracted_args?: Record<string, any> }> {
     try {
       // Check for special handlers FIRST (before template lookup)
       // These functions have custom logic and don't use standard SQL templates

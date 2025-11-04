@@ -66,6 +66,17 @@ The application requires no authentication or database setup:
 
 ### Recent Changes (November 4, 2025)
 
+#### Follow-Up Query Context Preservation
+- **Fixed follow-up queries to preserve tag filters**: Follow-up questions now maintain filters from previous queries
+  - **Problem**: "Take the first project and get all related by tag" (112 results) → "Sort THEM BY WIN %" returned all 16,237 projects instead of just the 112
+  - **Solution**: Modified `handleSameAttributeQuery` to extract and store tag values in `extracted_args` field
+  - System now preserves extracted values (tags, category, status, etc.) for follow-up queries
+  - Added `{additional_filters}` support to `get_top_projects_by_win_rate` template
+  - **Example workflow**:
+    - Query 1: "Take the first project and get all related by tag" → Returns 112 projects with tags ["Healthcare", "Medical", "Hospital", "Large"]
+    - Query 2: "Sort THEM BY WIN %" → Now correctly sorts only those 112 projects by Win %, not all 16,237 projects
+  - Follow-up queries like "limit to 10", "show only mega sized", "sort by win rate" now properly apply to the filtered dataset from the previous query
+
 #### Space-Insensitive PID Matching & Column-Specific Queries
 - **Fixed PID matching to ignore spaces**: "pid1204" now correctly matches "PID 1204" in the database
   - **Problem**: Queries like "description of pid1204" failed because the database stores it as "PID 1204" with a space
