@@ -314,6 +314,27 @@ Please provide a helpful analysis for the follow-up question.`,
     }
   });
 
+  // Save a message to a chat
+  app.post("/api/chats/:id/messages", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { type, content, response } = req.body;
+      
+      const message = await storage.createMessage({
+        id: req.body.id || `msg-${randomUUID()}`,
+        chat_id: id,
+        type,
+        content,
+        response,
+      });
+      
+      res.json(message);
+    } catch (error) {
+      console.error("Error saving message:", error);
+      res.status(500).json({ success: false, message: "Failed to save message" });
+    }
+  });
+
   // Delete single chat
   app.delete("/api/chats/:id", async (req, res) => {
     try {

@@ -416,17 +416,45 @@ export default function ChatPage() {
 
       setMessages((prev) => [...prev, botMessage]);
 
-      // Save chat if it doesn't exist
-      if (!currentChatId) {
+      // Save chat and messages to database
+      let chatId = currentChatId;
+      
+      if (!chatId) {
         try {
           const chatRes = await apiRequest("POST", "/api/chats", {
             title: question.slice(0, 50) + (question.length > 50 ? "..." : ""),
           });
           const chatData = await chatRes.json();
-          setCurrentChatId(chatData.id);
+          chatId = chatData.id;
+          setCurrentChatId(chatId);
           queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
         } catch (error) {
           console.error("Failed to save chat:", error);
+        }
+      }
+
+      // Save user message and bot response to database
+      if (chatId) {
+        try {
+          // Save user message
+          const userMsgId = (Date.now() - 1).toString();
+          await apiRequest("POST", `/api/chats/${chatId}/messages`, {
+            id: userMsgId,
+            chat_id: chatId,
+            type: "user",
+            content: question,
+          });
+
+          // Save bot message
+          await apiRequest("POST", `/api/chats/${chatId}/messages`, {
+            id: botMessage.id,
+            chat_id: chatId,
+            type: "bot",
+            content: botMessage.content,
+            response: data,
+          });
+        } catch (error) {
+          console.error("Failed to save messages:", error);
         }
       }
 
