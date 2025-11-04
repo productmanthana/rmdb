@@ -21,12 +21,20 @@ The backend uses Express.js with TypeScript. It provides a RESTful API with a pr
 ### Data Storage
 
 The application uses a dual-database approach:
-- **Neon Postgres**: Primary database for application data (users, sessions, metadata), accessed via `@neondatabase/serverless` and Drizzle ORM.
+- **Neon Postgres**: Primary database for application data (chat history, sessions, messages), accessed via `@neondatabase/serverless` and Drizzle ORM.
+  - **Chats Table**: Stores chat metadata (id, session_id, title, timestamps)
+  - **Messages Table**: Stores individual messages (id, chat_id, type, content, response data)
+  - **Session Table**: Automatically managed by `connect-pg-simple` for session persistence
 - **Supabase PostgreSQL**: External data source for analytical queries, accessed via the `pg` library with a dedicated connection pool.
 
-### Authentication
+### Authentication & Session Management
 
-Currently, in-memory user storage is used for development/demo purposes. The `IStorage` interface is designed for future extensibility to database-backed implementations.
+The application uses **session-based authentication** for transparent chat persistence:
+- **Express-session** with PostgreSQL-backed session store (`connect-pg-simple`)
+- Each visitor automatically receives a unique session ID (stored in browser cookies)
+- Sessions persist for 30 days
+- No user login required - completely anonymous and friction-free
+- Session data automatically links chats to visitors for personalized history
 
 ## External Dependencies
 
@@ -54,7 +62,19 @@ Currently, in-memory user storage is used for development/demo purposes. The `IS
 - **Tailwind CSS**: Utility-first CSS framework for styling.
 - **Zod**: Runtime type validation.
 
-## Recent Improvements (November 3, 2025)
+## Recent Improvements
+
+### Chat Persistence (November 4, 2025)
+- **Session-based chat history**: All chats now automatically save to PostgreSQL database
+  - Chats persist across browser refreshes and sessions (30-day cookie lifetime)
+  - No user login required - uses anonymous session tracking
+  - Sidebar displays full chat history for current session
+  - Database schema: `chats` and `messages` tables with Drizzle ORM
+  - Storage layer: `DbStorage` class with CRUD operations for chats/messages
+  - API endpoints: GET/POST/DELETE `/api/chats` with session filtering
+  - Tested and verified: End-to-end test confirms chats survive page refresh
+
+### Earlier Improvements (November 3, 2025)
 
 ### Friendly Rate Limit Error Handling
 - **Improved UX for rate limit errors**: Azure OpenAI rate limit errors now show friendly blue info alerts instead of alarming red errors
