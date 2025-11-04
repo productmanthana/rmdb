@@ -53,3 +53,34 @@ The application requires no authentication or database setup. Chat history is lo
 - **TypeScript**: Ensures type safety throughout the codebase.
 - **Tailwind CSS**: Utility-first CSS framework for styling.
 - **Zod**: Runtime type validation.
+
+## Recent Improvements (November 4, 2025)
+
+### Large Dataset Storage Error Handling
+- **Centered alert dialog for localStorage limits**: Friendly message appears when clicking chats with large datasets
+  - **Problem**: Queries with 16,000+ rows exceeded browser storage limits, causing blank screens when clicked in sidebar
+  - **Solution**: Implemented silent tracking with centered alert dialog
+  - **User Experience**:
+    - **During query**: No interruption - users can continue conversations without popups
+    - **When clicking sidebar**: Centered alert dialog (not corner toast) explains the issue
+    - Message: "This chat contains too much data (16,000+ rows) and exceeds browser storage limits"
+    - Single "Got it" button for acknowledgment
+  - **Technical**: Detects QuotaExceededError, silently marks chats, uses AlertDialog for visibility
+
+### Follow-Up Query Context Preservation  
+- **Fixed context preservation for multi-step queries**: Follow-up questions now maintain filters from previous queries
+  - **Problem**: "Get all projects by tag X" (112 results) → "Sort by win %" returned all 16,237 projects
+  - **Solution**: Modified `handleSameAttributeQuery` to extract and return tag values in `extracted_args`
+  - **Impact**: SmartMerge now preserves tags, categories, status from two-step queries
+  - **Example**: Query 1 finds 112 healthcare projects → Query 2 sorts only those 112 by win %
+
+### Virtual Scrolling & Column Layout
+- **Optimized rendering for large datasets**: Smooth 60 FPS performance with 20,000+ rows
+  - Single-column results (Description) use full width with text wrapping
+  - Multi-column results use 150px fixed width for consistent alignment
+  - CSS Grid layout with proper column templates
+
+### Space-Insensitive PID Matching
+- **Flexible PID search**: "pid1204" matches "PID 1204" (with or without spaces)
+  - SQL uses `REPLACE("Project Name"::text, ' ', '')` for normalization
+  - Applies to all PID-based queries and reference lookups

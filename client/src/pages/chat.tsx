@@ -19,6 +19,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -443,6 +452,7 @@ export default function ChatPage() {
   const [activeTabPerMessage, setActiveTabPerMessage] = useState<Record<string, string>>({});
   const [followUpVisible, setFollowUpVisible] = useState<Record<string, boolean>>({});
   const [chatHistory, setChatHistory] = useState<StoredChat[]>([]);
+  const [showLargeDataAlert, setShowLargeDataAlert] = useState(false);
   const { toast } = useToast();
 
   // Keep ref in sync with messages state
@@ -510,21 +520,12 @@ export default function ChatPage() {
           content: question,
         });
 
-        const saved = chatStorage.addMessage(chatId, {
+        chatStorage.addMessage(chatId, {
           id: botMessage.id,
           type: "bot",
           content: botMessage.content,
           response: data,
         });
-
-        // Show warning if chat couldn't be saved due to size
-        if (!saved) {
-          toast({
-            title: "Chat Not Saved",
-            description: "This query returned too much data (16,000+ rows) and exceeds browser storage limits. The conversation will not be saved.",
-            variant: "default",
-          });
-        }
       }
 
       if (!data.success) {
@@ -624,11 +625,7 @@ export default function ChatPage() {
   const handleLoadChat = (chatId: string) => {
     // Check if the chat was marked as too large
     if (chatStorage.isChatTooLarge(chatId)) {
-      toast({
-        title: "Chat Too Large",
-        description: "This chat contains too much data (16,000+ rows) and exceeds browser storage limits. The conversation cannot be restored.",
-        variant: "default",
-      });
+      setShowLargeDataAlert(true);
       return;
     }
 
@@ -746,19 +743,10 @@ export default function ChatPage() {
 
           // Save updated follow-up messages to localStorage
           if (currentChatId) {
-            const saved = chatStorage.updateMessage(currentChatId, messageId, {
+            chatStorage.updateMessage(currentChatId, messageId, {
               ai_analysis_messages: updatedMessages,
               response: updatedMessage.response,
             });
-
-            // Show warning if follow-up couldn't be saved due to size
-            if (!saved) {
-              toast({
-                title: "Follow-up Not Saved",
-                description: "This follow-up query returned too much data and exceeds browser storage limits. The conversation will not be saved.",
-                variant: "default",
-              });
-            }
           }
 
           return updatedMessage;
@@ -1774,6 +1762,32 @@ export default function ChatPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Large Data Alert Dialog */}
+      <AlertDialog open={showLargeDataAlert} onOpenChange={setShowLargeDataAlert}>
+        <AlertDialogContent className="glass-dark border-white/20 max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white text-xl flex items-center gap-2">
+              <AlertCircle className="h-6 w-6 text-yellow-400" />
+              Chat Contains Large Data
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-white/70 text-base leading-relaxed">
+              This chat contains too much data (16,000+ rows) and exceeds browser storage limits. 
+              The conversation cannot be restored from history.
+              <br /><br />
+              Please start a new query if you need to access this data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction 
+              className="gradient-accent text-white hover:opacity-90"
+              data-testid="button-close-alert"
+            >
+              Got it
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
