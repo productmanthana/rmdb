@@ -73,6 +73,10 @@ The application requires no authentication or database setup:
   - Chart visualizations and data tables
   - Complete SQL logs and raw JSON responses
   - Follow-up questions maintain full conversational context
+- **Fixed New Chat state reset**: "New Chat" button now properly clears all follow-up states
+  - Resets follow-up visibility, input fields, loading states, and active tabs
+  - Main input is immediately available after clicking "New Chat"
+  - No residual state from previous chat sessions
 
 #### Unlimited Query Results
 - **Removed all query limits**: All database queries now return complete result sets
