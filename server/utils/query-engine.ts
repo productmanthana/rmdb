@@ -4137,6 +4137,13 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         console.log(`[QueryEngine] Step 1: Looking up reference project "${reference_pid}" (also trying "${pidWithSpace}")`);
       }
       
+      // Log Step 1 query
+      console.log(`\n${'='.repeat(80)}`);
+      console.log(`[QueryEngine] STEP 1 SQL QUERY (Reference Lookup):`);
+      console.log(`${'='.repeat(80)}`);
+      console.log(this.substituteParams(lookupSql, lookupParams));
+      console.log(`${'='.repeat(80)}\n`);
+      
       const referenceProjects = await externalDbQuery(lookupSql, lookupParams);
       
       if (referenceProjects.length === 0) {
@@ -4148,6 +4155,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       }
 
       const referenceProject = referenceProjects[0];
+      console.log(`[QueryEngine] Step 1 Result: Found reference project "${referenceProject['Project Name']}" (PID: ${referenceProject['Project Name']})`);
       
       // Step 2: Handle multiple attributes (comma-separated)
       const attributes = attribute.split(',').map((a: string) => a.trim());
