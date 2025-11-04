@@ -792,36 +792,36 @@ export default function ChatPage() {
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           <ScrollArea className="flex-1 px-4">
-            <div className="max-w-4xl mx-auto py-8">
+            <div className="max-w-4xl mx-auto py-6">
               {messages.length === 0 ? (
                 /* Welcome Screen */
-                <div className="space-y-8">
-                  <div className="text-center space-y-3 py-8">
-                    <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl glass">
-                      <Sparkles className="h-8 w-8 text-white" />
+                <div className="space-y-6 pb-4">
+                  <div className="text-center space-y-3 py-4">
+                    <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl glass">
+                      <Sparkles className="h-7 w-7 text-white" />
                     </div>
                     <h2 className="text-2xl font-bold text-white">
                       Welcome to AI Database Assistant
                     </h2>
-                    <p className="text-white/70 max-w-md mx-auto">
+                    <p className="text-white/70 max-w-md mx-auto text-sm">
                       Ask questions about your data in plain English. I'll analyze and visualize the
                       results for you.
                     </p>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid md:grid-cols-2 gap-3 max-w-3xl mx-auto">
                     {exampleQueries.map((group, idx) => (
-                      <div key={idx} className="glass rounded-xl p-5 space-y-3 transition-all">
+                      <div key={idx} className="glass rounded-xl p-4 space-y-2.5 transition-all">
                         <div className="flex items-center gap-2 text-white">
                           <group.icon className="h-4 w-4" />
                           <h3 className="font-semibold text-sm">{group.category}</h3>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {group.queries.map((query, qIdx) => (
                             <button
                               key={qIdx}
                               onClick={() => handleExampleClick(query)}
-                              className="w-full text-left px-3 py-2 rounded-lg text-sm text-white/90 glass-input transition-all hover:glass-hover"
+                              className="w-full text-left px-3 py-1.5 rounded-lg text-sm text-white/90 glass-input transition-all hover:glass-hover"
                               data-testid={`button-example-${idx}-${qIdx}`}
                             >
                               {query}
@@ -1331,7 +1331,7 @@ export default function ChatPage() {
                                                             }
                                                           }}
                                                           placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
-                                                          className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                                          className="flex-1 min-h-[44px] max-h-32 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
                                                           disabled={aiAnalysisLoading[message.id]}
                                                           data-testid={`input-ai-analysis-${message.id}`}
                                                         />
@@ -1459,14 +1459,14 @@ export default function ChatPage() {
             // Show main input
             return (
               <div className="glass-dark border-t border-white/10 shrink-0">
-                <div className="max-w-4xl mx-auto px-4 py-4">
+                <div className="max-w-4xl mx-auto px-4 py-3">
                   <form onSubmit={handleSubmit} className="relative">
                     <div className="glass-input rounded-3xl p-1 flex items-end gap-2">
                       <Textarea
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="Ask anything about your data..."
-                        className="flex-1 min-h-[60px] bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-4 py-3"
+                        className="flex-1 min-h-[44px] max-h-32 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-4 py-2.5"
                         onKeyDown={(e) => {
                           if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
@@ -1479,14 +1479,14 @@ export default function ChatPage() {
                       <Button
                         type="submit"
                         size="icon"
-                        className="gradient-accent rounded-2xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity shadow-lg"
+                        className="gradient-accent rounded-2xl h-10 w-10 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity shadow-lg"
                         disabled={!input.trim() || queryMutation.isPending}
                         data-testid="button-submit"
                       >
-                        <Send className="h-5 w-5 text-white" />
+                        <Send className="h-4 w-4 text-white" />
                       </Button>
                     </div>
-                    <p className="text-xs text-center text-white/50 mt-2">
+                    <p className="text-xs text-center text-white/50 mt-1.5">
                       Press Enter to send, Shift + Enter for new line
                     </p>
                   </form>
