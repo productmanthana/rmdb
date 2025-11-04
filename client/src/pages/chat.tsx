@@ -724,7 +724,7 @@ export default function ChatPage() {
           </div>
           <div>
             <h1 className="text-lg font-semibold text-white" data-testid="text-app-title">
-              AI Database Assistant
+              AI RMOne agents
             </h1>
             <p className="text-xs text-white/70">Natural language queries</p>
           </div>
@@ -855,7 +855,7 @@ export default function ChatPage() {
                       <Sparkles className="h-7 w-7 text-white" />
                     </div>
                     <h2 className="text-2xl font-bold text-white">
-                      Welcome to AI Database Assistant
+                      Welcome to AI RMOne agents
                     </h2>
                     <p className="text-white/70 max-w-md mx-auto text-sm">
                       Ask questions about your data in plain English. I'll analyze and visualize the
