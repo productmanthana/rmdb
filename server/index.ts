@@ -1,4 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -9,6 +12,35 @@ declare module 'http' {
     rawBody: unknown
   }
 }
+
+declare module 'express-session' {
+  interface SessionData {
+    id: string;
+  }
+}
+
+const PgSession = connectPgSimple(session);
+
+const sessionSecret = process.env.SESSION_SECRET || "dev-secret-change-in-production";
+
+app.use(
+  session({
+    store: pool ? new PgSession({
+      pool: pool,
+      tableName: "session",
+      createTableIfMissing: true,
+    }) : undefined,
+    secret: sessionSecret,
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    },
+  })
+);
+
 app.use(express.json({
   verify: (req, _res, buf) => {
     req.rawBody = buf;

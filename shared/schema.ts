@@ -1,4 +1,41 @@
 import { z } from "zod";
+import { pgTable, varchar, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+
+// ═══════════════════════════════════════════════════════════════
+// DATABASE TABLES (Drizzle ORM)
+// ═══════════════════════════════════════════════════════════════
+
+export const chats = pgTable("chats", {
+  id: varchar("id").primaryKey(),
+  session_id: varchar("session_id").notNull(),
+  title: text("title").notNull(),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey(),
+  chat_id: varchar("chat_id").notNull(),
+  type: varchar("type").notNull(),
+  content: text("content").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  response: jsonb("response"),
+});
+
+export const insertChatSchema = createInsertSchema(chats).omit({ 
+  created_at: true, 
+  updated_at: true 
+});
+
+export const insertMessageSchema = createInsertSchema(messages).omit({ 
+  timestamp: true 
+});
+
+export type Chat = typeof chats.$inferSelect;
+export type InsertChat = z.infer<typeof insertChatSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
 
 // ═══════════════════════════════════════════════════════════════
 // QUERY TYPES

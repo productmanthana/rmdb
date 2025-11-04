@@ -1,8 +1,10 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { queryExternalDb } from "./external-db";
 import { QueryEngine } from "./utils/query-engine";
 import { AzureOpenAIClient } from "./utils/azure-openai";
 import { QueryRequestSchema } from "@shared/schema";
+import { storage } from "./storage";
+import { randomUUID } from "crypto";
 
 let queryEngine: QueryEngine | null = null;
 
@@ -269,63 +271,76 @@ Please provide a helpful analysis for the follow-up question.`,
   // CHAT HISTORY MANAGEMENT
   // ═══════════════════════════════════════════════════════════════
 
-  // In-memory storage for chat history (replace with database later)
-  const chatHistory = new Map<string, any>();
-  let chatIdCounter = 1;
-
-  // Get all chats
-  app.get("/api/chats", (req, res) => {
-    const chats = Array.from(chatHistory.values()).sort(
-      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
-    );
-    res.json(chats);
+  // Get all chats for current session
+  app.get("/api/chats", async (req, res) => {
+    try {
+      const sessionId = req.session.id;
+      const chats = await storage.getAllChats(sessionId);
+      res.json(chats);
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+      res.status(500).json({ success: false, message: "Failed to fetch chats" });
+    }
   });
 
   // Create new chat
-  app.post("/api/chats", (req, res) => {
-    const { title } = req.body;
-    const chatId = `chat-${chatIdCounter++}`;
-    const chat = {
-      id: chatId,
-      title: title || "New Chat",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    chatHistory.set(chatId, chat);
-    res.json(chat);
+  app.post("/api/chats", async (req, res) => {
+    try {
+      const { title } = req.body;
+      const sessionId = req.session.id;
+      
+      const chat = await storage.createChat({
+        id: `chat-${randomUUID()}`,
+        session_id: sessionId,
+        title: title || "New Chat",
+      });
+      
+      res.json(chat);
+    } catch (error) {
+      console.error("Error creating chat:", error);
+      res.status(500).json({ success: false, message: "Failed to create chat" });
+    }
   });
 
   // Delete single chat
-  app.delete("/api/chats/:id", (req, res) => {
-    const { id } = req.params;
-    if (chatHistory.has(id)) {
-      chatHistory.delete(id);
+  app.delete("/api/chats/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteChat(id);
       res.json({ success: true, message: "Chat deleted" });
-    } else {
-      res.status(404).json({ success: false, message: "Chat not found" });
+    } catch (error) {
+      console.error("Error deleting chat:", error);
+      res.status(500).json({ success: false, message: "Failed to delete chat" });
     }
   });
 
   // Bulk delete chats
-  app.post("/api/chats/bulk-delete", (req, res) => {
-    const { chat_ids } = req.body;
-    if (!Array.isArray(chat_ids)) {
-      return res.status(400).json({ success: false, message: "Invalid request" });
-    }
-
-    let deletedCount = 0;
-    chat_ids.forEach((id: string) => {
-      if (chatHistory.has(id)) {
-        chatHistory.delete(id);
-        deletedCount++;
+  app.post("/api/chats/bulk-delete", async (req, res) => {
+    try {
+      const { chat_ids } = req.body;
+      if (!Array.isArray(chat_ids)) {
+        return res.status(400).json({ success: false, message: "Invalid request" });
       }
-    });
 
-    res.json({
-      success: true,
-      message: `Deleted ${deletedCount} chats`,
-      deleted_count: deletedCount,
-    });
+      let deletedCount = 0;
+      for (const id of chat_ids) {
+        try {
+          await storage.deleteChat(id);
+          deletedCount++;
+        } catch (error) {
+          console.error(`Error deleting chat ${id}:`, error);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Deleted ${deletedCount} chats`,
+        deleted_count: deletedCount,
+      });
+    } catch (error) {
+      console.error("Error bulk deleting chats:", error);
+      res.status(500).json({ success: false, message: "Failed to delete chats" });
+    }
   });
 
   // ═══════════════════════════════════════════════════════════════
