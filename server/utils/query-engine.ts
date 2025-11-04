@@ -4098,13 +4098,14 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       const position = this.parseOrdinalPosition(reference_pid);
       
       if (position !== null) {
-        // Get the Nth project by natural order (Start Date ascending)
+        // Get the Nth project by PID number (extract number from "PID 123" format)
+        // This gives us the actual row position in the database based on PID
         lookupSql = `SELECT * FROM "Sample" 
-                     WHERE "Start Date" IS NOT NULL
-                     ORDER BY "Start Date" ASC 
+                     WHERE "Project Name" ~ '^PID\\s*\\d+'
+                     ORDER BY CAST(REGEXP_REPLACE("Project Name", '^PID\\s*', '', 'i') AS INTEGER) ASC
                      LIMIT 1 OFFSET $1`;
         lookupParams = [position - 1]; // OFFSET is 0-indexed
-        console.log(`[QueryEngine] Step 1: Getting project at position ${position} (ordered by Start Date)`);
+        console.log(`[QueryEngine] Step 1: Getting project at position ${position} (ordered by PID number)`);
       } else if (/largest|biggest|highest\s*fee|top/i.test(reference_pid)) {
         // Get the project with highest fee
         lookupSql = `SELECT * FROM "Sample" 
