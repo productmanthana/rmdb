@@ -925,8 +925,19 @@ export class QueryEngine {
 
       get_project_by_id: {
         sql: `SELECT * FROM "Sample" 
-              WHERE "Project Name"::text ILIKE $1
-              OR "Internal Id"::text ILIKE $1
+              WHERE REPLACE("Project Name"::text, ' ', '') ILIKE REPLACE($1, ' ', '')
+              OR REPLACE("Internal Id"::text, ' ', '') ILIKE REPLACE($1, ' ', '')
+              LIMIT 1`,
+        params: ["project_name"],
+        param_types: ["str"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+      
+      get_project_column_by_id: {
+        sql: `SELECT "{column_name}" FROM "Sample" 
+              WHERE REPLACE("Project Name"::text, ' ', '') ILIKE REPLACE($1, ' ', '')
+              OR REPLACE("Internal Id"::text, ' ', '') ILIKE REPLACE($1, ' ', '')
               LIMIT 1`,
         params: ["project_name"],
         param_types: ["str"],
@@ -3372,13 +3383,26 @@ export class QueryEngine {
 
       {
         name: "get_project_by_id",
-        description: "Find specific project by name or ID",
+        description: "Find specific project by name or ID. Returns ALL columns for the project.",
         parameters: {
           type: "object",
           properties: {
             project_name: { type: "string" },
           },
           required: ["project_name"],
+        },
+      },
+      
+      {
+        name: "get_project_column_by_id",
+        description: "Get a SPECIFIC COLUMN value for a project by ID. Use when asking for a single field like 'description of PID X', 'fee for PID Y', 'status of project Z', etc. Column names: Description, Fee, Status, Win %, Start Date, Close Date, Client, Company, Point Of Contact, State Lookup, Tags, Project Type, Request Category, Module Name, LP, Conflict, Co Op, Group, Group Criteria, Email, Internal Id, Is Updated",
+        parameters: {
+          type: "object",
+          properties: {
+            project_name: { type: "string", description: "Project ID or name (e.g., 'PID 1204', 'pid1204')" },
+            column_name: { type: "string", description: "Exact column name to retrieve (e.g., 'Description', 'Fee', 'Status', 'Win %')" },
+          },
+          required: ["project_name", "column_name"],
         },
       },
 
@@ -4527,6 +4551,11 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       let sql = template.sql;
       const sqlParams: any[] = [];
+      
+      // Handle column_name substitution for get_project_column_by_id
+      if (functionName === "get_project_column_by_id" && args.column_name) {
+        sql = sql.replace(/\{column_name\}/g, args.column_name);
+      }
       
       // SECURITY: Validate that SQL is read-only before building/executing
       if (!this.isReadOnlySQL(sql)) {
