@@ -186,7 +186,7 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
         <div className="virtual-table-content inline-block min-w-full">
           {/* Header */}
           <div 
-            className="bg-white/5 sticky top-0 z-10 grid border-b border-white/20"
+            className="bg-white/5 sticky top-0 z-20 grid border-b border-white/20"
             style={{ gridTemplateColumns }}
           >
             {columns.map((key) => (
@@ -344,7 +344,7 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
           <div className="virtual-table-content inline-block min-w-full">
             {/* Header */}
             <div 
-              className="bg-white/5 sticky top-0 z-10 grid border-b border-white/20"
+              className="bg-white/5 sticky top-0 z-20 grid border-b border-white/20"
               style={{ gridTemplateColumns }}
             >
               {columns.map((key) => (
