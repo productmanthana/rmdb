@@ -64,7 +64,25 @@ The application requires no authentication or database setup:
 
 ## Recent Improvements
 
-### Chat Persistence (November 4, 2025)
+### Recent Changes (November 4, 2025)
+
+#### Follow-up Questions Enhancement
+- **Complete feature parity for follow-up questions**: Follow-up question responses now include all the same components as main query responses
+  - Summary cards: Records, Total Value, Avg Fee, Avg Win Rate
+  - AI Analysis section: Context-aware insights for each follow-up
+  - Chart visualizations and data tables
+  - Complete SQL logs and raw JSON responses
+  - Follow-up questions maintain full conversational context
+
+#### Unlimited Query Results
+- **Removed all query limits**: All database queries now return complete result sets
+  - Removed hardcoded LIMIT 50 from default query templates
+  - Removed LIMIT 100 from get_all_projects query
+  - Removed LIMIT 50 from similarity/pattern analysis queries
+  - All queries now return every matching record from the database
+  - No artificial restrictions on data retrieval
+
+#### Chat Persistence
 - **localStorage-based chat history**: All chats now automatically save to browser's localStorage
   - Chats persist across browser refreshes and browser sessions
   - No user login or database required - completely client-side
