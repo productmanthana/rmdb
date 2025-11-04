@@ -4573,7 +4573,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       for (const paramName of template.params) {
         if (args[paramName] !== undefined) {
           // Add wildcards for text search parameters that use ILIKE
-          if (paramName === 'poc' || paramName === 'poc1' || paramName === 'poc2' || paramName === 'keyword' || paramName === 'client') {
+          if (paramName === 'poc' || paramName === 'poc1' || paramName === 'poc2' || paramName === 'keyword' || paramName === 'client' || paramName === 'project_name') {
             sqlParams.push(`%${args[paramName]}%`);
           } else {
             sqlParams.push(args[paramName]);
