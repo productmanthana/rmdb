@@ -57,15 +57,19 @@ The application requires no authentication or database setup. Chat history is lo
 ## Recent Improvements (November 4, 2025)
 
 ### Large Dataset Storage Error Handling
-- **Centered alert dialog for localStorage limits**: Friendly message appears when clicking chats with large datasets
+- **Centered alert dialog for localStorage limits**: Friendly message appears only when storage is truly full
   - **Problem**: Queries with 16,000+ rows exceeded browser storage limits, causing blank screens when clicked in sidebar
-  - **Solution**: Implemented silent tracking with centered alert dialog
+  - **Solution**: Implemented quota-specific error detection with centered alert dialog
   - **User Experience**:
     - **During query**: No interruption - users can continue conversations without popups
-    - **When clicking sidebar**: Centered alert dialog (not corner toast) explains the issue
+    - **When clicking sidebar**: Centered alert dialog (not corner toast) appears only for chats that exceeded quota
     - Message: "This chat contains too much data (16,000+ rows) and exceeds browser storage limits"
     - Single "Got it" button for acknowledgment
-  - **Technical**: Detects QuotaExceededError, silently marks chats, uses AlertDialog for visibility
+  - **Technical**: 
+    - Specifically detects `QuotaExceededError` (not all save errors)
+    - Only marks chats as "too large" when storage quota is actually reached
+    - Won't show popup for smaller datasets (800 rows) - only when browser's ~10MB limit is hit
+    - Silently tracks affected chats, uses AlertDialog for center-screen visibility
 
 ### Follow-Up Query Context Preservation  
 - **Fixed context preservation for multi-step queries**: Follow-up questions now maintain filters from previous queries

@@ -37,18 +37,16 @@ class ChatStorage {
     }
   }
 
-  private saveChats(chats: StoredChat[]): boolean {
+  private saveChats(chats: StoredChat[]): { success: boolean; isQuotaError: boolean } {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
-      return true;
+      return { success: true, isQuotaError: false };
     } catch (error) {
       console.error("Failed to save chats to localStorage:", error);
-      // Check if it's a quota exceeded error
-      if (error instanceof DOMException && 
-          (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
-        return false;
-      }
-      return false;
+      // Check if it's specifically a quota exceeded error
+      const isQuotaError = error instanceof DOMException && 
+          (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+      return { success: false, isQuotaError };
     }
   }
 
@@ -97,22 +95,20 @@ class ChatStorage {
     return newChat;
   }
 
-  addMessage(chatId: string, message: StoredMessage): boolean {
+  addMessage(chatId: string, message: StoredMessage): void {
     const chats = this.getChats();
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
       chat.messages.push(message);
-      const saved = this.saveChats(chats);
-      if (!saved) {
+      const result = this.saveChats(chats);
+      // Only mark as too large if it's actually a quota error
+      if (!result.success && result.isQuotaError) {
         this.markChatAsTooLarge(chatId);
-        return false;
       }
-      return true;
     }
-    return false;
   }
 
-  updateMessage(chatId: string, messageId: string, updates: Partial<StoredMessage>): boolean {
+  updateMessage(chatId: string, messageId: string, updates: Partial<StoredMessage>): void {
     const chats = this.getChats();
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
@@ -122,15 +118,13 @@ class ChatStorage {
           ...chat.messages[messageIndex],
           ...updates
         };
-        const saved = this.saveChats(chats);
-        if (!saved) {
+        const result = this.saveChats(chats);
+        // Only mark as too large if it's actually a quota error
+        if (!result.success && result.isQuotaError) {
           this.markChatAsTooLarge(chatId);
-          return false;
         }
-        return true;
       }
     }
-    return false;
   }
 
   deleteChat(chatId: string): void {
