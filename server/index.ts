@@ -26,7 +26,7 @@ const sessionSecret = process.env.SESSION_SECRET || "dev-secret-change-in-produc
 app.use(
   session({
     store: pool ? new PgSession({
-      pool: pool,
+      pool: pool as any,
       tableName: "session",
       createTableIfMissing: true,
     }) : undefined,
