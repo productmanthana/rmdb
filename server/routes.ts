@@ -132,13 +132,20 @@ Provide key insights.`,
         });
       }
 
+      const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+      const apiKey = process.env.AZURE_OPENAI_KEY;
+
+      if (!endpoint || !apiKey) {
+        return res.status(500).json({
+          success: false,
+          error: "configuration_error",
+          message: "Azure OpenAI credentials not configured",
+        });
+      }
+
       const openaiClient = new AzureOpenAIClient({
-        endpoint:
-          process.env.AZURE_OPENAI_ENDPOINT ||
-          "https://rmone.openai.azure.com/",
-        apiKey:
-          process.env.AZURE_OPENAI_KEY ||
-          "6wPl6eJkfHt16UgF87ytZlo6xMjpKzH5P2zagHfe3l6TuUbErOYtJQQJ99BJACYeBjFXJ3w3AAABACOGCsJD",
+        endpoint,
+        apiKey,
         apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
         deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
       });
