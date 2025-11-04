@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { QueryResponse } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { chatStorage, StoredChat, StoredMessage } from "@/lib/chatStorage";
@@ -108,29 +109,41 @@ const exampleQueries = [
   },
 ];
 
-// Component to handle table with external scrollbar
+// Component to handle table with external scrollbar and virtual scrolling
 function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { data: any[]; messageId: string; height?: string }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const scrollbarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const scrollbarContentRef = useRef<HTMLDivElement>(null);
 
+  // Virtual scrolling setup
+  const rowVirtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => wrapperRef.current,
+    estimateSize: () => 41, // Estimated row height (py-2 = ~8px top + ~8px bottom + content ~25px)
+    overscan: 10, // Render 10 extra rows for smooth scrolling
+  });
+
+  // Horizontal scrollbar sync
   useEffect(() => {
     const wrapper = wrapperRef.current;
     const scrollbar = scrollbarRef.current;
-    const content = contentRef.current;
     const scrollbarContent = scrollbarContentRef.current;
 
-    if (!wrapper || !scrollbar || !content || !scrollbarContent) return;
+    if (!wrapper || !scrollbar || !scrollbarContent) return;
 
     // Set scrollbar content width to match table width
     const updateScrollbarWidth = () => {
-      scrollbarContent.style.width = `${content.scrollWidth}px`;
+      const table = wrapper.querySelector('table');
+      if (table) {
+        scrollbarContent.style.width = `${table.scrollWidth}px`;
+      }
     };
     
     updateScrollbarWidth();
-    // Update on window resize
-    window.addEventListener('resize', updateScrollbarWidth);
+    // Update on window resize and after virtualization renders
+    const observer = new ResizeObserver(updateScrollbarWidth);
+    observer.observe(wrapper);
 
     let syncing = false;
 
@@ -162,37 +175,49 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
     return () => {
       scrollbar.removeEventListener('scroll', handleScrollbarScroll);
       wrapper.removeEventListener('scroll', handleWrapperScroll);
-      window.removeEventListener('resize', updateScrollbarWidth);
+      observer.disconnect();
     };
   }, [data]);
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
     <div>
       <div
         ref={wrapperRef}
-        className="overflow-y-auto overflow-x-hidden rounded-lg border border-white/10"
+        className="overflow-auto rounded-lg border border-white/10"
         style={{ height }}
       >
-        <div ref={contentRef} className="inline-block min-w-full">
-          <Table>
-            <TableHeader className="bg-white/5 sticky top-0 z-10">
-              <TableRow className="hover:bg-transparent border-white/20">
-                {Object.keys(data[0]).map((key) => (
-                  <TableHead
-                    key={key}
-                    className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                  >
-                    {key}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((row: any, idx: number) => (
+        <Table>
+          <TableHeader className="bg-white/5 sticky top-0 z-10">
+            <TableRow className="hover:bg-transparent border-white/20">
+              {Object.keys(data[0]).map((key) => (
+                <TableHead
+                  key={key}
+                  className="text-white font-semibold h-10 whitespace-nowrap px-4"
+                >
+                  {key}
+                </TableHead>
+              ))}
+            </TableRow>
+          </TableHeader>
+          <TableBody
+            ref={tableBodyRef}
+            style={{
+              height: `${rowVirtualizer.getTotalSize()}px`,
+              position: 'relative',
+            }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const row = data[virtualRow.index];
+              return (
                 <TableRow
-                  key={idx}
-                  className="border-white/10 hover:bg-white/5 transition-colors"
-                  data-testid={`table-row-${idx}`}
+                  key={virtualRow.index}
+                  className="border-white/10 hover:bg-white/5 transition-colors absolute w-full"
+                  data-testid={`table-row-${virtualRow.index}`}
+                  style={{
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
                 >
                   {Object.values(row).map((value: any, colIdx: number) => (
                     <TableCell
@@ -205,10 +230,10 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
                     </TableCell>
                   ))}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
 
       {/* External horizontal scrollbar */}
@@ -223,33 +248,45 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
   );
 }
 
-// Component for maximized table with external scrollbars (both horizontal and vertical)
+// Component for maximized table with external scrollbars (both horizontal and vertical) and virtual scrolling
 function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const hScrollbarRef = useRef<HTMLDivElement>(null);
   const vScrollbarRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const tableBodyRef = useRef<HTMLTableSectionElement>(null);
   const hScrollbarContentRef = useRef<HTMLDivElement>(null);
   const vScrollbarContentRef = useRef<HTMLDivElement>(null);
 
+  // Virtual scrolling setup
+  const rowVirtualizer = useVirtualizer({
+    count: data.length,
+    getScrollElement: () => wrapperRef.current,
+    estimateSize: () => 41, // Estimated row height
+    overscan: 10,
+  });
+
+  // Scrollbar sync
   useEffect(() => {
     const wrapper = wrapperRef.current;
     const hScrollbar = hScrollbarRef.current;
     const vScrollbar = vScrollbarRef.current;
-    const content = contentRef.current;
     const hScrollbarContent = hScrollbarContentRef.current;
     const vScrollbarContent = vScrollbarContentRef.current;
 
-    if (!wrapper || !hScrollbar || !vScrollbar || !content || !hScrollbarContent || !vScrollbarContent) return;
+    if (!wrapper || !hScrollbar || !vScrollbar || !hScrollbarContent || !vScrollbarContent) return;
 
     // Set scrollbar content sizes
     const updateScrollbarSizes = () => {
-      hScrollbarContent.style.width = `${content.scrollWidth}px`;
-      vScrollbarContent.style.height = `${content.scrollHeight}px`;
+      const table = wrapper.querySelector('table');
+      if (table) {
+        hScrollbarContent.style.width = `${table.scrollWidth}px`;
+      }
+      vScrollbarContent.style.height = `${rowVirtualizer.getTotalSize()}px`;
     };
     
     updateScrollbarSizes();
-    window.addEventListener('resize', updateScrollbarSizes);
+    const observer = new ResizeObserver(updateScrollbarSizes);
+    observer.observe(wrapper);
 
     let syncing = false;
 
@@ -289,9 +326,11 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
       hScrollbar.removeEventListener('scroll', handleHScrollbarScroll);
       vScrollbar.removeEventListener('scroll', handleVScrollbarScroll);
       wrapper.removeEventListener('scroll', handleWrapperScroll);
-      window.removeEventListener('resize', updateScrollbarSizes);
+      observer.disconnect();
     };
-  }, [data]);
+  }, [data, rowVirtualizer]);
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
 
   return (
     <div className="flex gap-2 h-full">
@@ -300,25 +339,35 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
           ref={wrapperRef}
           className="flex-1 overflow-auto scrollbar-hide rounded-lg border border-white/10"
         >
-          <div ref={contentRef} className="inline-block min-w-full">
-            <Table>
-              <TableHeader className="bg-white/5 sticky top-0 z-10">
-                <TableRow className="hover:bg-transparent border-white/20">
-                  {Object.keys(data[0]).map((key) => (
-                    <TableHead
-                      key={key}
-                      className="text-white font-semibold h-10 whitespace-nowrap px-4"
-                    >
-                      {key}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.map((row: any, idx: number) => (
+          <Table>
+            <TableHeader className="bg-white/5 sticky top-0 z-10">
+              <TableRow className="hover:bg-transparent border-white/20">
+                {Object.keys(data[0]).map((key) => (
+                  <TableHead
+                    key={key}
+                    className="text-white font-semibold h-10 whitespace-nowrap px-4"
+                  >
+                    {key}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody
+              ref={tableBodyRef}
+              style={{
+                height: `${rowVirtualizer.getTotalSize()}px`,
+                position: 'relative',
+              }}
+            >
+              {virtualItems.map((virtualRow) => {
+                const row = data[virtualRow.index];
+                return (
                   <TableRow
-                    key={idx}
-                    className="border-white/10 hover:bg-white/5 transition-colors"
+                    key={virtualRow.index}
+                    className="border-white/10 hover:bg-white/5 transition-colors absolute w-full"
+                    style={{
+                      transform: `translateY(${virtualRow.start}px)`,
+                    }}
                   >
                     {Object.values(row).map((value: any, colIdx: number) => (
                       <TableCell
@@ -331,10 +380,10 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
                       </TableCell>
                     ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
 
         {/* External horizontal scrollbar */}
