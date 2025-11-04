@@ -2770,11 +2770,11 @@ export class QueryEngine {
 
       {
         name: "get_projects_with_same_attribute",
-        description: "Find all projects that share the same attribute value(s) as a reference project, with optional exclusion filters. CRITICAL RULE: The 'attribute' parameter defines what to MATCH, exclusion parameters define what to EXCLUDE - these must be DIFFERENT attributes. Use for: (1) 'similar to PID X' queries, (2) 'same [attribute] as PID X', (3) 'similar but different [attribute]', (4) 'like PID X but not in same [attribute]', (5) 'FIRST/LARGEST/TOP project and get related projects' queries. REFERENCE PROJECT KEYWORDS: When user says 'first project', 'largest project', 'top project', 'biggest project' → use reference_pid='first project' (the system will automatically find the highest fee project). EXCLUSION EXAMPLES: 'similar to PID 10 but different category' → {reference_pid:'PID 10', attribute:'tags', exclude_category:true} [NOTE: matches by tags, excludes category], 'like PID 5 but not same client' → {reference_pid:'PID 5', attribute:'tags', exclude_client:true}, 'find projects similar to PID 10, but only those in a different category' → {reference_pid:'PID 10', attribute:'tags', exclude_category:true}. MATCHING EXAMPLES: 'same point of contact as PID 7' → {reference_pid:'PID 7', attribute:'poc'}, 'similar to PID 8 (same category and tags)' → {reference_pid:'PID 8', attribute:'category,tags'}, 'get projects related to the first project by tags' → {reference_pid:'first project', attribute:'tags'}, 'take the largest project and find similar ones' → {reference_pid:'largest project', attribute:'tags'}. This two-step function: (1) looks up reference project (or finds highest fee project if 'first/largest/top'), (2) finds matching projects while excluding specified fields.",
+        description: "Find all projects that share the same attribute value(s) as a reference project, with optional exclusion filters. CRITICAL RULE: The 'attribute' parameter defines what to MATCH, exclusion parameters define what to EXCLUDE - these must be DIFFERENT attributes. Use for: (1) 'similar to PID X' queries, (2) 'same [attribute] as PID X', (3) 'similar but different [attribute]', (4) 'like PID X but not in same [attribute]', (5) 'POSITIONAL/SUPERLATIVE project queries'. REFERENCE PROJECT KEYWORDS: POSITIONAL (ordered by Start Date): 'first project', 'second project', 'third project', '1st project', '2nd project', '10th project' → use exact text (system finds Nth project by chronological order). SUPERLATIVE (ordered by Fee): 'largest project', 'top project', 'biggest project', 'highest fee project' → use exact text (system finds project with highest fee). EXCLUSION EXAMPLES: 'similar to PID 10 but different category' → {reference_pid:'PID 10', attribute:'tags', exclude_category:true} [NOTE: matches by tags, excludes category], 'like PID 5 but not same client' → {reference_pid:'PID 5', attribute:'tags', exclude_client:true}. MATCHING EXAMPLES: 'same point of contact as PID 7' → {reference_pid:'PID 7', attribute:'poc'}, 'similar to PID 8 (same category and tags)' → {reference_pid:'PID 8', attribute:'category,tags'}, 'get projects related to the first project by tags' → {reference_pid:'first project', attribute:'tags'}, 'take the second project and find similar ones' → {reference_pid:'second project', attribute:'tags'}, 'largest project and find similar' → {reference_pid:'largest project', attribute:'tags'}. This two-step function: (1) looks up reference project by PID/position/superlative, (2) finds matching projects while excluding specified fields.",
         parameters: {
           type: "object",
           properties: {
-            reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference. Can also be 'first project', 'largest project', 'top project', 'biggest project' to auto-select the highest fee project. Examples: 'PID 10', '10', 'Project ABC', 'first project', 'largest project'" },
+            reference_pid: { type: "string", description: "The Project ID (PID) or project name to use as reference. POSITIONAL (by Start Date): 'first project', 'second project', 'third project', '1st project', '2nd project', '5th project', '10th project' (gets Nth project chronologically). SUPERLATIVE (by Fee): 'largest project', 'top project', 'biggest project', 'highest fee' (gets highest-fee project). PID: 'PID 10', '10', 'Project ABC'" },
             attribute: { type: "string", description: "Which attribute(s) to MATCH. IMPORTANT: Do NOT include attributes that are being excluded (e.g., if exclude_category=true, do NOT include 'category' in this field). For 'similar' queries without specific attributes, use 'tags'. For specific attributes: 'poc' (Point of Contact), 'category' (Request Category), 'client' (Client ID), 'status' (Status), 'company' (Company/OPCO), 'tags' (Tags). Multi-attribute: comma-separated like 'client,status' or 'category,tags'" },
             exclude_category: { type: "boolean", description: "Set to true when query says 'different category', 'not same category', 'but only those in a different category', or 'except same category'. Excludes projects in same category as reference. CRITICAL: If true, do NOT include 'category' in the 'attribute' field." },
             exclude_status: { type: "boolean", description: "Set to true when query says 'different status', 'not same status', 'but different status'. Excludes projects with same status as reference. CRITICAL: If true, do NOT include 'status' in the 'attribute' field." },
@@ -4043,6 +4043,44 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
   }
 
   /**
+   * Parse ordinal position from text (first, second, third, 1st, 2nd, etc.)
+   * Returns the position number (1-indexed) or null if not an ordinal
+   */
+  private parseOrdinalPosition(text: string): number | null {
+    const lowerText = text.toLowerCase().trim();
+    
+    // Handle word-based ordinals
+    const wordOrdinals: Record<string, number> = {
+      'first': 1,
+      'second': 2,
+      'third': 3,
+      'fourth': 4,
+      'fifth': 5,
+      'sixth': 6,
+      'seventh': 7,
+      'eighth': 8,
+      'ninth': 9,
+      'tenth': 10,
+    };
+    
+    // Check for word-based ordinals with optional "project"
+    for (const [word, position] of Object.entries(wordOrdinals)) {
+      const regex = new RegExp(`\\b${word}(?:\\s+project)?\\b`, 'i');
+      if (regex.test(lowerText)) {
+        return position;
+      }
+    }
+    
+    // Handle numeric ordinals (1st, 2nd, 3rd, 4th, etc.)
+    const numericMatch = lowerText.match(/(\d+)(?:st|nd|rd|th)(?:\s+project)?/);
+    if (numericMatch) {
+      return parseInt(numericMatch[1], 10);
+    }
+    
+    return null;
+  }
+
+  /**
    * Handle "same attribute as PID X" queries (two-step lookup)
    */
   private async handleSameAttributeQuery(
@@ -4052,11 +4090,22 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
     try {
       const { reference_pid, attribute } = args;
 
-      // Handle special cases: "first project", "largest project", etc.
+      // Handle special cases: ordinal positions, superlatives, etc.
       let lookupSql: string;
       let lookupParams: any[];
       
-      if (/first|largest|biggest|highest\s*fee|top/i.test(reference_pid)) {
+      // Check if this is an ordinal position (first, second, third, 1st, 2nd, etc.)
+      const position = this.parseOrdinalPosition(reference_pid);
+      
+      if (position !== null) {
+        // Get the Nth project by natural order (Start Date ascending)
+        lookupSql = `SELECT * FROM "Sample" 
+                     WHERE "Start Date" IS NOT NULL
+                     ORDER BY "Start Date" ASC 
+                     LIMIT 1 OFFSET $1`;
+        lookupParams = [position - 1]; // OFFSET is 0-indexed
+        console.log(`[QueryEngine] Step 1: Getting project at position ${position} (ordered by Start Date)`);
+      } else if (/largest|biggest|highest\s*fee|top/i.test(reference_pid)) {
         // Get the project with highest fee
         lookupSql = `SELECT * FROM "Sample" 
                      WHERE CAST(NULLIF("Fee", '') AS NUMERIC) IS NOT NULL
