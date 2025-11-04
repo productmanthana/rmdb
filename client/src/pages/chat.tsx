@@ -180,7 +180,7 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
     <div>
       <div
         ref={wrapperRef}
-        className="overflow-auto rounded-lg border border-white/10"
+        className="overflow-y-auto overflow-x-auto scrollbar-hide rounded-lg border border-white/10"
         style={{ height }}
       >
         <div className="virtual-table-content inline-block min-w-full">
