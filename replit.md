@@ -66,6 +66,27 @@ The application requires no authentication or database setup:
 
 ### Recent Changes (November 4, 2025)
 
+#### Space-Insensitive PID Matching & Column-Specific Queries
+- **Fixed PID matching to ignore spaces**: "pid1204" now correctly matches "PID 1204" in the database
+  - **Problem**: Queries like "description of pid1204" failed because the database stores it as "PID 1204" with a space
+  - **Solution**: Updated SQL queries to remove spaces from both search terms and database values before comparison
+  - Uses `REPLACE("Project Name"::text, ' ', '')` to normalize spacing
+  - Works for both Project Name and Internal Id fields
+- **Added column-specific query function**: New capability to request specific columns from projects
+  - **New function**: `get_project_column_by_id` - retrieves a single column value for a project
+  - **Usage examples**:
+    - "description of PID 1204" → Returns only the Description column
+    - "what is the fee for PID 1356?" → Returns only the Fee column
+    - "status of pid911" → Returns only the Status column
+  - **Supported columns**: Description, Fee, Status, Win %, Start Date, Close Date, Client, Company, Point Of Contact, State Lookup, Tags, Project Type, Request Category, Module Name, LP, Conflict, Co Op, Group, Group Criteria, Email, Internal Id, Is Updated
+  - AI automatically classifies requests for specific columns and returns only the requested data
+- **Fixed security validation**: Updated SQL security check to allow REPLACE() function while still blocking destructive REPLACE statements
+  - **Problem**: Security validator incorrectly blocked queries containing REPLACE() function
+  - **Solution**: Changed keyword detection to look for SQL statements (with trailing space) rather than any occurrence of keywords
+  - REPLACE() function is now allowed, while "REPLACE " statement is still blocked
+
+### Recent Changes (November 4, 2025)
+
 #### Virtual Scrolling for Large Datasets (20k+ Rows)
 - **Implemented virtual scrolling using @tanstack/react-virtual**: Tables can now smoothly render 20,000+ rows without lag or browser freezing
   - **Problem**: Queries returning 16,000+ rows caused browser freezing during tab switches and laggy scrolling

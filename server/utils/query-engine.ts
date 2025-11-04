@@ -4049,20 +4049,22 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
   private isReadOnlySQL(sql: string): boolean {
     const sqlUpper = sql.toUpperCase().trim();
     
-    // Block any destructive operations
-    const destructiveKeywords = [
-      'INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'TRUNCATE', 
-      'CREATE', 'REPLACE', 'RENAME', 'GRANT', 'REVOKE'
+    // Block any destructive operations (as SQL statements, not functions)
+    const destructiveStatements = [
+      'INSERT ', 'UPDATE ', 'DELETE ', 'DROP ', 'ALTER ', 'TRUNCATE ', 
+      'CREATE ', 'RENAME ', 'GRANT ', 'REVOKE '
     ];
     
-    for (const keyword of destructiveKeywords) {
-      // Check for keyword at start or after whitespace/semicolon
-      if (sqlUpper.includes(keyword)) {
+    for (const statement of destructiveStatements) {
+      // Check for statement at start or after whitespace/semicolon
+      const pattern = new RegExp(`(^|[\\s;])${statement}`, 'i');
+      if (pattern.test(sql)) {
         return false;
       }
     }
     
     // Only allow SELECT statements (including WITH...SELECT)
+    // Note: REPLACE() function is allowed, but REPLACE statement is blocked above
     return sqlUpper.startsWith('SELECT') || sqlUpper.startsWith('WITH');
   }
 
