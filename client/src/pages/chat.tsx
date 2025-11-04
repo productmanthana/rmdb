@@ -172,6 +172,9 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
   }, [data]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
+  
+  // Generate grid template columns (150px for each column)
+  const gridTemplateColumns = columns.map(() => '150px').join(' ');
 
   return (
     <div>
@@ -182,12 +185,14 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
       >
         <div className="virtual-table-content inline-block min-w-full">
           {/* Header */}
-          <div className="bg-white/5 sticky top-0 z-10 flex border-b border-white/20">
+          <div 
+            className="bg-white/5 sticky top-0 z-10 grid border-b border-white/20"
+            style={{ gridTemplateColumns }}
+          >
             {columns.map((key) => (
               <div
                 key={key}
-                className="text-white font-semibold h-10 whitespace-nowrap px-4 flex items-center flex-shrink-0"
-                style={{ minWidth: '150px' }}
+                className="text-white font-semibold h-10 whitespace-nowrap px-4 flex items-center"
               >
                 {key}
               </div>
@@ -206,9 +211,10 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
               return (
                 <div
                   key={virtualRow.index}
-                  className="flex border-b border-white/10 hover:bg-white/5 transition-colors absolute w-full"
+                  className="grid border-b border-white/10 hover:bg-white/5 transition-colors absolute w-full"
                   data-testid={`table-row-${virtualRow.index}`}
                   style={{
+                    gridTemplateColumns,
                     transform: `translateY(${virtualRow.start}px)`,
                     height: `${virtualRow.size}px`,
                   }}
@@ -218,8 +224,7 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
                     return (
                       <div
                         key={colIdx}
-                        className="text-white/90 py-2 whitespace-nowrap px-4 flex items-center flex-shrink-0"
-                        style={{ minWidth: '150px' }}
+                        className="text-white/90 py-2 whitespace-nowrap px-4 flex items-center overflow-hidden"
                       >
                         {typeof value === "number"
                           ? value.toLocaleString()
@@ -325,6 +330,9 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
   }, [data, rowVirtualizer]);
 
   const virtualItems = rowVirtualizer.getVirtualItems();
+  
+  // Generate grid template columns (150px for each column)
+  const gridTemplateColumns = columns.map(() => '150px').join(' ');
 
   return (
     <div className="flex gap-2 h-full">
@@ -335,12 +343,14 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
         >
           <div className="virtual-table-content inline-block min-w-full">
             {/* Header */}
-            <div className="bg-white/5 sticky top-0 z-10 flex border-b border-white/20">
+            <div 
+              className="bg-white/5 sticky top-0 z-10 grid border-b border-white/20"
+              style={{ gridTemplateColumns }}
+            >
               {columns.map((key) => (
                 <div
                   key={key}
-                  className="text-white font-semibold h-10 whitespace-nowrap px-4 flex items-center flex-shrink-0"
-                  style={{ minWidth: '150px' }}
+                  className="text-white font-semibold h-10 whitespace-nowrap px-4 flex items-center"
                 >
                   {key}
                 </div>
@@ -359,8 +369,9 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
                 return (
                   <div
                     key={virtualRow.index}
-                    className="flex border-b border-white/10 hover:bg-white/5 transition-colors absolute w-full"
+                    className="grid border-b border-white/10 hover:bg-white/5 transition-colors absolute w-full"
                     style={{
+                      gridTemplateColumns,
                       transform: `translateY(${virtualRow.start}px)`,
                       height: `${virtualRow.size}px`,
                     }}
@@ -370,8 +381,7 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
                       return (
                         <div
                           key={colIdx}
-                          className="text-white/90 py-2 whitespace-nowrap px-4 flex items-center flex-shrink-0"
-                          style={{ minWidth: '150px' }}
+                          className="text-white/90 py-2 whitespace-nowrap px-4 flex items-center overflow-hidden"
                         >
                           {typeof value === "number"
                             ? value.toLocaleString()
