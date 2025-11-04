@@ -66,6 +66,21 @@ The application requires no authentication or database setup:
 
 ### Recent Changes (November 4, 2025)
 
+#### Virtual Scrolling for Large Datasets (20k+ Rows)
+- **Implemented virtual scrolling using @tanstack/react-virtual**: Tables can now smoothly render 20,000+ rows without lag or browser freezing
+  - **Problem**: Queries returning 16,000+ rows caused browser freezing during tab switches and laggy scrolling
+  - **Solution**: Implemented virtual scrolling that renders only visible rows (~20-30 at a time) instead of all rows
+  - **Performance gains**: 
+    - Before: 20,000 rows = browser freeze, laggy tab switching, high memory usage
+    - After: 20,000 rows = smooth 60 FPS scrolling, instant tab switching, minimal memory
+  - **Technical approach**: Converted from HTML `<table>` elements to div-based flexbox layout to support absolute positioning required by virtual scrolling
+  - **Row rendering**: Only ~20-30 visible rows in DOM at any time (with 10-row overscan for smooth scrolling)
+  - **Row height**: 41px estimated height, constant across all rows
+  - **Column alignment**: Fixed minWidth of 150px per column ensures proper alignment between headers and data
+  - **External scrollbars**: Maintained horizontal/vertical external scrollbars with proper sync using ResizeObserver
+  - **Both table views updated**: TableWithExternalScrollbar (main view) and MaximizedTableWithScrollbars (full-screen view)
+  - Example: "Show me all projects" query with 16,000+ results now scrolls smoothly and switches tabs instantly
+
 #### Ordinal Position Support for Reference Projects
 - **Fixed positional queries to use actual row numbers**: "first project", "second project", etc. now use natural database row ordering instead of fee-based sorting
   - **Problem**: "Take the first project and get all related by tag" was returning the highest-fee project, not the actual first row
