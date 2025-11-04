@@ -1120,6 +1120,22 @@ export default function ChatPage() {
                                                   {(message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0) ? "Show Questions" : "Ask Question"}
                                                 </Button>
                                               )}
+                                              {followUpVisible[message.id] && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="ghost"
+                                                  className="glass text-white hover:glass-hover"
+                                                  onClick={() => {
+                                                    setFollowUpVisible(prev => ({
+                                                      ...prev,
+                                                      [message.id]: false
+                                                    }));
+                                                  }}
+                                                  data-testid={`button-hide-followup-${message.id}`}
+                                                >
+                                                  Hide
+                                                </Button>
+                                              )}
                                             </div>
 
                                             {/* Collapsed View - Show questions only */}
