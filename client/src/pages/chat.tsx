@@ -1153,6 +1153,44 @@ export default function ChatPage() {
                                                       {/* Query Response with Tabs */}
                                                       {msg.response && msg.response.success && (
                                                         <>
+                                                        {/* Summary Stats for Follow-up */}
+                                                        {msg.response.summary && (
+                                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                            {msg.response.summary.total_records !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Records</p>
+                                                                <p className="text-xl font-bold text-white" data-testid={`text-total-records-followup-${msg.id}`}>
+                                                                  {msg.response.summary.total_records}
+                                                                </p>
+                                                              </div>
+                                                            )}
+                                                            {msg.response.summary.total_value !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Total Value</p>
+                                                                <p className="text-xl font-bold text-white" data-testid={`text-total-value-followup-${msg.id}`}>
+                                                                  ${(msg.response.summary.total_value / 1e6).toFixed(1)}M
+                                                                </p>
+                                                              </div>
+                                                            )}
+                                                            {msg.response.summary.avg_fee !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Avg Fee</p>
+                                                                <p className="text-xl font-bold text-white" data-testid={`text-avg-fee-followup-${msg.id}`}>
+                                                                  ${(msg.response.summary.avg_fee / 1e6).toFixed(1)}M
+                                                                </p>
+                                                              </div>
+                                                            )}
+                                                            {msg.response.summary.avg_win_rate !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Avg Win Rate</p>
+                                                                <p className="text-xl font-bold text-white" data-testid={`text-avg-win-rate-followup-${msg.id}`}>
+                                                                  {msg.response.summary.avg_win_rate.toFixed(1)}%
+                                                                </p>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        )}
+
                                                         <Tabs defaultValue="data" className="w-full">
                                                           <TabsList className="glass border-0">
                                                             <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
@@ -1223,6 +1261,35 @@ export default function ChatPage() {
                                                               ) : (
                                                                 <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
                                                                   No data available
+                                                                </div>
+                                                              )}
+                                                            </div>
+
+                                                            {/* AI Analysis Section for Follow-up */}
+                                                            <div className="glass rounded-xl p-6">
+                                                              <h3 className="font-semibold text-white mb-4 flex items-center gap-2">
+                                                                <Brain className="h-5 w-5" />
+                                                                AI Analysis
+                                                              </h3>
+                                                              {msg.response.ai_insights ? (
+                                                                <div className="glass-dark rounded-lg p-4">
+                                                                  <p className="text-white/90 whitespace-pre-wrap leading-relaxed">
+                                                                    {msg.response.ai_insights}
+                                                                  </p>
+                                                                </div>
+                                                              ) : (!msg.response.data || msg.response.data.length === 0) ? (
+                                                                <div className="glass-dark rounded-lg p-4 text-center">
+                                                                  <div className="flex items-center justify-center gap-2 text-white/60">
+                                                                    <AlertCircle className="h-5 w-5" />
+                                                                    <span>No data available for AI analysis</span>
+                                                                  </div>
+                                                                </div>
+                                                              ) : (
+                                                                <div className="glass-dark rounded-lg p-4 text-center">
+                                                                  <div className="flex items-center justify-center gap-2 text-white/60">
+                                                                    <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                                    <span>Generating AI analysis...</span>
+                                                                  </div>
                                                                 </div>
                                                               )}
                                                             </div>
