@@ -21,20 +21,20 @@ The backend uses Express.js with TypeScript. It provides a RESTful API with a pr
 ### Data Storage
 
 The application uses a dual-database approach:
-- **Neon Postgres**: Primary database for application data (chat history, sessions, messages), accessed via `@neondatabase/serverless` and Drizzle ORM.
-  - **Chats Table**: Stores chat metadata (id, session_id, title, timestamps)
-  - **Messages Table**: Stores individual messages (id, chat_id, type, content, response data)
-  - **Session Table**: Automatically managed by `connect-pg-simple` for session persistence
+- **Browser localStorage**: Chat history is persisted client-side using browser's localStorage API. Chats persist across page refreshes and browser sessions until the user clears browser data. This provides a simple, database-free chat persistence solution.
+  - **Stored Data**: Chat metadata (id, title, created_at), messages (id, type, content, response), and follow-up questions
+  - **Storage Key**: `rmone_chats`
+  - **Implementation**: `client/src/lib/chatStorage.ts`
 - **Supabase PostgreSQL**: External data source for analytical queries, accessed via the `pg` library with a dedicated connection pool.
 
-### Authentication & Session Management
+### No Authentication Required
 
-The application uses **session-based authentication** for transparent chat persistence:
-- **Express-session** with PostgreSQL-backed session store (`connect-pg-simple`)
-- Each visitor automatically receives a unique session ID (stored in browser cookies)
-- Sessions persist for 30 days
-- No user login required - completely anonymous and friction-free
-- Session data automatically links chats to visitors for personalized history
+The application requires no authentication or database setup:
+- **localStorage-based chat history**: All chat data is stored in the browser
+- No server-side sessions or user accounts needed
+- Completely anonymous and friction-free
+- Chats persist until browser data is cleared
+- Works immediately on any deployment (Replit, Render, Vercel, etc.) without database configuration
 
 ## External Dependencies
 
@@ -65,14 +65,14 @@ The application uses **session-based authentication** for transparent chat persi
 ## Recent Improvements
 
 ### Chat Persistence (November 4, 2025)
-- **Session-based chat history**: All chats now automatically save to PostgreSQL database
-  - Chats persist across browser refreshes and sessions (30-day cookie lifetime)
-  - No user login required - uses anonymous session tracking
-  - Sidebar displays full chat history for current session
-  - Database schema: `chats` and `messages` tables with Drizzle ORM
-  - Storage layer: `DbStorage` class with CRUD operations for chats/messages
-  - API endpoints: GET/POST/DELETE `/api/chats` with session filtering
-  - Tested and verified: End-to-end test confirms chats survive page refresh
+- **localStorage-based chat history**: All chats now automatically save to browser's localStorage
+  - Chats persist across browser refreshes and browser sessions
+  - No user login or database required - completely client-side
+  - Sidebar displays full chat history from localStorage
+  - Implementation: `client/src/lib/chatStorage.ts` utility class
+  - No API endpoints needed for chat storage (backend only handles queries)
+  - Deployment-friendly: Works on any platform without database configuration
+  - Data cleared only when user explicitly clears browser data
 
 ### Earlier Improvements (November 3, 2025)
 

@@ -12,11 +12,15 @@ export interface StoredChat {
 
 export interface StoredMessage {
   id: string;
-  chat_id: string;
   type: "user" | "bot";
   content: string;
   response?: any;
-  ai_analysis_messages?: StoredMessage[];
+  ai_analysis_messages?: Array<{
+    id: string;
+    type: "user" | "assistant";
+    content: string;
+    response?: any;
+  }>;
 }
 
 const STORAGE_KEY = "rmone_chats";
@@ -62,14 +66,11 @@ class ChatStorage {
     return newChat;
   }
 
-  addMessage(chatId: string, message: Omit<StoredMessage, "chat_id">): void {
+  addMessage(chatId: string, message: StoredMessage): void {
     const chats = this.getChats();
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
-      chat.messages.push({
-        ...message,
-        chat_id: chatId
-      });
+      chat.messages.push(message);
       this.saveChats(chats);
     }
   }
