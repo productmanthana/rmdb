@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { QueryResponse, ChatHistory } from "@shared/schema";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
+import { QueryResponse } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { chatStorage, StoredChat, StoredMessage } from "@/lib/chatStorage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
@@ -372,6 +373,7 @@ export default function ChatPage() {
   const [maximizedTable, setMaximizedTable] = useState<{ messageId: string; data: any[] } | null>(null);
   const [activeTabPerMessage, setActiveTabPerMessage] = useState<Record<string, string>>({});
   const [followUpVisible, setFollowUpVisible] = useState<Record<string, boolean>>({});
+  const [chatHistory, setChatHistory] = useState<StoredChat[]>([]);
   const { toast } = useToast();
 
   // Keep ref in sync with messages state
@@ -379,10 +381,11 @@ export default function ChatPage() {
     messagesRef.current = messages;
   }, [messages]);
 
-  // Fetch chat history
-  const { data: chatHistory = [] } = useQuery<ChatHistory[]>({
-    queryKey: ["/api/chats"],
-  });
+  // Load chat history from localStorage on mount
+  useEffect(() => {
+    const chats = chatStorage.getAllChats();
+    setChatHistory(chats);
+  }, []);
 
   // Filter chats based on search
   const filteredChats = chatHistory.filter((chat) =>
@@ -405,7 +408,7 @@ export default function ChatPage() {
       console.log('[ChatPage] Response:', data);
       return data;
     },
-    onSuccess: async (data, question) => {
+    onSuccess: (data, question) => {
       const botMessage: Message = {
         id: Date.now().toString(),
         type: "bot",
@@ -416,46 +419,34 @@ export default function ChatPage() {
 
       setMessages((prev) => [...prev, botMessage]);
 
-      // Save chat and messages to database
+      // Save chat and messages to localStorage
       let chatId = currentChatId;
       
       if (!chatId) {
-        try {
-          const chatRes = await apiRequest("POST", "/api/chats", {
-            title: question.slice(0, 50) + (question.length > 50 ? "..." : ""),
-          });
-          const chatData = await chatRes.json();
-          chatId = chatData.id;
-          setCurrentChatId(chatId);
-          queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
-        } catch (error) {
-          console.error("Failed to save chat:", error);
-        }
+        // Create new chat
+        const newChat = chatStorage.createChat(
+          question.slice(0, 50) + (question.length > 50 ? "..." : "")
+        );
+        chatId = newChat.id;
+        setCurrentChatId(chatId);
+        setChatHistory(chatStorage.getAllChats());
       }
 
-      // Save user message and bot response to database
+      // Save user message and bot response to localStorage
       if (chatId) {
-        try {
-          // Save user message
-          const userMsgId = (Date.now() - 1).toString();
-          await apiRequest("POST", `/api/chats/${chatId}/messages`, {
-            id: userMsgId,
-            chat_id: chatId,
-            type: "user",
-            content: question,
-          });
+        const userMsgId = (Date.now() - 1).toString();
+        chatStorage.addMessage(chatId, {
+          id: userMsgId,
+          type: "user",
+          content: question,
+        });
 
-          // Save bot message
-          await apiRequest("POST", `/api/chats/${chatId}/messages`, {
-            id: botMessage.id,
-            chat_id: chatId,
-            type: "bot",
-            content: botMessage.content,
-            response: data,
-          });
-        } catch (error) {
-          console.error("Failed to save messages:", error);
-        }
+        chatStorage.addMessage(chatId, {
+          id: botMessage.id,
+          type: "bot",
+          content: botMessage.content,
+          response: data,
+        });
       }
 
       if (!data.success) {
@@ -475,42 +466,33 @@ export default function ChatPage() {
     },
   });
 
-  // Delete chat mutation
-  const deleteChatMutation = useMutation({
-    mutationFn: async (chatId: string) => {
-      const res = await apiRequest("DELETE", `/api/chats/${chatId}`, null);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
-      toast({
-        title: "Chat deleted",
-        description: "Successfully deleted the chat",
-      });
-      if (currentChatId && selectedChats.has(currentChatId)) {
-        handleNewChat();
-      }
-    },
-  });
-
-  // Bulk delete mutation
-  const bulkDeleteMutation = useMutation({
-    mutationFn: async (chatIds: string[]) => {
-      const res = await apiRequest("POST", "/api/chats/bulk-delete", {
-        chat_ids: chatIds,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/chats"] });
-      setSelectedChats(new Set());
-      toast({
-        title: "Chats deleted",
-        description: `Successfully deleted ${selectedChats.size} chats`,
-      });
+  // Delete chat from localStorage
+  const handleDeleteChat = (chatId: string) => {
+    chatStorage.deleteChat(chatId);
+    setChatHistory(chatStorage.getAllChats());
+    toast({
+      title: "Chat deleted",
+      description: "Successfully deleted the chat",
+    });
+    if (currentChatId && chatId === currentChatId) {
       handleNewChat();
-    },
-  });
+    }
+  };
+
+  // Bulk delete from localStorage
+  const handleBulkDelete = () => {
+    if (selectedChats.size === 0) return;
+    chatStorage.deleteChats(Array.from(selectedChats));
+    setChatHistory(chatStorage.getAllChats());
+    setSelectedChats(new Set());
+    toast({
+      title: "Chats deleted",
+      description: `Successfully deleted ${selectedChats.size} chats`,
+    });
+    if (currentChatId && selectedChats.has(currentChatId)) {
+      handleNewChat();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -557,35 +539,28 @@ export default function ChatPage() {
     setSelectedChats(newSelected);
   };
 
-  const handleLoadChat = async (chatId: string) => {
-    try {
-      const res = await apiRequest("GET", `/api/chats/${chatId}/messages`, null);
-      const messagesData = await res.json();
-      
-      const loadedMessages: Message[] = messagesData.map((msg: any) => ({
+  const handleLoadChat = (chatId: string) => {
+    const chat = chatStorage.getChat(chatId);
+    if (chat) {
+      const loadedMessages: Message[] = chat.messages.map((msg) => ({
         id: msg.id,
         type: msg.type,
         content: msg.content,
-        timestamp: new Date(msg.timestamp),
+        timestamp: new Date(),
         response: msg.response,
+        aiAnalysisMessages: msg.ai_analysis_messages,
       }));
       
       setMessages(loadedMessages);
       setCurrentChatId(chatId);
       setSelectedChats(new Set());
-    } catch (error) {
-      console.error("Failed to load chat:", error);
+    } else {
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to load chat history",
       });
     }
-  };
-
-  const handleBulkDelete = () => {
-    if (selectedChats.size === 0) return;
-    bulkDeleteMutation.mutate(Array.from(selectedChats));
   };
 
   const copyToClipboard = async (text: string) => {
@@ -666,7 +641,7 @@ export default function ChatPage() {
 
           const updatedMessages = [...(m.aiAnalysisMessages || []), assistantMsg];
 
-          return {
+          const updatedMessage = {
             ...m,
             aiAnalysisMessages: updatedMessages,
             // Update the parent response with refined function and arguments
@@ -676,6 +651,16 @@ export default function ChatPage() {
               arguments: data.arguments,
             } : m.response,
           };
+
+          // Save updated follow-up messages to localStorage
+          if (currentChatId) {
+            chatStorage.updateMessage(currentChatId, messageId, {
+              ai_analysis_messages: updatedMessages,
+              response: updatedMessage.response,
+            });
+          }
+
+          return updatedMessage;
         }
         return m;
       }));
@@ -777,7 +762,6 @@ export default function ChatPage() {
                   variant="destructive"
                   className="glass-dark text-white"
                   onClick={handleBulkDelete}
-                  disabled={bulkDeleteMutation.isPending}
                   data-testid="button-bulk-delete"
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
@@ -829,7 +813,7 @@ export default function ChatPage() {
                       className="h-7 w-7 text-white/70 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
-                        deleteChatMutation.mutate(chat.id);
+                        handleDeleteChat(chat.id);
                       }}
                       data-testid={`button-delete-${chat.id}`}
                     >
