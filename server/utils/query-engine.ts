@@ -916,8 +916,7 @@ export class QueryEngine {
 
       get_all_projects: {
         sql: `SELECT * FROM "Sample" 
-              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
-              LIMIT 100`,
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`,
         params: [],
         param_types: [],
         chart_type: "bar",
@@ -4227,7 +4226,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         paramIndex++;
       }
 
-      sql += ` ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST LIMIT 50`;
+      sql += ` ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST`;
 
       console.log(`\n${'='.repeat(80)}`);
       console.log(`[QueryEngine] EXECUTED SQL QUERY (Two-step):`);
@@ -4728,7 +4727,7 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         params.push(args.limit);
         paramIndex++;
       } else {
-        result = result.replace("{limit_clause}", "LIMIT 50");
+        result = result.replace("{limit_clause}", "");
       }
     }
 
