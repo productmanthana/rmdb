@@ -302,6 +302,18 @@ Please provide a helpful analysis for the follow-up question.`,
     }
   });
 
+  // Get messages for a specific chat
+  app.get("/api/chats/:id/messages", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const messages = await storage.getChatMessages(id);
+      res.json(messages);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      res.status(500).json({ success: false, message: "Failed to fetch messages" });
+    }
+  });
+
   // Delete single chat
   app.delete("/api/chats/:id", async (req, res) => {
     try {

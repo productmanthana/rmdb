@@ -529,6 +529,32 @@ export default function ChatPage() {
     setSelectedChats(newSelected);
   };
 
+  const handleLoadChat = async (chatId: string) => {
+    try {
+      const res = await apiRequest("GET", `/api/chats/${chatId}/messages`, null);
+      const messagesData = await res.json();
+      
+      const loadedMessages: Message[] = messagesData.map((msg: any) => ({
+        id: msg.id,
+        type: msg.type,
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+        response: msg.response,
+      }));
+      
+      setMessages(loadedMessages);
+      setCurrentChatId(chatId);
+      setSelectedChats(new Set());
+    } catch (error) {
+      console.error("Failed to load chat:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load chat history",
+      });
+    }
+  };
+
   const handleBulkDelete = () => {
     if (selectedChats.size === 0) return;
     bulkDeleteMutation.mutate(Array.from(selectedChats));
@@ -747,9 +773,9 @@ export default function ChatPage() {
                 <div
                   key={chat.id}
                   className={`group relative glass rounded-lg p-3 transition-all cursor-pointer ${
-                    selectedChats.has(chat.id) ? "ring-2 ring-white/30" : ""
+                    currentChatId === chat.id ? "ring-2 ring-white/30 bg-white/10" : ""
                   } glass-hover`}
-                  onClick={() => handleSelectChat(chat.id)}
+                  onClick={() => handleLoadChat(chat.id)}
                   data-testid={`chat-item-${chat.id}`}
                 >
                   <div className="flex items-start gap-2">
