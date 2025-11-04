@@ -84,6 +84,11 @@ The application requires no authentication or database setup:
   - **Problem**: Security validator incorrectly blocked queries containing REPLACE() function
   - **Solution**: Changed keyword detection to look for SQL statements (with trailing space) rather than any occurrence of keywords
   - REPLACE() function is now allowed, while "REPLACE " statement is still blocked
+- **Fixed single-column display width**: Single-column results now use full width with text wrapping
+  - **Problem**: Description and other single-column queries were limited to 150px width, truncating text
+  - **Solution**: Dynamic column width - single columns use full width (1fr), multiple columns use fixed 150px
+  - Single-column text wraps with `whitespace-normal break-words` for full content visibility
+  - Multi-column results maintain 150px fixed width with `whitespace-nowrap` for consistent alignment
 
 ### Recent Changes (November 4, 2025)
 

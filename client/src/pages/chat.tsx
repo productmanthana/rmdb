@@ -173,8 +173,10 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
 
   const virtualItems = rowVirtualizer.getVirtualItems();
   
-  // Generate grid template columns (150px for each column)
-  const gridTemplateColumns = columns.map(() => '150px').join(' ');
+  // Generate grid template columns - use full width for single column, 150px for multiple
+  const gridTemplateColumns = columns.length === 1 
+    ? '1fr' 
+    : columns.map(() => '150px').join(' ');
 
   return (
     <div>
@@ -221,10 +223,13 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
                 >
                   {columns.map((key, colIdx) => {
                     const value = row[key];
+                    const isSingleColumn = columns.length === 1;
                     return (
                       <div
                         key={colIdx}
-                        className="text-white/90 py-2 whitespace-nowrap px-4 flex items-center overflow-hidden"
+                        className={`text-white/90 py-2 px-4 flex items-center ${
+                          isSingleColumn ? 'whitespace-normal break-words' : 'whitespace-nowrap overflow-hidden'
+                        }`}
                       >
                         {typeof value === "number"
                           ? value.toLocaleString()
@@ -331,8 +336,10 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
 
   const virtualItems = rowVirtualizer.getVirtualItems();
   
-  // Generate grid template columns (150px for each column)
-  const gridTemplateColumns = columns.map(() => '150px').join(' ');
+  // Generate grid template columns - use full width for single column, 150px for multiple
+  const gridTemplateColumns = columns.length === 1 
+    ? '1fr' 
+    : columns.map(() => '150px').join(' ');
 
   return (
     <div className="flex gap-2 h-full">
@@ -378,10 +385,13 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
                   >
                     {columns.map((key, colIdx) => {
                       const value = row[key];
+                      const isSingleColumn = columns.length === 1;
                       return (
                         <div
                           key={colIdx}
-                          className="text-white/90 py-2 whitespace-nowrap px-4 flex items-center overflow-hidden"
+                          className={`text-white/90 py-2 px-4 flex items-center ${
+                            isSingleColumn ? 'whitespace-normal break-words' : 'whitespace-nowrap overflow-hidden'
+                          }`}
                         >
                           {typeof value === "number"
                             ? value.toLocaleString()
