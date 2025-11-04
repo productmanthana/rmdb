@@ -3,8 +3,6 @@ import { queryExternalDb } from "./external-db";
 import { QueryEngine } from "./utils/query-engine";
 import { AzureOpenAIClient } from "./utils/azure-openai";
 import { QueryRequestSchema } from "@shared/schema";
-import { storage } from "./storage";
-import { randomUUID } from "crypto";
 
 let queryEngine: QueryEngine | null = null;
 
