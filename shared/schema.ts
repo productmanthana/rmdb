@@ -107,8 +107,6 @@ export const QueryResponseSchema = z.object({
   sql_query: z.string().optional(),
   sql_params: z.array(z.any()).optional(),
   ai_insights: z.string().optional(),
-  _data_truncated: z.boolean().optional(),
-  _original_count: z.number().optional(),
 });
 
 export type QueryResponse = z.infer<typeof QueryResponseSchema>;

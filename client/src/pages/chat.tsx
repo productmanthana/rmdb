@@ -51,7 +51,6 @@ import {
   Maximize2,
   Download,
   Clock,
-  Info,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -1110,21 +1109,6 @@ export default function ChatPage() {
                                             </Button>
                                           </div>
                                         </div>
-                                        
-                                        {/* Show notice if data was truncated due to size */}
-                                        {message.response._data_truncated && (
-                                          <div className="mb-4 rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
-                                            <div className="flex items-center gap-2 text-blue-400">
-                                              <Info className="h-5 w-5 flex-shrink-0" />
-                                              <p className="text-sm">
-                                                Large dataset ({message.response._original_count?.toLocaleString()} rows) - 
-                                                data not persisted in chat history due to browser storage limits. 
-                                                Summary statistics and charts are still available.
-                                              </p>
-                                            </div>
-                                          </div>
-                                        )}
-                                        
                                         {message.response.data && message.response.data.length > 0 ? (
                                           <TableWithExternalScrollbar 
                                             data={message.response.data}
@@ -1132,15 +1116,7 @@ export default function ChatPage() {
                                           />
                                         ) : (
                                           <div className="rounded-lg border border-white/10 p-8 text-center text-white/50">
-                                            {message.response._data_truncated ? (
-                                              <>
-                                                <Info className="h-8 w-8 mx-auto mb-2 text-blue-400" />
-                                                <p>Data table not available for this large dataset ({message.response._original_count?.toLocaleString()} rows)</p>
-                                                <p className="text-sm mt-2">Summary statistics and charts are still available above</p>
-                                              </>
-                                            ) : (
-                                              'No data available'
-                                            )}
+                                            No data available
                                           </div>
                                         )}
                                       </div>

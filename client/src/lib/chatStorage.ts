@@ -70,28 +70,9 @@ class ChatStorage {
     const chats = this.getChats();
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
-      // Limit data size for large datasets to avoid localStorage quota errors
-      const messageToStore = this.limitMessageSize(message);
-      chat.messages.push(messageToStore);
+      chat.messages.push(message);
       this.saveChats(chats);
     }
-  }
-  
-  private limitMessageSize(message: StoredMessage): StoredMessage {
-    // If response has large data array (>500 rows), store only metadata
-    // Browser localStorage has ~5-10MB limit, so we need to be conservative
-    if (message.response?.data && Array.isArray(message.response.data) && message.response.data.length > 500) {
-      return {
-        ...message,
-        response: {
-          ...message.response,
-          data: [], // Don't store large data arrays
-          _data_truncated: true,
-          _original_count: message.response.data.length,
-        }
-      };
-    }
-    return message;
   }
 
   updateMessage(chatId: string, messageId: string, updates: Partial<StoredMessage>): void {
@@ -100,12 +81,10 @@ class ChatStorage {
     if (chat) {
       const messageIndex = chat.messages.findIndex(m => m.id === messageId);
       if (messageIndex !== -1) {
-        const updatedMessage = {
+        chat.messages[messageIndex] = {
           ...chat.messages[messageIndex],
           ...updates
         };
-        // Limit size before saving
-        chat.messages[messageIndex] = this.limitMessageSize(updatedMessage);
         this.saveChats(chats);
       }
     }
