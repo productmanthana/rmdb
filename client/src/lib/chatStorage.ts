@@ -24,6 +24,7 @@ export interface StoredMessage {
 }
 
 const STORAGE_KEY = "rmone_chats";
+const SIZE_ERROR_KEY = "rmone_chats_size_errors";
 
 class ChatStorage {
   private getChats(): StoredChat[] {
@@ -36,12 +37,42 @@ class ChatStorage {
     }
   }
 
-  private saveChats(chats: StoredChat[]): void {
+  private saveChats(chats: StoredChat[]): boolean {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(chats));
+      return true;
     } catch (error) {
       console.error("Failed to save chats to localStorage:", error);
+      // Check if it's a quota exceeded error
+      if (error instanceof DOMException && 
+          (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')) {
+        return false;
+      }
+      return false;
     }
+  }
+
+  private markChatAsTooLarge(chatId: string): void {
+    try {
+      const sizeErrors = this.getSizeErrors();
+      sizeErrors.add(chatId);
+      localStorage.setItem(SIZE_ERROR_KEY, JSON.stringify(Array.from(sizeErrors)));
+    } catch (error) {
+      console.error("Failed to mark chat as too large:", error);
+    }
+  }
+
+  private getSizeErrors(): Set<string> {
+    try {
+      const data = localStorage.getItem(SIZE_ERROR_KEY);
+      return data ? new Set(JSON.parse(data)) : new Set();
+    } catch (error) {
+      return new Set();
+    }
+  }
+
+  isChatTooLarge(chatId: string): boolean {
+    return this.getSizeErrors().has(chatId);
   }
 
   getAllChats(): StoredChat[] {
@@ -66,16 +97,22 @@ class ChatStorage {
     return newChat;
   }
 
-  addMessage(chatId: string, message: StoredMessage): void {
+  addMessage(chatId: string, message: StoredMessage): boolean {
     const chats = this.getChats();
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
       chat.messages.push(message);
-      this.saveChats(chats);
+      const saved = this.saveChats(chats);
+      if (!saved) {
+        this.markChatAsTooLarge(chatId);
+        return false;
+      }
+      return true;
     }
+    return false;
   }
 
-  updateMessage(chatId: string, messageId: string, updates: Partial<StoredMessage>): void {
+  updateMessage(chatId: string, messageId: string, updates: Partial<StoredMessage>): boolean {
     const chats = this.getChats();
     const chat = chats.find(c => c.id === chatId);
     if (chat) {
@@ -85,9 +122,15 @@ class ChatStorage {
           ...chat.messages[messageIndex],
           ...updates
         };
-        this.saveChats(chats);
+        const saved = this.saveChats(chats);
+        if (!saved) {
+          this.markChatAsTooLarge(chatId);
+          return false;
+        }
+        return true;
       }
     }
+    return false;
   }
 
   deleteChat(chatId: string): void {

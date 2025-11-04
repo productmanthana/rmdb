@@ -510,12 +510,21 @@ export default function ChatPage() {
           content: question,
         });
 
-        chatStorage.addMessage(chatId, {
+        const saved = chatStorage.addMessage(chatId, {
           id: botMessage.id,
           type: "bot",
           content: botMessage.content,
           response: data,
         });
+
+        // Show warning if chat couldn't be saved due to size
+        if (!saved) {
+          toast({
+            title: "Chat Not Saved",
+            description: "This query returned too much data (16,000+ rows) and exceeds browser storage limits. The conversation will not be saved.",
+            variant: "default",
+          });
+        }
       }
 
       if (!data.success) {
@@ -613,6 +622,16 @@ export default function ChatPage() {
   };
 
   const handleLoadChat = (chatId: string) => {
+    // Check if the chat was marked as too large
+    if (chatStorage.isChatTooLarge(chatId)) {
+      toast({
+        title: "Chat Too Large",
+        description: "This chat contains too much data (16,000+ rows) and exceeds browser storage limits. The conversation cannot be restored.",
+        variant: "default",
+      });
+      return;
+    }
+
     const chat = chatStorage.getChat(chatId);
     if (chat) {
       const loadedMessages: Message[] = chat.messages.map((msg) => ({
@@ -727,10 +746,19 @@ export default function ChatPage() {
 
           // Save updated follow-up messages to localStorage
           if (currentChatId) {
-            chatStorage.updateMessage(currentChatId, messageId, {
+            const saved = chatStorage.updateMessage(currentChatId, messageId, {
               ai_analysis_messages: updatedMessages,
               response: updatedMessage.response,
             });
+
+            // Show warning if follow-up couldn't be saved due to size
+            if (!saved) {
+              toast({
+                title: "Follow-up Not Saved",
+                description: "This follow-up query returned too much data and exceeds browser storage limits. The conversation will not be saved.",
+                variant: "default",
+              });
+            }
           }
 
           return updatedMessage;
