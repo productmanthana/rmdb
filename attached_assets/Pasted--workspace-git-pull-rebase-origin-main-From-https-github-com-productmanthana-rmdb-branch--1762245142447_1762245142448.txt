@@ -1,0 +1,49 @@
+~/workspace$ git pull --rebase origin main
+From https://github.com/productmanthana/rmdb
+ * branch            main       -> FETCH_HEAD
+Current branch main is up to date.
+~/workspace$ git push
+Enumerating objects: 96, done.
+Counting objects: 100% (96/96), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (80/80), done.
+Writing objects: 100% (81/81), 665.24 KiB | 14.46 MiB/s, done.
+Total 81 (delta 65), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (65/65), completed with 12 local objects.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: 
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote: 
+remote:     - Push cannot contain secrets
+remote: 
+remote:     
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:     
+remote:      (?) This repository does not have Secret Scanning enabled, but is eligible. Enable Secret Scanning to view and manage detected secrets.
+remote:      Visit the repository settings page, https://github.com/productmanthana/rmdb/settings/security_analysis
+remote:     
+remote:     
+remote:       —— Azure OpenAI Key ——————————————————————————————————
+remote:        locations:
+remote:          - commit: 813375e22cb810e893c029b0a0bbb9f9af9093e9
+remote:            path: server/routes.ts:21
+remote:          - commit: 30c75eccc3bc0e94b1202478ea8a8bd7bc9b8919
+remote:            path: server/routes.ts:23
+remote:          - commit: 813375e22cb810e893c029b0a0bbb9f9af9093e9
+remote:            path: server/routes.ts:70
+remote:          - commit: 30c75eccc3bc0e94b1202478ea8a8bd7bc9b8919
+remote:            path: server/routes.ts:72
+remote:          - commit: 813375e22cb810e893c029b0a0bbb9f9af9093e9
+remote:            path: server/routes.ts:147
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/productmanthana/rmdb/security/secret-scanning/unblock-secret/350PNyNbiPzDH5EYsQCkvJp9EMR
+remote:     
+remote: 
+remote: 
+To https://github.com/productmanthana/rmdb
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/productmanthana/rmdb'

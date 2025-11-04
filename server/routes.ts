@@ -10,17 +10,12 @@ let queryEngine: QueryEngine | null = null;
 
 function getQueryEngine(): QueryEngine {
   if (!queryEngine) {
-    // In production, require environment variables
-    // In development, allow fallback to default credentials
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT || 
-      (process.env.NODE_ENV === 'production' 
-        ? (() => { throw new Error("AZURE_OPENAI_ENDPOINT required in production") })()
-        : "https://rmone.openai.azure.com/");
-    
-    const apiKey = process.env.AZURE_OPENAI_KEY || 
-      (process.env.NODE_ENV === 'production'
-        ? (() => { throw new Error("AZURE_OPENAI_KEY required in production") })()
-        : "6wPl6eJkfHt16UgF87ytZlo6xMjpKzH5P2zagHfe3l6TuUbErOYtJQQJ99BJACYeBjFXJ3w3AAABACOGCsJD");
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+    const apiKey = process.env.AZURE_OPENAI_KEY;
+
+    if (!endpoint || !apiKey) {
+      throw new Error("Azure OpenAI credentials are required. Please set AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_KEY in Replit Secrets.");
+    }
 
     const openaiClient = new AzureOpenAIClient({
       endpoint,
@@ -61,15 +56,12 @@ export function registerRoutes(app: Express): Express {
       // Generate AI insights automatically if query was successful
       if (response.success && response.data && response.data.length > 0) {
         try {
-          const endpoint = process.env.AZURE_OPENAI_ENDPOINT || 
-            (process.env.NODE_ENV === 'production'
-              ? (() => { throw new Error("AZURE_OPENAI_ENDPOINT required in production") })()
-              : "https://rmone.openai.azure.com/");
-          
-          const apiKey = process.env.AZURE_OPENAI_KEY || 
-            (process.env.NODE_ENV === 'production'
-              ? (() => { throw new Error("AZURE_OPENAI_KEY required in production") })()
-              : "6wPl6eJkfHt16UgF87ytZlo6xMjpKzH5P2zagHfe3l6TuUbErOYtJQQJ99BJACYeBjFXJ3w3AAABACOGCsJD");
+          const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+          const apiKey = process.env.AZURE_OPENAI_KEY;
+
+          if (!endpoint || !apiKey) {
+            throw new Error("Azure OpenAI credentials not configured");
+          }
 
           const openaiClient = new AzureOpenAIClient({
             endpoint,
