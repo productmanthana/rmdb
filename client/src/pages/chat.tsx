@@ -1195,16 +1195,7 @@ export default function ChatPage() {
                                                           </div>
                                                         )}
 
-                                                        <Tabs 
-                                                          value={activeTabPerMessage[`followup-${msg.id}`] || "data"}
-                                                          className="w-full"
-                                                          onValueChange={(value) => {
-                                                            setActiveTabPerMessage(prev => ({
-                                                              ...prev,
-                                                              [`followup-${msg.id}`]: value
-                                                            }));
-                                                          }}
-                                                        >
+                                                        <Tabs defaultValue="data" className="w-full">
                                                           <TabsList className="glass border-0">
                                                             <TabsTrigger value="data" className="text-white data-[state=active]:glass-input">
                                                               Response
