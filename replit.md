@@ -67,13 +67,13 @@ The application requires no authentication or database setup:
 ### Recent Changes (November 4, 2025)
 
 #### Ordinal Position Support for Reference Projects
-- **Fixed positional queries to use actual row numbers**: "first project", "second project", etc. now use PID-based ordering instead of fee-based sorting
+- **Fixed positional queries to use actual row numbers**: "first project", "second project", etc. now use natural database row ordering instead of fee-based sorting
   - **Problem**: "Take the first project and get all related by tag" was returning the highest-fee project, not the actual first row
   - **Solution**: Implemented `parseOrdinalPosition()` helper to distinguish positional queries from superlatives
-  - **Positional queries** (ordered by PID number ASC): "first", "second", "third", "1st", "2nd", "10th" → uses OFFSET/LIMIT to get Nth row by PID (e.g., "first" = lowest PID number)
+  - **Positional queries** (natural database order): "first", "second", "third", "1st", "2nd", "10th" → uses OFFSET/LIMIT to get Nth row directly from database without any ORDER BY clause
   - **Superlative queries** (ordered by Fee DESC): "largest", "biggest", "top", "highest fee" → uses ORDER BY Fee to get highest-value project
   - Supports both word-based ("first", "second", "tenth") and numeric ordinals ("1st", "2nd", "3rd", "10th", etc.)
-  - Example: "Take the first project and find all projects with the same tags" now correctly uses the project with the lowest PID number
+  - Example: "Take the first project and find all projects with the same tags" now correctly uses whatever is in the first row of the database table
 
 #### Follow-up Questions Enhancement
 - **Complete feature parity for follow-up questions**: Follow-up question responses now include all the same components as main query responses
