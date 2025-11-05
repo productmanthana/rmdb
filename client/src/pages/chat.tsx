@@ -1136,11 +1136,112 @@ export default function ChatPage() {
                                             </div>
                                           )}
                                           
-                                          {followUpVisible[message.id] && (
-                                            <div className="text-center text-white/60 text-sm py-4">
-                                              <p>Switch to the Response tab to ask follow-up questions and view full chat history</p>
-                                            </div>
-                                          )}
+                                          {/* Full Follow-up Content in Chart Tab */}
+                                          {followUpVisible[message.id] && (() => {
+                                            const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
+                                            return (
+                                              <div>
+                                                {/* Follow-up Chat History */}
+                                                {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
+                                                  <div className="space-y-6 mb-4">
+                                                    {message.aiAnalysisMessages.map((msg) => (
+                                                      <div key={msg.id} className="space-y-3">
+                                                        {/* User Question */}
+                                                        <div className="flex justify-end">
+                                                          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
+                                                            <p className="text-sm text-white font-medium">{msg.content}</p>
+                                                          </div>
+                                                        </div>
+
+                                                        {/* Response Summary */}
+                                                        {msg.response && msg.response.success && msg.response.summary && (
+                                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                            {msg.response.summary.total_records !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Records</p>
+                                                                <p className="text-xl font-bold text-white">{msg.response.summary.total_records}</p>
+                                                              </div>
+                                                            )}
+                                                            {msg.response.summary.total_value !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Total Value</p>
+                                                                <p className="text-xl font-bold text-white">${(msg.response.summary.total_value / 1e6).toFixed(1)}M</p>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        )}
+
+                                                        {/* Brief Response */}
+                                                        {msg.response && msg.response.success && (
+                                                          <div className="glass-dark rounded-lg p-4">
+                                                            <p className="text-white/90 text-sm">
+                                                              {msg.response.ai_insights || `Found ${msg.response.row_count || 0} results`}
+                                                            </p>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                )}
+
+                                                {/* Input form */}
+                                                {userFollowUpCount >= 3 ? (
+                                                  <div className="glass-dark rounded-lg p-4">
+                                                    <div className="flex items-start gap-3">
+                                                      <div className="shrink-0 text-white/70">
+                                                        <AlertCircle className="h-5 w-5 text-white/70" />
+                                                      </div>
+                                                      <div>
+                                                        <p className="text-sm font-medium text-white">Follow-up Limit Reached</p>
+                                                        <p className="text-xs text-white/60 mt-1">You've asked 3 follow-up questions. Please start a new query to continue exploring the data.</p>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div className="space-y-2">
+                                                    <div className="glass-input rounded-xl p-1">
+                                                      <form
+                                                        onSubmit={(e) => {
+                                                          e.preventDefault();
+                                                          handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                        }}
+                                                        className="flex items-end gap-2"
+                                                      >
+                                                        <Textarea
+                                                          value={aiAnalysisInputs[message.id] || ""}
+                                                          onChange={(e) => setAiAnalysisInputs((prev) => ({ ...prev, [message.id]: e.target.value }))}
+                                                          onKeyDown={(e) => {
+                                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                              e.preventDefault();
+                                                              if (aiAnalysisInputs[message.id]?.trim() && !aiAnalysisLoading[message.id]) {
+                                                                handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                              }
+                                                            }
+                                                          }}
+                                                          placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
+                                                          className="flex-1 min-h-[44px] max-h-32 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                                          disabled={aiAnalysisLoading[message.id]}
+                                                        />
+                                                        <Button
+                                                          type="submit"
+                                                          size="icon"
+                                                          className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
+                                                          disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
+                                                        >
+                                                          {aiAnalysisLoading[message.id] ? (
+                                                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                          ) : (
+                                                            <Send className="h-4 w-4 text-white" />
+                                                          )}
+                                                        </Button>
+                                                      </form>
+                                                    </div>
+                                                    <p className="text-xs text-white/50 px-2">{userFollowUpCount}/3 follow-up questions used</p>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       )}
                                     </TabsContent>
@@ -1753,11 +1854,112 @@ export default function ChatPage() {
                                             </div>
                                           )}
                                           
-                                          {followUpVisible[message.id] && (
-                                            <div className="text-center text-white/60 text-sm py-4">
-                                              <p>Switch to the Response tab to ask follow-up questions and view full chat history</p>
-                                            </div>
-                                          )}
+                                          {/* Full Follow-up Content in Logs Tab */}
+                                          {followUpVisible[message.id] && (() => {
+                                            const userFollowUpCount = (message.aiAnalysisMessages || []).filter(m => m.type === "user").length;
+                                            return (
+                                              <div>
+                                                {/* Follow-up Chat History */}
+                                                {message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
+                                                  <div className="space-y-6 mb-4">
+                                                    {message.aiAnalysisMessages.map((msg) => (
+                                                      <div key={msg.id} className="space-y-3">
+                                                        {/* User Question */}
+                                                        <div className="flex justify-end">
+                                                          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
+                                                            <p className="text-sm text-white font-medium">{msg.content}</p>
+                                                          </div>
+                                                        </div>
+
+                                                        {/* Response Summary */}
+                                                        {msg.response && msg.response.success && msg.response.summary && (
+                                                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                                            {msg.response.summary.total_records !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Records</p>
+                                                                <p className="text-xl font-bold text-white">{msg.response.summary.total_records}</p>
+                                                              </div>
+                                                            )}
+                                                            {msg.response.summary.total_value !== undefined && (
+                                                              <div className="glass rounded-xl p-4">
+                                                                <p className="text-xs text-white/70 mb-1">Total Value</p>
+                                                                <p className="text-xl font-bold text-white">${(msg.response.summary.total_value / 1e6).toFixed(1)}M</p>
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        )}
+
+                                                        {/* Brief Response */}
+                                                        {msg.response && msg.response.success && (
+                                                          <div className="glass-dark rounded-lg p-4">
+                                                            <p className="text-white/90 text-sm">
+                                                              {msg.response.ai_insights || `Found ${msg.response.row_count || 0} results`}
+                                                            </p>
+                                                          </div>
+                                                        )}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                )}
+
+                                                {/* Input form */}
+                                                {userFollowUpCount >= 3 ? (
+                                                  <div className="glass-dark rounded-lg p-4">
+                                                    <div className="flex items-start gap-3">
+                                                      <div className="shrink-0 text-white/70">
+                                                        <AlertCircle className="h-5 w-5 text-white/70" />
+                                                      </div>
+                                                      <div>
+                                                        <p className="text-sm font-medium text-white">Follow-up Limit Reached</p>
+                                                        <p className="text-xs text-white/60 mt-1">You've asked 3 follow-up questions. Please start a new query to continue exploring the data.</p>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                ) : (
+                                                  <div className="space-y-2">
+                                                    <div className="glass-input rounded-xl p-1">
+                                                      <form
+                                                        onSubmit={(e) => {
+                                                          e.preventDefault();
+                                                          handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                        }}
+                                                        className="flex items-end gap-2"
+                                                      >
+                                                        <Textarea
+                                                          value={aiAnalysisInputs[message.id] || ""}
+                                                          onChange={(e) => setAiAnalysisInputs((prev) => ({ ...prev, [message.id]: e.target.value }))}
+                                                          onKeyDown={(e) => {
+                                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                              e.preventDefault();
+                                                              if (aiAnalysisInputs[message.id]?.trim() && !aiAnalysisLoading[message.id]) {
+                                                                handleAIAnalysis(message.id, aiAnalysisInputs[message.id] || "");
+                                                              }
+                                                            }
+                                                          }}
+                                                          placeholder="Ask a follow-up question... (Press Enter to send, Shift+Enter for new line)"
+                                                          className="flex-1 min-h-[44px] max-h-32 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-3 py-2"
+                                                          disabled={aiAnalysisLoading[message.id]}
+                                                        />
+                                                        <Button
+                                                          type="submit"
+                                                          size="icon"
+                                                          className="gradient-accent rounded-xl h-10 w-10 shrink-0 mr-1 mb-1"
+                                                          disabled={!aiAnalysisInputs[message.id]?.trim() || aiAnalysisLoading[message.id]}
+                                                        >
+                                                          {aiAnalysisLoading[message.id] ? (
+                                                            <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                          ) : (
+                                                            <Send className="h-4 w-4 text-white" />
+                                                          )}
+                                                        </Button>
+                                                      </form>
+                                                    </div>
+                                                    <p className="text-xs text-white/50 px-2">{userFollowUpCount}/3 follow-up questions used</p>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            );
+                                          })()}
                                         </div>
                                       )}
                                     </TabsContent>
