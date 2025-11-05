@@ -232,13 +232,10 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
                 >
                   {columns.map((key, colIdx) => {
                     const value = row[key];
-                    const isSingleColumn = columns.length === 1;
                     return (
                       <div
                         key={colIdx}
-                        className={`text-white/90 py-2 px-4 flex items-center ${
-                          isSingleColumn ? 'whitespace-normal break-words' : 'whitespace-nowrap overflow-hidden'
-                        }`}
+                        className="text-white/90 py-2 px-4 flex items-center whitespace-normal break-words"
                       >
                         {typeof value === "number"
                           ? value.toLocaleString()
@@ -394,13 +391,10 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
                   >
                     {columns.map((key, colIdx) => {
                       const value = row[key];
-                      const isSingleColumn = columns.length === 1;
                       return (
                         <div
                           key={colIdx}
-                          className={`text-white/90 py-2 px-4 flex items-center ${
-                            isSingleColumn ? 'whitespace-normal break-words' : 'whitespace-nowrap overflow-hidden'
-                          }`}
+                          className="text-white/90 py-2 px-4 flex items-center whitespace-normal break-words"
                         >
                           {typeof value === "number"
                             ? value.toLocaleString()

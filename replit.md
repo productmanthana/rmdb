@@ -80,9 +80,11 @@ The application requires no authentication or database setup. Chat history is lo
 
 ### Virtual Scrolling & Column Layout
 - **Optimized rendering for large datasets**: Smooth 60 FPS performance with 20,000+ rows
-  - Single-column results (Description) use full width with text wrapping
+  - All columns now display full text with wrapping (no truncation)
+  - Single-column results use full width (1fr)
   - Multi-column results use 150px fixed width for consistent alignment
   - CSS Grid layout with proper column templates
+  - Text wrapping enabled for both normal and maximized table views
 
 ### Space-Insensitive PID Matching
 - **Flexible PID search**: "pid1204" matches "PID 1204" (with or without spaces)
