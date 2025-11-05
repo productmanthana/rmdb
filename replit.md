@@ -23,7 +23,15 @@ The application uses a dual-database approach:
 The application requires no authentication or database setup. Chat history is localStorage-based, meaning no server-side sessions or user accounts are needed, making it anonymous and friction-free. Chats persist until browser data is cleared.
 
 ### Feature Specifications
-- **Follow-Up Questions**: Follow-up questions are fully functional across all tabs (Response, Chart, Logs) with chat history, input forms, and limit tracking.
+- **Follow-Up Questions**: Follow-up questions are **fully functional and identical** across all tabs (Response, Chart, Logs). Each follow-up response includes:
+  - **Complete tabs structure**: Response (data table + AI analysis), Chart (visualization), and Logs (SQL query details)
+  - **Summary statistics**: Records, Total Value, Avg Fee, Win Rate displayed as cards
+  - **Interactive data table**: Copy CSV and Maximize buttons, virtual scrolling for large datasets
+  - **Chart visualization**: Full ChartComparison component with all customization options
+  - **SQL logs**: Syntax-highlighted SQL query, parameters, and raw JSON response
+  - **Input form**: Textarea with Enter to submit, Shift+Enter for new line
+  - **Limit tracking**: Shows "X/3 follow-up questions used" counter and limit reached message
+  - **Seamless workflow**: Ask follow-ups from any tab without switching, see complete responses right there
 - **Multi-Word Tag Handling**: The system correctly parses multi-word tags (e.g., "aviation pavement curbs and gutters") as single entities.
 - **Column-Specific Query Support**: Users can request specific columns (e.g., "provide only the projects") while preserving previous filters.
 - **Tag Replacement**: Follow-up queries involving tags now correctly replace previous tags instead of combining them.
