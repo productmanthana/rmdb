@@ -15,7 +15,9 @@ export function getExternalDbPool(): Pool {
       database: process.env.EXTERNAL_DB_NAME || "postgres",
       user: process.env.EXTERNAL_DB_USER || "postgres.jlhkysdsahtnygjawwvt",
       password: process.env.EXTERNAL_DB_PASSWORD || "Vyaasai@rmone",
-      ssl: false,
+      ssl: {
+        rejectUnauthorized: false
+      },
       connectionTimeoutMillis: 10000,
       max: 20,
       idleTimeoutMillis: 30000,
