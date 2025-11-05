@@ -764,103 +764,45 @@ export default function DashboardPage() {
                       Clear All
                     </Button>
                   </div>
-                  <ScrollArea className="h-[600px] pr-4">
-                    <div className="space-y-4">
-                      {queryResults.map((result, index) => (
-                        <Card key={index} className="glass-dark border-white/20">
-                          <CardHeader>
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <CardTitle className="text-white text-base flex items-center gap-2">
-                                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-300 text-xs font-bold border border-blue-500/30">
-                                    {index + 1}
-                                  </span>
-                                  {result.question}
-                                </CardTitle>
-                                {result.ai_insights && (
-                                  <p className="text-white/70 text-sm mt-2">{result.ai_insights}</p>
-                                )}
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-white/60 hover:text-white shrink-0"
-                                onClick={() => removeQueryResult(index)}
-                                data-testid={`button-remove-result-${index}`}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {queryResults.map((result, index) => (
+                      <Card key={index} className="glass-dark border-white/20">
+                        <CardHeader>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <CardTitle className="text-white text-base flex items-center gap-2">
+                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold">
+                                  {index + 1}
+                                </span>
+                                {result.question}
+                              </CardTitle>
+                              <CardDescription className="text-white/60 mt-1">
+                                {result.data?.length || 0} results
+                              </CardDescription>
                             </div>
-                          </CardHeader>
-                          <CardContent>
-                            {result.data && result.data.length > 0 ? (
-                              <div className="space-y-4">
-                                {/* Summary Stats */}
-                                {result.summary && (
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                    {Object.entries(result.summary).map(([key, value]) => (
-                                      <div key={key} className="glass-input rounded-lg p-3">
-                                        <p className="text-xs text-white/60 mb-1">
-                                          {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                        </p>
-                                        <p className="text-white font-medium">
-                                          {typeof value === 'number' && key.toLowerCase().includes('value') 
-                                            ? formatCurrency(value)
-                                            : typeof value === 'number'
-                                            ? formatNumber(value)
-                                            : String(value)}
-                                        </p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {/* Chart Visualization */}
-                                {result.chart_config && (
-                                  <div className="glass-input rounded-lg p-4">
-                                    <ChartVisualization config={result.chart_config} />
-                                  </div>
-                                )}
-
-                                {/* Data Table */}
-                                <div className="glass-input rounded-lg p-4 max-h-80 overflow-auto">
-                                  <table className="w-full text-sm">
-                                    <thead className="border-b border-white/10 sticky top-0 glass-dark">
-                                      <tr className="text-left">
-                                        {Object.keys(result.data[0]).map((key) => (
-                                          <th key={key} className="pb-2 px-2 font-medium text-white">
-                                            {key}
-                                          </th>
-                                        ))}
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {result.data.slice(0, 10).map((row, rowIdx) => (
-                                        <tr key={rowIdx} className="border-b border-white/5 last:border-0">
-                                          {Object.values(row).map((value, colIdx) => (
-                                            <td key={colIdx} className="py-2 px-2 text-white/70">
-                                              {String(value ?? '-')}
-                                            </td>
-                                          ))}
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                  {result.data.length > 10 && (
-                                    <p className="text-xs text-white/50 text-center mt-2">
-                                      Showing 10 of {result.data.length} results
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <p className="text-white/60 text-center py-4">No data found</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-white/60 hover:text-white shrink-0"
+                              onClick={() => removeQueryResult(index)}
+                              data-testid={`button-remove-result-${index}`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          {result.chart_config ? (
+                            <div className="h-80">
+                              <ChartVisualization config={result.chart_config} />
+                            </div>
+                          ) : (
+                            <p className="text-white/60 text-center py-4">No chart available</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
