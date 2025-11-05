@@ -182,10 +182,10 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
 
   const virtualItems = rowVirtualizer.getVirtualItems();
   
-  // Generate grid template columns - use full width for single column, Tags gets 250px, others 150px
+  // Generate grid template columns - use full width for single column, Tags gets 700px, others 150px
   const gridTemplateColumns = columns.length === 1 
     ? '1fr' 
-    : columns.map(col => col === 'Tags' ? '250px' : '150px').join(' ');
+    : columns.map(col => col === 'Tags' ? '700px' : '150px').join(' ');
 
   return (
     <div>
@@ -345,10 +345,10 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
 
   const virtualItems = rowVirtualizer.getVirtualItems();
   
-  // Generate grid template columns - use full width for single column, Tags gets 250px, others 150px
+  // Generate grid template columns - use full width for single column, Tags gets 700px, others 150px
   const gridTemplateColumns = columns.length === 1 
     ? '1fr' 
-    : columns.map(col => col === 'Tags' ? '250px' : '150px').join(' ');
+    : columns.map(col => col === 'Tags' ? '700px' : '150px').join(' ');
 
   return (
     <div className="flex gap-2 h-full">
