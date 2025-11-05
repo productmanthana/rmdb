@@ -4628,11 +4628,23 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
 
       console.log(`[QueryEngine] Results count: ${results.length}`);
 
+      // For get_top_tags, extract tag values so follow-up questions can reference them
+      let extracted_args: Record<string, any> | undefined;
+      if (functionName === "get_top_tags" && results.length > 0) {
+        // Extract all tag values from the results
+        const tagValues = results.map(row => row.tag).filter(tag => tag);
+        if (tagValues.length > 0) {
+          extracted_args = { tags: tagValues };
+          console.log(`[QueryEngine] Extracted tags for context:`, tagValues);
+        }
+      }
+
       return {
         success: true,
         data: results,
         sql_query: sql,
         sql_params: sqlParams,
+        extracted_args,
       };
     } catch (error) {
       console.error(`Error executing ${functionName}:`, error);
