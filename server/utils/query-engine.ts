@@ -2407,14 +2407,14 @@ export class QueryEngine {
       {
         name: "get_projects_by_multiple_tags",
         description:
-          "Get projects that match ANY of the specified tags (OR logic). Use when user asks for projects with specific tags like 'projects with tag Expansion and Emergency', 'Rail and Transit tags', 'tagged Healthcare or Medical', or lists multiple tags with 'and'/commas.",
+          "Get projects that match ANY of the specified tags (OR logic). Use when user asks for projects with specific tags. CRITICAL: Tags can be multi-word phrases (e.g., 'aviation pavement curbs and gutters' is ONE tag). Only split on commas, NOT on spaces or 'and'.",
         parameters: {
           type: "object",
           properties: {
             tags: {
               type: "array",
               items: { type: "string" },
-              description: "List of tags. Projects matching ANY tag will be returned (OR logic). Extract each tag name from the query.",
+              description: "List of tags. IMPORTANT: If query has commas (e.g., 'Rail, Transit, Hospital'), split on commas. If no commas (e.g., 'aviation pavement curbs and gutters'), treat as ONE multi-word tag. DO NOT split on spaces or 'and'.",
             },
           },
           required: ["tags"],
@@ -3706,10 +3706,14 @@ CRITICAL INSTRUCTIONS FOR FOLLOW-UP QUERIES:
 3. The system will automatically merge your extracted parameters with previous ones
 
 IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in the follow-up question "${userQuestion}".
-- If the user explicitly says "tags" or "tagged" → Use TAGS parameter (e.g., "show tags: Rail, Transit" = tags: ["Rail", "Transit"])
+- TAGS EXTRACTION RULES (CRITICAL):
+  * If query contains COMMAS (e.g., "Rail, Transit, Hospital") → Split on commas: tags=["Rail", "Transit", "Hospital"]
+  * If query has NO COMMAS (e.g., "aviation pavement curbs and gutters") → ONE multi-word tag: tags=["aviation pavement curbs and gutters"]
+  * "tags X and Y" where X,Y are single words WITH commas → tags=["X", "Y"]
+  * "tags X and Y" where "X and Y" is one phrase WITHOUT commas → tags=["X and Y"]
+  * Examples: "tags Rail, Transit" = tags:["Rail","Transit"], "tags aviation pavement curbs and gutters" = tags:["aviation pavement curbs and gutters"]
 - If the follow-up is "also add X" (in context of previous tags) → Treat X as a TAG (e.g., "also add Hospital" = tags: ["Hospital"])
 - If the follow-up is a SINGLE category/type WITHOUT "tags" keyword → Use CATEGORY (e.g., "Transportation projects" = category: "Transportation")
-- If the follow-up is a COMMA-SEPARATED LIST → Treat as TAGS (e.g., "Rail, Transit, Hospital" = tags: [...])
 - If the follow-up mentions a date → Extract ONLY the new date
 - If the follow-up explicitly says "size" → Extract as size
 - If the follow-up mentions fee/money → Extract as min_fee/max_fee
