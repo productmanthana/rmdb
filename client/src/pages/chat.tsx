@@ -129,7 +129,7 @@ function TableWithExternalScrollbar({ data, messageId, height = "400px" }: { dat
   const rowVirtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => wrapperRef.current,
-    estimateSize: () => 41,
+    estimateSize: () => 100, // Increased from 41 to 100 to accommodate wrapped text
     overscan: 10,
   });
 
@@ -275,7 +275,7 @@ function MaximizedTableWithScrollbars({ data }: { data: any[] }) {
   const rowVirtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => wrapperRef.current,
-    estimateSize: () => 41,
+    estimateSize: () => 100, // Increased from 41 to 100 to accommodate wrapped text
     overscan: 10,
   });
 
