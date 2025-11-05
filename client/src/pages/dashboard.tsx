@@ -1,20 +1,14 @@
 import { useState, useEffect, type ReactNode } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bar, Line, Pie, Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title } from 'chart.js';
 import ChartDataLabels from 'chartjs-plugin-datalabels';
-import { DollarSign, TrendingUp, Award, BarChart3, GripVertical, Send, Sparkles, X } from "lucide-react";
+import { DollarSign, TrendingUp, Award, BarChart3, GripVertical } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { FloatingParticles } from "@/components/FloatingParticles";
-import { QueryResponse } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { ChartVisualization } from "@/components/ChartVisualization";
 
 // Register Chart.js components
 ChartJS.register(
@@ -80,52 +74,6 @@ export default function DashboardPage() {
   const [chartOrder, setChartOrder] = useState<string[]>([
     'size', 'status', 'category', 'geographic', 'timeline', 'winrate', 'topprojects'
   ]);
-  
-  // Query section state
-  const [queryInput, setQueryInput] = useState("");
-  const [queryResults, setQueryResults] = useState<QueryResponse[]>([]);
-  const { toast } = useToast();
-
-  const queryMutation = useMutation({
-    mutationFn: async (question: string) => {
-      const res = await apiRequest("POST", "/api/query", { question: question.trim() });
-      return await res.json() as QueryResponse;
-    },
-    onSuccess: (result) => {
-      if (result.success) {
-        setQueryResults(prev => [...prev, result]);
-        setQueryInput("");
-        toast({
-          title: "Query Complete",
-          description: `Found ${result.data?.length || 0} results`,
-        });
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Query Failed",
-          description: result.message || "An error occurred",
-        });
-      }
-    },
-    onError: () => {
-      toast({
-        variant: "destructive",
-        title: "Query Failed",
-        description: "Unable to execute query",
-      });
-    },
-  });
-
-  const handleQuerySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (queryInput.trim() && !queryMutation.isPending) {
-      queryMutation.mutate(queryInput);
-    }
-  };
-
-  const removeQueryResult = (index: number) => {
-    setQueryResults(prev => prev.filter((_, i) => i !== index));
-  };
 
   // Persist order to localStorage
   useEffect(() => {
@@ -703,110 +651,6 @@ export default function DashboardPage() {
               </Card>
             );
           })}
-        </div>
-
-        {/* Query Section */}
-        <div className="mt-8">
-          <Card className="glass-dark border-white/20">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-400" />
-                <CardTitle className="text-white">Ask Questions About Your Data</CardTitle>
-              </div>
-              <CardDescription className="text-white/60">
-                Query your data directly from the dashboard and see results instantly
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleQuerySubmit} className="mb-4">
-                <div className="glass-input rounded-2xl p-1 flex items-end gap-2">
-                  <Textarea
-                    value={queryInput}
-                    onChange={(e) => setQueryInput(e.target.value)}
-                    placeholder="Ask anything about your data... (e.g., 'Show me top 5 healthcare projects')"
-                    className="flex-1 min-h-[60px] max-h-32 bg-transparent border-0 text-white placeholder:text-white/50 resize-none focus-visible:ring-0 px-4 py-3"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        handleQuerySubmit(e);
-                      }
-                    }}
-                    data-testid="input-dashboard-query"
-                    disabled={queryMutation.isPending}
-                  />
-                  <Button
-                    type="submit"
-                    size="icon"
-                    className="gradient-accent rounded-xl h-12 w-12 shrink-0 mr-1 mb-1 hover:opacity-90 transition-opacity shadow-lg"
-                    disabled={!queryInput.trim() || queryMutation.isPending}
-                    data-testid="button-submit-query"
-                  >
-                    <Send className="h-5 w-5 text-white" />
-                  </Button>
-                </div>
-                <p className="text-xs text-center text-white/50 mt-2">
-                  Press Enter to send, Shift + Enter for new line
-                </p>
-              </form>
-
-              {/* Query Results */}
-              {queryResults.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-white font-medium">Query Results ({queryResults.length})</h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setQueryResults([])}
-                      className="text-white/70 hover:text-white"
-                      data-testid="button-clear-results"
-                    >
-                      Clear All
-                    </Button>
-                  </div>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {queryResults.map((result, index) => (
-                      <Card key={index} className="glass-dark border-white/20">
-                        <CardHeader>
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1">
-                              <CardTitle className="text-white text-base flex items-center gap-2">
-                                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs font-bold">
-                                  {index + 1}
-                                </span>
-                                {result.question}
-                              </CardTitle>
-                              <CardDescription className="text-white/60 mt-1">
-                                {result.data?.length || 0} results
-                              </CardDescription>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-white/60 hover:text-white shrink-0"
-                              onClick={() => removeQueryResult(index)}
-                              data-testid={`button-remove-result-${index}`}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          {result.chart_config ? (
-                            <div className="h-80">
-                              <ChartVisualization config={result.chart_config} />
-                            </div>
-                          ) : (
-                            <p className="text-white/60 text-center py-4">No chart available</p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
