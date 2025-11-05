@@ -434,6 +434,40 @@ export default function DashboardPage() {
     },
   };
 
+  const winRateChartOptions = {
+    ...chartOptions,
+    plugins: {
+      ...chartOptions.plugins,
+      datalabels: {
+        color: '#fff',
+        anchor: 'end' as const,
+        align: 'top' as const,
+        offset: 4,
+        font: {
+          weight: 'bold' as const,
+          size: 11,
+        },
+        formatter: (value: number) => {
+          return value > 0 ? `${value.toFixed(1)}%` : '';
+        },
+      },
+    },
+    scales: {
+      ...chartOptions.scales,
+      y: {
+        ...chartOptions.scales.y,
+        beginAtZero: true,
+        max: 100,
+        ticks: {
+          ...chartOptions.scales.y.ticks,
+          callback: function(value: any) {
+            return value + '%';
+          },
+        },
+      },
+    },
+  };
+
   // Define all chart cards with numbers
   const allChartCards: Record<string, ChartCard> = {
     size: {
@@ -505,7 +539,7 @@ export default function DashboardPage() {
       testId: 'chart-win-rate',
       component: (
         <div className="h-80">
-          <Bar data={winRateChartData} options={barChartOptions} />
+          <Bar data={winRateChartData} options={winRateChartOptions} />
         </div>
       ),
     },
