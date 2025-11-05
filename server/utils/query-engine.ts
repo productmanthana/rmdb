@@ -108,7 +108,7 @@ export class QueryEngine {
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_year", "end_year", "limit", "start_date", "end_date", "size", "status", "state_code", "company", "client", "categories", "tags", "min_win", "max_win"],
+        optional_params: ["start_year", "end_year", "limit", "offset", "start_date", "end_date", "size", "status", "state_code", "company", "client", "categories", "tags", "min_win", "max_win"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -123,7 +123,7 @@ export class QueryEngine {
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_year", "end_year", "limit", "start_date", "end_date", "size", "status", "state_code", "company", "client", "categories", "tags", "min_win", "max_win"],
+        optional_params: ["start_year", "end_year", "limit", "offset", "start_date", "end_date", "size", "status", "state_code", "company", "client", "categories", "tags", "min_win", "max_win"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -137,7 +137,7 @@ export class QueryEngine {
               {limit_clause}`,
         params: ["state_code"],
         param_types: ["str"],
-        optional_params: ["limit", "size", "status", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
+        optional_params: ["limit", "offset", "size", "status", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -151,7 +151,7 @@ export class QueryEngine {
               {limit_clause}`,
         params: ["category"],
         param_types: ["str"],
-        optional_params: ["limit", "size", "status", "state_code", "company", "client", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
+        optional_params: ["limit", "offset", "size", "status", "state_code", "company", "client", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date"],
         chart_type: "bar",
         chart_field: "Fee",
       },
@@ -2284,11 +2284,12 @@ export class QueryEngine {
       // Rankings
       {
         name: "get_largest_projects",
-        description: "Get largest/highest/biggest/top projects by fee",
+        description: "Get largest/highest/biggest/top projects by fee. ORDINAL SUPPORT: For 'second best', 'third best', 'fourth largest', etc., set limit=1 and offset=(N-1). Examples: 'best'→{limit:1}, 'second best'→{limit:1,offset:1}, 'third largest'→{limit:1,offset:2}, '5th biggest'→{limit:1,offset:4}",
         parameters: {
           type: "object",
           properties: {
-            limit: { type: "integer" },
+            limit: { type: "integer", description: "Number of results (use 1 for single project queries)" },
+            offset: { type: "integer", description: "Number of results to skip. For ordinal queries: 'second'=1, 'third'=2, 'fourth'=3, etc." },
             time_reference: { type: "string" },
           },
           required: [],
@@ -2297,11 +2298,12 @@ export class QueryEngine {
 
       {
         name: "get_smallest_projects",
-        description: "Get smallest/lowest/bottom/cheapest projects by fee. Use for queries like 'bottom projects', 'smallest fee', 'lowest value', 'cheapest projects', 'least expensive'.",
+        description: "Get smallest/lowest/bottom/cheapest projects by fee. Use for queries like 'bottom projects', 'smallest fee', 'lowest value', 'cheapest projects', 'least expensive'. ORDINAL SUPPORT: For 'second smallest', 'third cheapest', etc., set limit=1 and offset=(N-1).",
         parameters: {
           type: "object",
           properties: {
-            limit: { type: "integer" },
+            limit: { type: "integer", description: "Number of results (use 1 for single project queries)" },
+            offset: { type: "integer", description: "Number of results to skip. For ordinal queries: 'second'=1, 'third'=2, 'fourth'=3, etc." },
             time_reference: { type: "string" },
           },
           required: [],
@@ -2310,12 +2312,13 @@ export class QueryEngine {
 
       {
         name: "get_largest_in_region",
-        description: "Get largest pursuits in specific region/state",
+        description: "Get largest pursuits in specific region/state. ORDINAL SUPPORT: For 'second largest in CA', set limit=1 and offset=1.",
         parameters: {
           type: "object",
           properties: {
             state_code: { type: "string" },
-            limit: { type: "integer" },
+            limit: { type: "integer", description: "Number of results (use 1 for single project queries)" },
+            offset: { type: "integer", description: "Number of results to skip. For ordinal queries: 'second'=1, 'third'=2, etc." },
           },
           required: ["state_code"],
         },
@@ -2324,12 +2327,13 @@ export class QueryEngine {
       {
         name: "get_largest_by_category",
         description:
-          "Get largest projects in REQUEST CATEGORY field. DO NOT use if user explicitly mentions 'tags'.",
+          "Get largest projects in REQUEST CATEGORY field. DO NOT use if user explicitly mentions 'tags'. ORDINAL SUPPORT: For 'second largest in category', set limit=1 and offset=1.",
         parameters: {
           type: "object",
           properties: {
             category: { type: "string" },
-            limit: { type: "integer" },
+            limit: { type: "integer", description: "Number of results (use 1 for single project queries)" },
+            offset: { type: "integer", description: "Number of results to skip. For ordinal queries: 'second'=1, 'third'=2, etc." },
           },
           required: ["category"],
         },
@@ -4907,12 +4911,21 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       }
     }
 
-    // Handle limit clause
+    // Handle limit clause with optional offset
     if (result.includes("{limit_clause}")) {
       if (args.limit) {
-        result = result.replace("{limit_clause}", `LIMIT $${paramIndex}`);
+        let limitClause = `LIMIT $${paramIndex}`;
         params.push(args.limit);
         paramIndex++;
+        
+        // Add OFFSET if provided
+        if (args.offset) {
+          limitClause += ` OFFSET $${paramIndex}`;
+          params.push(args.offset);
+          paramIndex++;
+        }
+        
+        result = result.replace("{limit_clause}", limitClause);
       } else {
         result = result.replace("{limit_clause}", "");
       }
