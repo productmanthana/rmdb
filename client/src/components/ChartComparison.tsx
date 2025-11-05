@@ -40,12 +40,13 @@ export function ChartComparison({ config }: ChartComparisonProps) {
     return (
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium text-muted-foreground">Visualization</h3>
+          <h3 className="text-sm font-medium text-white/90 dark:text-white">Visualization</h3>
           <Button
             size="sm"
             variant="outline"
             onClick={() => setViewMode("split")}
             data-testid="button-toggle-comparison"
+            className="text-white border-white/30 hover:bg-white/10 hover:text-white"
           >
             <Grid2x2 className="h-4 w-4 mr-2" />
             Compare Views
@@ -59,12 +60,13 @@ export function ChartComparison({ config }: ChartComparisonProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-muted-foreground">Chart Comparison</h3>
+        <h3 className="text-sm font-medium text-white/90 dark:text-white">Chart Comparison</h3>
         <Button
           size="sm"
           variant="outline"
           onClick={() => setViewMode("single")}
           data-testid="button-toggle-single"
+          className="text-white border-white/30 hover:bg-white/10 hover:text-white"
         >
           <Maximize2 className="h-4 w-4 mr-2" />
           Single View
