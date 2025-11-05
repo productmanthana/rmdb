@@ -1293,6 +1293,16 @@ export default function ChatPage() {
                                                   </div>
                                                 )}
 
+                                                {/* Loading Indicator - Chart Tab */}
+                                                {aiAnalysisLoading[message.id] && (
+                                                  <div className="glass-dark rounded-lg p-6 mb-4">
+                                                    <div className="flex items-center justify-center gap-3">
+                                                      <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                      <span className="text-white/90">AI is thinking...</span>
+                                                    </div>
+                                                  </div>
+                                                )}
+
                                                 {/* Input form */}
                                                 {userFollowUpCount >= 3 ? (
                                                   <div className="glass-dark rounded-lg p-4">
@@ -2088,6 +2098,16 @@ export default function ChatPage() {
                                                         )}
                                                       </div>
                                                     ))}
+                                                  </div>
+                                                )}
+
+                                                {/* Loading Indicator - Logs Tab */}
+                                                {aiAnalysisLoading[message.id] && (
+                                                  <div className="glass-dark rounded-lg p-6 mb-4">
+                                                    <div className="flex items-center justify-center gap-3">
+                                                      <div className="h-5 w-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                      <span className="text-white/90">AI is thinking...</span>
+                                                    </div>
                                                   </div>
                                                 )}
 
