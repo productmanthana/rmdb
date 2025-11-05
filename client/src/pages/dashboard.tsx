@@ -1,11 +1,13 @@
+import { useState, useEffect, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Bar, Line, Pie, Doughnut } from "react-chartjs-2";
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title } from 'chart.js';
-import { DollarSign, TrendingUp, Award, BarChart3 } from "lucide-react";
+import { DollarSign, TrendingUp, Award, BarChart3, GripVertical } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { FloatingParticles } from "@/components/FloatingParticles";
 
 // Register Chart.js components
 ChartJS.register(
@@ -36,6 +38,16 @@ interface DashboardData {
   winRateByCategory: Array<{ category: string; total_projects: string; avg_win_rate: string; total_value: string }>;
 }
 
+interface ChartCard {
+  id: string;
+  title: string;
+  description: string;
+  component: ReactNode;
+  testId: string;
+  number: number;
+  colSpan?: string;
+}
+
 function formatCurrency(value: number): string {
   if (value >= 1_000_000_000) {
     return `$${(value / 1_000_000_000).toFixed(1)}B`;
@@ -56,29 +68,83 @@ export default function DashboardPage() {
     queryKey: ["/api/dashboard/analytics"],
   });
 
+  const [draggedCard, setDraggedCard] = useState<string | null>(null);
+  const [chartOrder, setChartOrder] = useState<string[]>([
+    'size', 'status', 'category', 'geographic', 'timeline', 'winrate', 'topprojects'
+  ]);
+
+  // Persist order to localStorage
+  useEffect(() => {
+    const savedOrder = localStorage.getItem('dashboardChartOrder');
+    if (savedOrder) {
+      try {
+        setChartOrder(JSON.parse(savedOrder));
+      } catch (e) {
+        // Use default order if parsing fails
+      }
+    }
+  }, []);
+
+  const handleDragStart = (e: React.DragEvent, cardId: string) => {
+    setDraggedCard(cardId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetCardId: string) => {
+    e.preventDefault();
+    
+    if (!draggedCard || draggedCard === targetCardId) {
+      setDraggedCard(null);
+      return;
+    }
+
+    const newOrder = [...chartOrder];
+    const draggedIndex = newOrder.indexOf(draggedCard);
+    const targetIndex = newOrder.indexOf(targetCardId);
+
+    // Remove dragged item and insert at target position
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedCard);
+
+    setChartOrder(newOrder);
+    localStorage.setItem('dashboardChartOrder', JSON.stringify(newOrder));
+    setDraggedCard(null);
+  };
+
+  const handleDragEnd = () => {
+    // Always clear the dragged card state when drag ends, even if dropped outside
+    setDraggedCard(null);
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b">
+      <div className="min-h-screen gradient-mesh overflow-hidden relative">
+        <FloatingParticles />
+        <header className="glass-dark border-b border-white/10 relative z-10">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center justify-between">
               <div>
-                <Skeleton className="h-8 w-48" />
-                <Skeleton className="h-4 w-64 mt-2" />
+                <Skeleton className="h-8 w-48 bg-white/10" />
+                <Skeleton className="h-4 w-64 mt-2 bg-white/10" />
               </div>
-              <Skeleton className="h-10 w-32" />
+              <Skeleton className="h-10 w-32 bg-white/10" />
             </div>
           </div>
         </header>
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 relative z-10">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-32" />
+              <Skeleton key={i} className="h-32 bg-white/10" />
             ))}
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="h-96" />
+              <Skeleton key={i} className="h-96 bg-white/10" />
             ))}
           </div>
         </div>
@@ -88,17 +154,22 @@ export default function DashboardPage() {
 
   if (error || !data?.success) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md">
+      <div className="min-h-screen gradient-mesh overflow-hidden relative flex items-center justify-center">
+        <FloatingParticles />
+        <Card className="max-w-md glass-dark border-white/20 relative z-10">
           <CardHeader>
-            <CardTitle>Error Loading Dashboard</CardTitle>
-            <CardDescription>Failed to fetch dashboard analytics</CardDescription>
+            <CardTitle className="text-white">Error Loading Dashboard</CardTitle>
+            <CardDescription className="text-white/70">Failed to fetch dashboard analytics</CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-4">
+            <p className="text-white/60 mb-4">
               {error instanceof Error ? error.message : "Unknown error occurred"}
             </p>
-            <Button onClick={() => window.location.reload()} data-testid="button-retry">
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="gradient-accent text-white hover:opacity-90"
+              data-testid="button-retry"
+            >
               Retry
             </Button>
           </CardContent>
@@ -203,6 +274,45 @@ export default function DashboardPage() {
     plugins: {
       legend: {
         position: 'bottom' as const,
+        labels: {
+          color: 'rgba(255, 255, 255, 0.9)',
+        },
+      },
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: 'rgba(255, 255, 255, 0.7)',
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+      },
+      y: {
+        ticks: {
+          color: 'rgba(255, 255, 255, 0.7)',
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)',
+        },
+      },
+    },
+  };
+
+  const pieChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          color: 'rgba(255, 255, 255, 0.9)',
+        },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(20, 20, 40, 0.9)',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1,
       },
     },
   };
@@ -210,24 +320,147 @@ export default function DashboardPage() {
   const barChartOptions = {
     ...chartOptions,
     scales: {
+      ...chartOptions.scales,
       y: {
+        ...chartOptions.scales.y,
         beginAtZero: true,
       },
     },
   };
 
+  // Define all chart cards with numbers
+  const allChartCards: Record<string, ChartCard> = {
+    size: {
+      id: 'size',
+      number: 1,
+      title: 'Project Distribution by Size',
+      description: 'Number of projects in each size category',
+      testId: 'chart-size-distribution',
+      component: (
+        <div className="h-80">
+          <Doughnut data={sizeChartData} options={pieChartOptions} />
+        </div>
+      ),
+    },
+    status: {
+      id: 'status',
+      number: 2,
+      title: 'Projects by Status',
+      description: 'Current status of all projects',
+      testId: 'chart-status-distribution',
+      component: (
+        <div className="h-80">
+          <Pie data={statusChartData} options={pieChartOptions} />
+        </div>
+      ),
+    },
+    category: {
+      id: 'category',
+      number: 3,
+      title: 'Top Categories',
+      description: 'Projects by request category (top 8)',
+      testId: 'chart-category-distribution',
+      component: (
+        <div className="h-80">
+          <Bar data={categoryChartData} options={barChartOptions} />
+        </div>
+      ),
+    },
+    geographic: {
+      id: 'geographic',
+      number: 4,
+      title: 'Geographic Distribution',
+      description: 'Projects by state (top 10)',
+      testId: 'chart-geographic-distribution',
+      component: (
+        <div className="h-80">
+          <Bar data={stateChartData} options={barChartOptions} />
+        </div>
+      ),
+    },
+    timeline: {
+      id: 'timeline',
+      number: 5,
+      title: 'Project Timeline',
+      description: 'Projects over the last 12 months',
+      testId: 'chart-monthly-trend',
+      colSpan: 'lg:col-span-2',
+      component: (
+        <div className="h-80">
+          <Line data={monthlyTrendData} options={barChartOptions} />
+        </div>
+      ),
+    },
+    winrate: {
+      id: 'winrate',
+      number: 6,
+      title: 'Win Rate by Category',
+      description: 'Average win percentage by category',
+      testId: 'chart-win-rate',
+      component: (
+        <div className="h-80">
+          <Bar data={winRateChartData} options={barChartOptions} />
+        </div>
+      ),
+    },
+    topprojects: {
+      id: 'topprojects',
+      number: 7,
+      title: 'Top 10 Projects by Fee',
+      description: 'Highest value projects',
+      testId: 'table-top-projects',
+      component: (
+        <div className="max-h-80 overflow-y-auto">
+          <table className="w-full text-sm">
+            <thead className="border-b border-white/10 sticky top-0 glass-dark">
+              <tr className="text-left">
+                <th className="pb-2 font-medium text-white">Project</th>
+                <th className="pb-2 font-medium text-right text-white">Fee</th>
+                <th className="pb-2 font-medium text-white">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analytics.topProjects.map((project, idx) => (
+                <tr key={idx} className="border-b border-white/5 last:border-0" data-testid={`row-project-${idx}`}>
+                  <td className="py-2 text-white/70 max-w-[200px] truncate" title={project["Project Name"]}>
+                    {project["Project Name"]}
+                  </td>
+                  <td className="py-2 text-right font-medium text-white">
+                    {formatCurrency(parseFloat(project.fee))}
+                  </td>
+                  <td className="py-2">
+                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                      {project.Status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ),
+    },
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card">
+    <div className="min-h-screen gradient-mesh overflow-hidden relative">
+      {/* Floating Particles Background */}
+      <FloatingParticles />
+
+      {/* Glassmorphic Header */}
+      <header className="glass-dark border-b border-white/10 relative z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold" data-testid="text-dashboard-title">Analytics Dashboard</h1>
-              <p className="text-muted-foreground mt-1">Comprehensive overview of all projects</p>
+              <h1 className="text-3xl font-bold text-white" data-testid="text-dashboard-title">Analytics Dashboard</h1>
+              <p className="text-white/60 mt-1">Comprehensive overview of all projects</p>
             </div>
             <Link href="/">
-              <Button variant="outline" data-testid="button-back-to-chat">
+              <Button 
+                variant="outline" 
+                className="glass text-white hover:glass-hover border-white/20"
+                data-testid="button-back-to-chat"
+              >
                 Back to Chat
               </Button>
             </Link>
@@ -235,179 +468,101 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 relative z-10">
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card data-testid="card-total-projects">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          <Card className="glass-dark border-white/20" data-testid="card-total-projects">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white">Total Projects</CardTitle>
+              <BarChart3 className="h-4 w-4 text-blue-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-projects">
+              <div className="text-2xl font-bold text-white" data-testid="text-total-projects">
                 {formatNumber(parseInt(summary.total_projects))}
               </div>
-              <p className="text-xs text-muted-foreground">All time</p>
+              <p className="text-xs text-white/50">All time</p>
             </CardContent>
           </Card>
 
-          <Card data-testid="card-total-value">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+          <Card className="glass-dark border-white/20" data-testid="card-total-value">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white">Total Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-green-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-total-value">
+              <div className="text-2xl font-bold text-white" data-testid="text-total-value">
                 {formatCurrency(parseFloat(summary.total_value))}
               </div>
-              <p className="text-xs text-muted-foreground">Combined fees</p>
+              <p className="text-xs text-white/50">Combined fees</p>
             </CardContent>
           </Card>
 
-          <Card data-testid="card-avg-fee">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Average Fee</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <Card className="glass-dark border-white/20" data-testid="card-avg-fee">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white">Average Fee</CardTitle>
+              <TrendingUp className="h-4 w-4 text-purple-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-avg-fee">
+              <div className="text-2xl font-bold text-white" data-testid="text-avg-fee">
                 {formatCurrency(parseFloat(summary.avg_fee))}
               </div>
-              <p className="text-xs text-muted-foreground">Per project</p>
+              <p className="text-xs text-white/50">Per project</p>
             </CardContent>
           </Card>
 
-          <Card data-testid="card-avg-win-rate">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Win Rate</CardTitle>
-              <Award className="h-4 w-4 text-muted-foreground" />
+          <Card className="glass-dark border-white/20" data-testid="card-avg-win-rate">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-white">Avg Win Rate</CardTitle>
+              <Award className="h-4 w-4 text-yellow-400" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-avg-win-rate">
+              <div className="text-2xl font-bold text-white" data-testid="text-avg-win-rate">
                 {parseFloat(summary.avg_win_rate).toFixed(1)}%
               </div>
-              <p className="text-xs text-muted-foreground">Success rate</p>
+              <p className="text-xs text-white/50">Success rate</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Charts Grid */}
+        {/* Draggable Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Size Distribution */}
-          <Card data-testid="chart-size-distribution">
-            <CardHeader>
-              <CardTitle>Project Distribution by Size</CardTitle>
-              <CardDescription>Number of projects in each size category</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <Doughnut data={sizeChartData} options={chartOptions} />
-              </div>
-            </CardContent>
-          </Card>
+          {chartOrder.map((cardId) => {
+            const card = allChartCards[cardId];
+            if (!card) return null;
 
-          {/* Status Distribution */}
-          <Card data-testid="chart-status-distribution">
-            <CardHeader>
-              <CardTitle>Projects by Status</CardTitle>
-              <CardDescription>Current status of all projects</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <Pie data={statusChartData} options={chartOptions} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Category Distribution */}
-          <Card data-testid="chart-category-distribution">
-            <CardHeader>
-              <CardTitle>Top Categories</CardTitle>
-              <CardDescription>Projects by request category (top 8)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <Bar data={categoryChartData} options={barChartOptions} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Geographic Distribution */}
-          <Card data-testid="chart-geographic-distribution">
-            <CardHeader>
-              <CardTitle>Geographic Distribution</CardTitle>
-              <CardDescription>Projects by state (top 10)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <Bar data={stateChartData} options={barChartOptions} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Monthly Trend */}
-          <Card data-testid="chart-monthly-trend" className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Project Timeline</CardTitle>
-              <CardDescription>Projects over the last 12 months</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <Line data={monthlyTrendData} options={barChartOptions} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Win Rate by Category */}
-          <Card data-testid="chart-win-rate">
-            <CardHeader>
-              <CardTitle>Win Rate by Category</CardTitle>
-              <CardDescription>Average win percentage by category</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-80">
-                <Bar data={winRateChartData} options={barChartOptions} />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Top Projects */}
-          <Card data-testid="table-top-projects">
-            <CardHeader>
-              <CardTitle>Top 10 Projects by Fee</CardTitle>
-              <CardDescription>Highest value projects</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="max-h-80 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="border-b sticky top-0 bg-card">
-                    <tr className="text-left">
-                      <th className="pb-2 font-medium">Project</th>
-                      <th className="pb-2 font-medium text-right">Fee</th>
-                      <th className="pb-2 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {analytics.topProjects.map((project, idx) => (
-                      <tr key={idx} className="border-b last:border-0" data-testid={`row-project-${idx}`}>
-                        <td className="py-2 text-muted-foreground max-w-[200px] truncate" title={project["Project Name"]}>
-                          {project["Project Name"]}
-                        </td>
-                        <td className="py-2 text-right font-medium">
-                          {formatCurrency(parseFloat(project.fee))}
-                        </td>
-                        <td className="py-2">
-                          <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium bg-primary/10 text-primary">
-                            {project.Status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+            return (
+              <Card
+                key={card.id}
+                className={`glass-dark border-white/20 cursor-move hover:border-white/40 transition-all ${
+                  draggedCard === card.id ? 'opacity-50' : ''
+                } ${card.colSpan || ''}`}
+                draggable
+                onDragStart={(e) => handleDragStart(e, card.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, card.id)}
+                onDragEnd={handleDragEnd}
+                data-testid={card.testId}
+              >
+                <CardHeader>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold">
+                          {card.number}
+                        </div>
+                        <CardTitle className="text-white text-lg">{card.title}</CardTitle>
+                      </div>
+                      <CardDescription className="text-white/60">{card.description}</CardDescription>
+                    </div>
+                    <GripVertical className="h-5 w-5 text-white/40 shrink-0 mt-1" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {card.component}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>
