@@ -54,6 +54,81 @@ The application requires no authentication or database setup. Chat history is lo
 - **Tailwind CSS**: Utility-first CSS framework for styling.
 - **Zod**: Runtime type validation.
 
+## Visualization Enhancements (November 5, 2025)
+
+### Advanced Chart Types
+- **Expanded chart type support**: Added 5 new chart types beyond basic bar/line/pie
+  - **Area Chart**: Filled line charts for trend visualization with continuous data (fully supported)
+  - **Doughnut Chart**: Pie chart variant with center cutout for cleaner presentation (fully supported)
+  - **Radar Chart**: Multi-variable comparison in circular format (fully supported)
+  - **Scatter Plot**: Plot individual data points for correlation analysis (requires {x, y} data format)
+  - **Bubble Chart**: 3-dimensional data visualization with size dimension (requires {x, y, r} data format)
+  - **Implementation**: Registered Filler and RadialLinearScale elements in Chart.js, added conditional rendering logic
+  - **Schema**: ChartDatasetSchema supports both number[] and {x, y, r?}[] data formats for flexibility
+
+### Interactive Chart Customization
+- **Real-time chart type switching**: Users can switch between any chart type without re-querying
+  - **UI**: Dropdown menu with icons for all 7 chart types (bar, line, area, pie, doughnut, radar, scatter)
+  - **State management**: Uses React useState to track currentChartType
+  - **Benefit**: Instantly see data from different perspectives
+  
+- **Four beautiful color schemes**: Theme-aware palettes that work in light and dark mode
+  - **Default**: Professional blue/red/yellow palette (balanced contrast)
+  - **Vibrant**: High-energy reds/blues/yellows (maximum visual impact)
+  - **Pastel**: Soft blues/pinks/purples (gentle, easy on eyes)
+  - **Monochrome**: Grayscale palette (formal presentations, printing)
+  - **Implementation**: COLOR_SCHEMES and BORDER_COLOR_SCHEMES constants with rgba values
+  
+- **Legend control**: Toggle legend visibility with one click
+  - **Dynamic positioning**: Supports top, bottom, left, right legend placement
+  - **Smart defaults**: Pie/doughnut show legend by default, others hide for cleaner look
+
+### Flexible Tooltip Formatting
+- **Four formatting modes** for different data types:
+  - **Currency** (default): "$1,234,567" - Ideal for fees, revenue, costs
+  - **Percentage**: "45.67%" - Win rates, growth rates, shares
+  - **Number**: "1,234,567" - Counts, quantities, IDs
+  - **Custom**: Raw value display for special cases
+  - **Implementation**: formatTooltipValue() function with switch statement
+  - **Configuration**: tooltipFormat property in ChartConfig schema
+
+### Chart Export
+- **Download charts as PNG images**: One-click export for presentations and reports
+  - **Functionality**: Uses Chart.js's toBase64Image() API to generate PNG files
+  - **File naming**: Auto-generates filename from chart title (e.g., "Top_5_Projects_chart.png")
+  - **Use case**: Include charts in PowerPoint, emails, documents
+  - **UI**: Download icon button in chart header
+  - **Note**: SVG export is not currently supported but may be added in future updates
+
+### Side-by-Side Chart Comparison
+- **New ChartComparison component**: View same data in multiple chart types simultaneously
+  - **Two view modes**:
+    - **Single View**: Traditional single chart with customization controls
+    - **Split View**: Multiple chart types displayed at once
+  - **Grid layout**: 2x2 grid showing bar, line, pie, doughnut charts of same data
+  - **Tab view**: Alternative layout with tabs for each chart type
+  - **Toggle button**: "Compare Views" button switches between single and split modes
+  - **Use case**: Explore data from multiple angles, find best visualization
+  - **Implementation**: Separate component wrapping multiple ChartVisualization instances
+
+### Enhanced Chart Options
+- **Better axis formatting**: Compact notation for large numbers (1M instead of 1,000,000)
+- **Responsive design**: Charts adapt to container size while maintaining aspect ratio
+- **Smooth animations**: Tension curves for line/area charts (0.4 tension value)
+- **Smart defaults**: Different border widths for pie/doughnut (2px) vs others (1px)
+- **Fill support**: Area charts automatically fill under the line
+
+### Technical Implementation
+- **Schema changes**: Extended ChartConfigSchema with new fields:
+  - `type`: Added "doughnut", "scatter", "area", "radar", "bubble"
+  - `tooltipFormat`: Optional enum for currency/percentage/number/custom
+  - `showLegend`: Optional boolean for legend visibility
+  - `legendPosition`: Optional enum for top/bottom/left/right
+  - `colorScheme`: Optional enum for default/vibrant/pastel/monochrome
+- **New Chart.js elements**: RadialLinearScale, Filler, Bubble components
+- **Color array handling**: Pie/doughnut use entire color array, others use single color per dataset
+- **Type safety**: TypeScript any type for options object to handle diverse chart configurations
+
 ## Recent Improvements (November 5, 2025)
 
 ### Multi-Word Tag Handling

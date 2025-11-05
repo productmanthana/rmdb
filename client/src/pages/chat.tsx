@@ -36,6 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ChartVisualization } from "@/components/ChartVisualization";
+import { ChartComparison } from "@/components/ChartComparison";
 import { FloatingParticles } from "@/components/FloatingParticles";
 import { TypingIndicator } from "@/components/TypingIndicator";
 import {
@@ -1068,7 +1069,7 @@ export default function ChatPage() {
                                     <TabsContent value="chart" className="space-y-4 mt-4">
                                       {message.response.chart_config ? (
                                         <div className="glass rounded-xl p-6">
-                                          <ChartVisualization config={message.response.chart_config} />
+                                          <ChartComparison config={message.response.chart_config} />
                                         </div>
                                       ) : (
                                         <div className="glass rounded-xl p-6 text-center text-white/70">
@@ -1387,7 +1388,7 @@ export default function ChatPage() {
                                                           <TabsContent value="chart" className="space-y-4 mt-4">
                                                             {msg.response.chart_config ? (
                                                               <div className="glass-dark rounded-lg p-4">
-                                                                <ChartVisualization config={msg.response.chart_config} />
+                                                                <ChartComparison config={msg.response.chart_config} />
                                                               </div>
                                                             ) : (
                                                               <div className="glass rounded-lg p-6 text-center text-white/50">

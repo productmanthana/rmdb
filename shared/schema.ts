@@ -56,19 +56,32 @@ export type QueryRequest = z.infer<typeof QueryRequestSchema>;
 // CHART CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 
+const ChartPointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  r: z.number().optional(),
+});
+
 export const ChartDatasetSchema = z.object({
   label: z.string().optional(),
-  data: z.array(z.number()),
+  data: z.union([
+    z.array(z.number()),
+    z.array(ChartPointSchema),
+  ]),
   backgroundColor: z.union([z.string(), z.array(z.string())]).optional(),
   borderColor: z.union([z.string(), z.array(z.string())]).optional(),
   borderWidth: z.number().optional(),
 });
 
 export const ChartConfigSchema = z.object({
-  type: z.enum(["bar", "line", "pie"]),
+  type: z.enum(["bar", "line", "pie", "doughnut", "scatter", "area", "radar", "bubble"]),
   title: z.string(),
   labels: z.array(z.string()),
   datasets: z.array(ChartDatasetSchema),
+  tooltipFormat: z.enum(["currency", "percentage", "number", "custom"]).optional(),
+  showLegend: z.boolean().optional(),
+  legendPosition: z.enum(["top", "bottom", "left", "right"]).optional(),
+  colorScheme: z.enum(["default", "vibrant", "pastel", "monochrome"]).optional(),
 });
 
 export type ChartDataset = z.infer<typeof ChartDatasetSchema>;
