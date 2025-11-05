@@ -80,6 +80,15 @@ The application requires no authentication or database setup. Chat history is lo
     - "display fee and client" → SELECT "Fee", "Client"
   - **Context preservation**: Filters from previous query are maintained (e.g., tag filters + column selection)
 
+### Tag Replacement in Follow-Up Queries
+- **Fixed SmartMerge to replace tags instead of combining them**: Follow-up tag queries now correctly replace previous tags
+  - **Problem**: Query 1: "tag X and Y" (5457 results) → Query 2: "tag Y only" still showed both X and Y
+  - **Solution**: Moved `tags` from ADDITIVE_PARAMS to REPLACEABLE_PARAMS in SmartMerge logic
+  - **Behavior**:
+    - **Query 1**: "tags aviation pavement curbs and gutters, amusement park structures" → Both tags
+    - **Query 2**: "tags amusement park structures and equipment" → **Only** amusement park tag (replaces previous)
+  - **Impact**: Users can now narrow down tag searches in follow-up questions without carrying forward unwanted tags
+
 ## Recent Improvements (November 4, 2025)
 
 ### Large Dataset Storage Error Handling

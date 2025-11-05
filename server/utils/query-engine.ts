@@ -3515,10 +3515,12 @@ export class QueryEngine {
       'size',        // Usually want to change the size filter
       'state_code',  // Usually want to pivot to a different location
       'categories',  // Usually want to REPLACE categories when pivoting
+      'tags',        // Usually want to REPLACE tags (e.g., "show me X tag" should replace, not add)
     ]);
 
-    const ADDITIVE_PARAMS = new Set([
-      'tags',        // Usually want to ADD new tags to existing ones (e.g., "also add Transit")
+    const ADDITIVE_PARAMS = new Set<string>([
+      // Removed 'tags' - tags should be REPLACEABLE by default
+      // If user says "also add X", AI should include it in the new tags array
     ]);
 
     const CUMULATIVE_PARAMS = new Set([
