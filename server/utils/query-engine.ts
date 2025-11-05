@@ -266,6 +266,20 @@ export class QueryEngine {
         chart_field: "total_value",
       },
 
+      // Column selection query - allows selecting specific columns from filtered results
+      select_specific_columns: {
+        sql: `SELECT {columns} FROM "Sample" 
+              WHERE 1=1
+              {additional_filters}
+              ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC NULLS LAST
+              {limit_clause}`,
+        params: [],
+        param_types: [],
+        optional_params: ["columns", "size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "start_date", "end_date", "limit"],
+        chart_type: "bar",
+        chart_field: "Fee",
+      },
+
       // ═══════════════════════════════════════════════════════════════
       // COMPANY / OPCO QUERIES
       // ═══════════════════════════════════════════════════════════════
@@ -2432,6 +2446,26 @@ export class QueryEngine {
         },
       },
 
+      {
+        name: "select_specific_columns",
+        description: "Select specific columns from filtered results. Use when user asks to 'show only X column', 'display just Y field', 'provide only Z', 'give me the tags column', etc. CRITICAL: Extract the column names, not filter values. Examples: 'show only tags' → columns: 'Tags', 'display fee and client' → columns: 'Fee, Client'.",
+        parameters: {
+          type: "object",
+          properties: {
+            columns: { 
+              type: "string", 
+              description: "Comma-separated list of exact column names to SELECT (e.g., 'Tags', 'Fee, Client, Status'). Valid columns: Project Name, Client, Status, Fee, Company, Point Of Contact, Win %, Project Type, Start Date, Description, State Lookup, Tags, Request Category, Internal Id" 
+            },
+            tags: { type: "array", items: { type: "string" }, description: "Tag filters from previous context" },
+            categories: { type: "array", items: { type: "string" }, description: "Category filters" },
+            status: { type: "string", description: "Status filter" },
+            size: { type: "string", description: "Size filter" },
+            limit: { type: "integer", description: "Number of results" },
+          },
+          required: ["columns"],
+        },
+      },
+
       // Company/OPCO
       {
         name: "get_projects_by_company",
@@ -3679,6 +3713,8 @@ IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in t
 - If the follow-up mentions a date → Extract ONLY the new date
 - If the follow-up explicitly says "size" → Extract as size
 - If the follow-up mentions fee/money → Extract as min_fee/max_fee
+- If asking for "best of best", "top one", "number one", "the best" → Extract limit=1
+- If asking to "show only X column", "display just Y", "provide only Z field" → Use select_specific_columns with columns parameter (NOT tags/categories)
 - DO NOT include previous parameters unless they're explicitly mentioned again
 
 CRITICAL DISTINCTION - Category vs Tags:
@@ -4578,6 +4614,16 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
       // Handle column_name substitution for get_project_column_by_id
       if (functionName === "get_project_column_by_id" && args.column_name) {
         sql = sql.replace(/\{column_name\}/g, args.column_name);
+      }
+      
+      // Handle columns substitution for select_specific_columns
+      if (functionName === "select_specific_columns" && args.columns) {
+        // Split by comma, trim, wrap each in quotes
+        const columnList = args.columns
+          .split(',')
+          .map((col: string) => `"${col.trim()}"`)
+          .join(', ');
+        sql = sql.replace(/\{columns\}/g, columnList);
       }
       
       // SECURITY: Validate that SQL is read-only before building/executing
