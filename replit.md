@@ -38,6 +38,7 @@ The application requires no authentication or database setup. Chat history is lo
 - **Context Preservation**: Filters are maintained when selecting columns in follow-up queries.
 - **Large Dataset Handling**: Error handling for localStorage limits is implemented, displaying a friendly message when storage is truly full for very large datasets.
 - **Space-Insensitive PID Matching**: PID searches are flexible, matching "pid1204" with "PID 1204" (with or without spaces).
+- **Ordinal Query Support**: The system correctly handles ordinal ranking queries like "second best", "third largest", "5th biggest", etc. by using SQL OFFSET to skip the appropriate number of results. Examples: "best" returns the highest-fee project, "second best" skips the first and returns the second-highest, "third largest" returns the third-highest, and so on.
 
 ## External Dependencies
 
