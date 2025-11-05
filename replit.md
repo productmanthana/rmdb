@@ -89,6 +89,16 @@ The application requires no authentication or database setup. Chat history is lo
     - **Query 2**: "tags amusement park structures and equipment" → **Only** amusement park tag (replaces previous)
   - **Impact**: Users can now narrow down tag searches in follow-up questions without carrying forward unwanted tags
 
+### Context Preservation with Column Selection
+- **Fixed SmartMerge to preserve filters when selecting columns**: Column selection queries maintain previous filters
+  - **Problem**: Query 1: "tag X" (5319 results) → Query 2: "show only projects" returned ALL 16,237 projects (lost filter)
+  - **Solution**: Enhanced SmartMerge to only drop tags when NEW tags are explicitly provided, not when other params (like columns) are added
+  - **Behavior**:
+    - **Query 1**: "tags amusement park" → 5319 results
+    - **Query 2**: "provide the project data only" → SELECT "Project Name" with same tag filter (5319 results) ✅
+    - **Query 3**: "tags X" → Replaces previous tag (different results) ✅
+  - **Impact**: Users can refine displayed columns without losing their carefully built filters
+
 ## Recent Improvements (November 4, 2025)
 
 ### Large Dataset Storage Error Handling

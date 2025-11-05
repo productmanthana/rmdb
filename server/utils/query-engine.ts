@@ -3560,9 +3560,21 @@ export class QueryEngine {
         console.log(`[SmartMerge] Keeping cumulative param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
       } else if (REPLACEABLE_PARAMS.has(key) && !(key in newArgs)) {
-        // CRITICAL FIX: If newArgs only has optional params (e.g., just 'limit'),
-        // we should KEEP replaceable params to avoid losing required parameters
-        if (hasOnlyOptionalParams) {
+        // CRITICAL FIX: Tags and categories should only be dropped when NEW tags/categories are provided
+        // For other replaceable params (company, client, status), drop when any new args provided
+        if (key === 'tags' || key === 'categories') {
+          // Special handling: Only drop tags if new tags provided, only drop categories if new categories provided
+          const shouldDropTags = key === 'tags' && newArgs.tags;
+          const shouldDropCategories = key === 'categories' && newArgs.categories;
+          
+          if (shouldDropTags || shouldDropCategories) {
+            console.log(`[SmartMerge] Dropping ${key} because new ${key} provided`);
+          } else {
+            console.log(`[SmartMerge] Keeping ${key} (no new ${key} in follow-up): ${JSON.stringify(value)}`);
+            result[key] = value;
+          }
+        } else if (hasOnlyOptionalParams) {
+          // For other replaceable params: keep if only optional params
           console.log(`[SmartMerge] Keeping replaceable param (avoiding data loss): ${key} = ${JSON.stringify(value)}`);
           result[key] = value;
         } else {
