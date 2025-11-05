@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Link } from "wouter";
 import { QueryResponse } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { chatStorage, StoredChat, StoredMessage } from "@/lib/chatStorage";
@@ -61,6 +62,7 @@ import {
   Maximize2,
   Download,
   Clock,
+  BarChart3,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -804,15 +806,28 @@ export default function ChatPage() {
             <p className="text-xs text-white/70">Natural language queries</p>
           </div>
         </div>
-        <Button
-          onClick={handleNewChat}
-          size="sm"
-          className="glass text-white hover:glass-hover"
-          data-testid="button-new-chat"
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          New Chat
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/dashboard">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="glass text-white hover:glass-hover"
+              data-testid="button-dashboard"
+            >
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Dashboard
+            </Button>
+          </Link>
+          <Button
+            onClick={handleNewChat}
+            size="sm"
+            className="glass text-white hover:glass-hover"
+            data-testid="button-new-chat"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New Chat
+          </Button>
+        </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative z-10">

@@ -9,7 +9,14 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-The frontend is built with React and TypeScript using Vite, featuring Shadcn/UI components (built on Radix UI) styled with Tailwind CSS. It adopts a Material Design-inspired approach for data visualization, prioritizing clarity and high information density. Wouter handles client-side routing, and TanStack Query manages server state. Chart.js with react-chartjs-2 is used for data visualization, supporting various chart types including bar, line, pie, area, doughnut, radar, scatter, and bubble charts. Key design decisions include embeddable-first functionality, tab-based data views (Table, Chart, Raw JSON), and a responsive layout. Virtual scrolling is implemented for large datasets (20,000+ rows). The UI includes interactive chart customization such as real-time chart type switching, four color schemes, legend control, and flexible tooltip formatting. Charts can also be exported as PNG images. A `ChartComparison` component allows viewing the same data in multiple chart types simultaneously.
+The frontend is built with React and TypeScript using Vite, featuring Shadcn/UI components (built on Radix UI) styled with Tailwind CSS. It adopts a Material Design-inspired approach for data visualization, prioritizing clarity and high information density. Wouter handles client-side routing, and TanStack Query manages server state. Chart.js with react-chartjs-2 is used for data visualization, supporting various chart types including bar, line, pie, area, doughnut, radar, scatter, and bubble charts.
+
+#### Key Pages
+- **Chat Interface** (`/`): Main conversational query interface with follow-up questions, multiple view tabs (Response, Chart, Logs), and chat history management
+- **Dashboard** (`/dashboard`): Power BI-style analytics dashboard with comprehensive visualizations of the entire database, including summary cards, distribution charts, timeline trends, and geographic analysis
+- **Embed View** (`/embed`): Embeddable version of the chat interface for integration into other applications
+
+Key design decisions include embeddable-first functionality, tab-based data views (Table, Chart, Raw JSON), and a responsive layout. Virtual scrolling is implemented for large datasets (20,000+ rows). The UI includes interactive chart customization such as real-time chart type switching, four color schemes, legend control, and flexible tooltip formatting. Charts can also be exported as PNG images. A `ChartComparison` component allows viewing the same data in multiple chart types simultaneously.
 
 ### Backend
 The backend uses Express.js with TypeScript, providing a RESTful API with a primary endpoint (`POST /api/query`). The query processing pipeline involves Zod for validation, Azure OpenAI for query intent classification and parameter extraction, TypeScript for date/number calculations, SQL generation from 98 predefined templates, external PostgreSQL execution, and formatted response packaging. The core `QueryEngine` orchestrates this process. Azure OpenAI is exclusively used for understanding user intent, not for calculations.

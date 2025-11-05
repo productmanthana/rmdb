@@ -220,6 +220,157 @@ Please provide a helpful analysis for the follow-up question.`,
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // DASHBOARD ANALYTICS ENDPOINT
+  // ═══════════════════════════════════════════════════════════════
+
+  app.get("/api/dashboard/analytics", async (req, res) => {
+    try {
+      // Fetch all aggregate data in parallel for dashboard
+      const [
+        summaryStats,
+        sizeDistribution,
+        statusDistribution,
+        categoryDistribution,
+        stateDistribution,
+        monthlyTrend,
+        topProjects,
+        winRateByCategory,
+      ] = await Promise.all([
+        // Overall summary statistics
+        queryExternalDb(`
+          SELECT 
+            COUNT(*) as total_projects,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value,
+            COALESCE(AVG(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as avg_fee,
+            COALESCE(AVG(CAST(NULLIF("Win %", '') AS NUMERIC)), 0) as avg_win_rate
+          FROM "Sample"
+        `),
+        
+        // Distribution by size
+        queryExternalDb(`
+          SELECT 
+            CASE 
+              WHEN CAST(NULLIF("Fee", '') AS NUMERIC) < 35000 THEN 'Micro'
+              WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= 35000 AND CAST(NULLIF("Fee", '') AS NUMERIC) < 90000 THEN 'Small'
+              WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= 90000 AND CAST(NULLIF("Fee", '') AS NUMERIC) < 250000 THEN 'Medium'
+              WHEN CAST(NULLIF("Fee", '') AS NUMERIC) >= 250000 AND CAST(NULLIF("Fee", '') AS NUMERIC) < 1319919 THEN 'Large'
+              ELSE 'Mega'
+            END as size,
+            COUNT(*) as count,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value
+          FROM "Sample"
+          WHERE "Fee" IS NOT NULL AND "Fee" != ''
+          GROUP BY size
+          ORDER BY MIN(CAST(NULLIF("Fee", '') AS NUMERIC))
+        `),
+        
+        // Distribution by status
+        queryExternalDb(`
+          SELECT 
+            "Status",
+            COUNT(*) as count,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value
+          FROM "Sample"
+          WHERE "Status" IS NOT NULL AND "Status" != ''
+          GROUP BY "Status"
+          ORDER BY count DESC
+          LIMIT 10
+        `),
+        
+        // Distribution by category
+        queryExternalDb(`
+          SELECT 
+            "Request Category" as category,
+            COUNT(*) as count,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value
+          FROM "Sample"
+          WHERE "Request Category" IS NOT NULL AND "Request Category" != ''
+          GROUP BY "Request Category"
+          ORDER BY count DESC
+          LIMIT 10
+        `),
+        
+        // Geographic distribution
+        queryExternalDb(`
+          SELECT 
+            "State Lookup" as state,
+            COUNT(*) as count,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value
+          FROM "Sample"
+          WHERE "State Lookup" IS NOT NULL AND "State Lookup" != ''
+          GROUP BY "State Lookup"
+          ORDER BY count DESC
+          LIMIT 15
+        `),
+        
+        // Monthly trend (last 12 months)
+        queryExternalDb(`
+          SELECT 
+            TO_CHAR("Start Date", 'YYYY-MM') as month,
+            COUNT(*) as count,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value
+          FROM "Sample"
+          WHERE "Start Date" >= CURRENT_DATE - INTERVAL '12 months'
+            AND "Start Date" IS NOT NULL
+          GROUP BY TO_CHAR("Start Date", 'YYYY-MM')
+          ORDER BY month
+        `),
+        
+        // Top 10 projects by fee
+        queryExternalDb(`
+          SELECT 
+            "Project Name",
+            CAST(NULLIF("Fee", '') AS NUMERIC) as fee,
+            "Status",
+            "Request Category" as category
+          FROM "Sample"
+          WHERE "Fee" IS NOT NULL AND "Fee" != ''
+          ORDER BY CAST(NULLIF("Fee", '') AS NUMERIC) DESC
+          LIMIT 10
+        `),
+        
+        // Win rate by category
+        queryExternalDb(`
+          SELECT 
+            "Request Category" as category,
+            COUNT(*) as total_projects,
+            COALESCE(AVG(CAST(NULLIF("Win %", '') AS NUMERIC)), 0) as avg_win_rate,
+            COALESCE(SUM(CAST(NULLIF("Fee", '') AS NUMERIC)), 0) as total_value
+          FROM "Sample"
+          WHERE "Request Category" IS NOT NULL 
+            AND "Request Category" != ''
+            AND "Win %" IS NOT NULL 
+            AND "Win %" != ''
+          GROUP BY "Request Category"
+          ORDER BY avg_win_rate DESC
+          LIMIT 10
+        `)
+      ]);
+
+      res.json({
+        success: true,
+        data: {
+          summary: summaryStats[0] || {},
+          sizeDistribution: sizeDistribution || [],
+          statusDistribution: statusDistribution || [],
+          categoryDistribution: categoryDistribution || [],
+          stateDistribution: stateDistribution || [],
+          monthlyTrend: monthlyTrend || [],
+          topProjects: topProjects || [],
+          winRateByCategory: winRateByCategory || [],
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard analytics:", error);
+      res.status(500).json({
+        success: false,
+        error: "internal_error",
+        message: String(error),
+      });
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // EXAMPLE QUERIES
   // ═══════════════════════════════════════════════════════════════
 
