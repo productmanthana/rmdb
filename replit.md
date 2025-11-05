@@ -54,6 +54,32 @@ The application requires no authentication or database setup. Chat history is lo
 - **Tailwind CSS**: Utility-first CSS framework for styling.
 - **Zod**: Runtime type validation.
 
+## Recent Improvements (November 5, 2025)
+
+### Multi-Word Tag Handling
+- **Fixed tag parsing to treat phrases without commas as single tags**: "aviation pavement curbs and gutters" is now one tag
+  - **Problem**: Tag names like "aviation pavement curbs and gutters" were being split into 4 separate words
+  - **Solution**: Updated AI prompt to use commas as delimiters, not spaces or "and"
+  - **Rules**:
+    - **Has commas** → Split on commas: "Rail, Transit, Hospital" → 3 separate tags
+    - **No commas** → One multi-word tag: "aviation pavement curbs and gutters" → 1 tag
+  - **Impact**: Correctly searches for exact multi-word tag names like "aviation pavement curbs and gutters"
+
+### Column-Specific Query Support
+- **Enhanced "provide only X" queries to select specific columns**: Follow-up questions can now request individual columns
+  - **Problem**: "Provide only the projects" returned all columns instead of just "Project Name"
+  - **Solution**: Improved `select_specific_columns` function to map user terms to exact column names
+  - **Mappings**: 
+    - "projects"/"project names" → "Project Name"
+    - "tags" → "Tags"
+    - "clients"/"client names" → "Client"
+    - "fee"/"fees"/"cost" → "Fee"
+  - **Examples**: 
+    - "provide only the projects" → SELECT "Project Name"
+    - "show just tags" → SELECT "Tags"
+    - "display fee and client" → SELECT "Fee", "Client"
+  - **Context preservation**: Filters from previous query are maintained (e.g., tag filters + column selection)
+
 ## Recent Improvements (November 4, 2025)
 
 ### Large Dataset Storage Error Handling

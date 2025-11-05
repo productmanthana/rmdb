@@ -2448,13 +2448,13 @@ export class QueryEngine {
 
       {
         name: "select_specific_columns",
-        description: "Select specific columns from filtered results. Use when user asks to 'show only X column', 'display just Y field', 'provide only Z', 'give me the tags column', etc. CRITICAL: Extract the column names, not filter values. Examples: 'show only tags' → columns: 'Tags', 'display fee and client' → columns: 'Fee, Client'.",
+        description: "Select specific columns from filtered results. Use when user asks to 'show only X', 'display just Y', 'provide only Z', 'give me the X column', etc. CRITICAL: Map user terms to column names ('projects'→'Project Name', 'tags'→'Tags', 'clients'→'Client'). Examples: 'provide only the projects' → columns: 'Project Name', 'show only tags' → columns: 'Tags', 'display fee and client' → columns: 'Fee, Client'.",
         parameters: {
           type: "object",
           properties: {
             columns: { 
               type: "string", 
-              description: "Comma-separated list of exact column names to SELECT (e.g., 'Tags', 'Fee, Client, Status'). Valid columns: Project Name, Client, Status, Fee, Company, Point Of Contact, Win %, Project Type, Start Date, Description, State Lookup, Tags, Request Category, Internal Id" 
+              description: "Comma-separated exact column names to SELECT. Map user terms: 'projects'/'project names'→'Project Name', 'tags'→'Tags', 'clients'/'client names'→'Client', 'status'→'Status', 'fee'/'fees'/'cost'→'Fee', 'company'/'companies'→'Company', 'contact'/'POC'→'Point Of Contact', 'win rate'/'win %'→'Win %', 'type'/'project type'→'Project Type', 'date'/'start date'→'Start Date', 'description'→'Description', 'state'→'State Lookup', 'category'/'categories'→'Request Category', 'id'→'Internal Id'" 
             },
             tags: { type: "array", items: { type: "string" }, description: "Tag filters from previous context" },
             categories: { type: "array", items: { type: "string" }, description: "Category filters" },
@@ -3718,7 +3718,10 @@ IMPORTANT: Only extract parameters that are EXPLICITLY mentioned or changed in t
 - If the follow-up explicitly says "size" → Extract as size
 - If the follow-up mentions fee/money → Extract as min_fee/max_fee
 - If asking for "best of best", "top one", "number one", "the best" → Extract limit=1
-- If asking to "show only X column", "display just Y", "provide only Z field" → Use select_specific_columns with columns parameter (NOT tags/categories)
+- If asking to "show only X", "display just Y", "provide only Z", "give me the X column" → Use select_specific_columns
+  * Map terms: "projects"/"project names" → columns="Project Name", "tags" → columns="Tags", "clients" → columns="Client"
+  * Examples: "provide only the projects" → select_specific_columns with columns="Project Name"
+  * "show just tags" → select_specific_columns with columns="Tags"
 - DO NOT include previous parameters unless they're explicitly mentioned again
 
 CRITICAL DISTINCTION - Category vs Tags:
