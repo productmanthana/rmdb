@@ -1076,6 +1076,73 @@ export default function ChatPage() {
                                           No chart available
                                         </div>
                                       )}
+                                      
+                                      {/* Follow-up Questions in Chart Tab */}
+                                      {(message.response.data && message.response.data.length > 0) && (
+                                        <div className="glass rounded-xl p-6">
+                                          <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                              <MessageSquare className="h-5 w-5 text-white/70" />
+                                              <span className="text-sm text-white/70">Follow up questions</span>
+                                              <span className="text-xs text-white/50 ml-2">
+                                                ({((message.aiAnalysisMessages || []).filter(m => m.type === "user").length)}/3)
+                                              </span>
+                                            </div>
+                                            {!followUpVisible[message.id] && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="glass text-white hover:glass-hover"
+                                                onClick={() => {
+                                                  setFollowUpVisible(prev => ({
+                                                    ...prev,
+                                                    [message.id]: true
+                                                  }));
+                                                }}
+                                                data-testid={`button-toggle-followup-chart-${message.id}`}
+                                              >
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                {(message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0) ? "Show Questions" : "Ask Question"}
+                                              </Button>
+                                            )}
+                                            {followUpVisible[message.id] && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="glass text-white hover:glass-hover"
+                                                onClick={() => {
+                                                  setFollowUpVisible(prev => ({
+                                                    ...prev,
+                                                    [message.id]: false
+                                                  }));
+                                                }}
+                                                data-testid={`button-hide-followup-chart-${message.id}`}
+                                              >
+                                                Hide
+                                              </Button>
+                                            )}
+                                          </div>
+
+                                          {/* Collapsed View - Show questions only */}
+                                          {!followUpVisible[message.id] && message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
+                                            <div className="space-y-2 mb-4">
+                                              {message.aiAnalysisMessages.filter(msg => msg.type === "user").map((msg) => (
+                                                <div key={msg.id} className="flex justify-end">
+                                                  <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
+                                                    <p className="text-sm text-white font-medium">{msg.content}</p>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          
+                                          {followUpVisible[message.id] && (
+                                            <div className="text-center text-white/60 text-sm py-4">
+                                              <p>Switch to the Response tab to ask follow-up questions and view full chat history</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </TabsContent>
 
                                     <TabsContent value="data" className="space-y-4 mt-4">
@@ -1626,6 +1693,73 @@ export default function ChatPage() {
                                           </div>
                                         </div>
                                       </div>
+                                      
+                                      {/* Follow-up Questions in Logs Tab */}
+                                      {(message.response.data && message.response.data.length > 0) && (
+                                        <div className="glass rounded-xl p-6">
+                                          <div className="flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-2">
+                                              <MessageSquare className="h-5 w-5 text-white/70" />
+                                              <span className="text-sm text-white/70">Follow up questions</span>
+                                              <span className="text-xs text-white/50 ml-2">
+                                                ({((message.aiAnalysisMessages || []).filter(m => m.type === "user").length)}/3)
+                                              </span>
+                                            </div>
+                                            {!followUpVisible[message.id] && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="glass text-white hover:glass-hover"
+                                                onClick={() => {
+                                                  setFollowUpVisible(prev => ({
+                                                    ...prev,
+                                                    [message.id]: true
+                                                  }));
+                                                }}
+                                                data-testid={`button-toggle-followup-logs-${message.id}`}
+                                              >
+                                                <Plus className="h-4 w-4 mr-1" />
+                                                {(message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0) ? "Show Questions" : "Ask Question"}
+                                              </Button>
+                                            )}
+                                            {followUpVisible[message.id] && (
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="glass text-white hover:glass-hover"
+                                                onClick={() => {
+                                                  setFollowUpVisible(prev => ({
+                                                    ...prev,
+                                                    [message.id]: false
+                                                  }));
+                                                }}
+                                                data-testid={`button-hide-followup-logs-${message.id}`}
+                                              >
+                                                Hide
+                                              </Button>
+                                            )}
+                                          </div>
+
+                                          {/* Collapsed View - Show questions only */}
+                                          {!followUpVisible[message.id] && message.aiAnalysisMessages && message.aiAnalysisMessages.length > 0 && (
+                                            <div className="space-y-2 mb-4">
+                                              {message.aiAnalysisMessages.filter(msg => msg.type === "user").map((msg) => (
+                                                <div key={msg.id} className="flex justify-end">
+                                                  <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg p-3 max-w-[80%]">
+                                                    <p className="text-sm text-white font-medium">{msg.content}</p>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          
+                                          {followUpVisible[message.id] && (
+                                            <div className="text-center text-white/60 text-sm py-4">
+                                              <p>Switch to the Response tab to ask follow-up questions and view full chat history</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </TabsContent>
                                   </Tabs>
                                 )}
