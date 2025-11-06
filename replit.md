@@ -32,7 +32,7 @@ The system implements comprehensive retry logic for transient network failures:
 This ensures queries succeed even when Azure OpenAI or Supabase experience intermittent connectivity issues.
 
 #### Email-Based Conversational Interface
-The application features a direct email-based query system using SendGrid Inbound Parse:
+The application features a direct email-based query system using SendGrid Inbound Parse with conversation threading:
 - **Email Address**: `aiagent@em1008.vyaasai.com` - Users send natural language queries directly via email
 - **SendGrid Inbound Parse Configuration**:
   - Subdomain: `em1008` (authenticated domain)
@@ -41,12 +41,19 @@ The application features a direct email-based query system using SendGrid Inboun
   - Spam Check: **DISABLED** (must be disabled for proper email delivery)
   - POST raw MIME: **DISABLED** (must be disabled for parsing to work)
 - **Webhook Endpoint**: `POST /webhook/sendgrid/inbound` receives incoming emails via SendGrid's Inbound Parse
+- **Email Threading & Context Retention**: 
+  - Tracks email conversations by sender email address in `email_conversations` and `email_messages` tables
+  - Remembers previous queries and their responses for follow-up questions
+  - Context is automatically extracted from the last message in the conversation thread
+  - Users can ask follow-up questions naturally (e.g., "What about in California?" after asking about projects)
+  - Works identically to SMS/WhatsApp threading but via email
 - **Email Response Format**: Professional HTML emails with:
   - Summary statistics cards (total records, total value, average fee, win rate)
   - Full data tables with all query results
   - AI-generated insights and analysis
   - SQL query details for transparency
   - Purple-themed responsive design
+  - "Reply to this email to ask follow-up questions!" footer message
 - **Response Sender**: Emails are sent FROM `aiagent@vyaasai.com` (verified sender in SendGrid)
 - **Deployment**: Production app at `https://chat-chart-bot-productmanthana.replit.app`
 
@@ -67,9 +74,11 @@ The application also supports unified messaging across SMS and WhatsApp using Tw
 The application uses a multi-database approach:
 - **Browser localStorage**: Chat history is persisted client-side, storing chat metadata, messages, and follow-up questions.
 - **Supabase PostgreSQL**: Serves as the external data source for analytical queries.
-- **Neon PostgreSQL**: Stores Twilio conversation history and message tracking:
-  - `twilio_conversations`: Conversation metadata, channel type, and participant information
-  - `twilio_messages`: Complete message history with query responses for all channels
+- **Neon PostgreSQL**: Stores conversation history and message tracking:
+  - `twilio_conversations`: SMS/WhatsApp conversation metadata, channel type, and participant information
+  - `twilio_messages`: Complete message history with query responses for SMS/WhatsApp channels
+  - `email_conversations`: Email conversation metadata tracking by sender email address
+  - `email_messages`: Complete email message history with query responses for email threading
 
 ### No Authentication Required
 The application requires no authentication or database setup. Chat history is localStorage-based, meaning no server-side sessions or user accounts are needed, making it anonymous and friction-free. Chats persist until browser data is cleared.
