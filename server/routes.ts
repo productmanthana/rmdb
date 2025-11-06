@@ -873,7 +873,7 @@ Keep it brief and conversational (2-3 sentences max for ${channel} channel).`,
 
       const msg = {
         to: senderEmail,
-        from: recipientEmail, // Must be verified in SendGrid!
+        from: 'aiagent@vyaasai.com', // Use verified sender email (not subdomain)
         subject: `Re: ${subject}`,
         text: queryResponse.success 
           ? `Found ${queryResponse.data?.length || 0} results. Please view in HTML email client for best experience.`
