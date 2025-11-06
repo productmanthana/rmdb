@@ -3865,6 +3865,32 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
         }
       }
 
+      // Step 1.4.6: Handle "likely" in reference_status (for pattern matching queries)
+      if (classification.arguments.reference_status) {
+        const refStatusLower = classification.arguments.reference_status.toLowerCase();
+        
+        if (refStatusLower === 'likely' || refStatusLower === 'probable' || refStatusLower === 'probable to win') {
+          // "Likely" means we want projects with high win probability
+          console.log(`[QueryEngine] ⚠️ "LIKELY" in reference_status: Converting to high win percentage query`);
+          console.log(`[QueryEngine]   Original function: ${classification.function_name}`);
+          console.log(`[QueryEngine]   Original: reference_status="${classification.arguments.reference_status}"`);
+          
+          // Change to a simpler query type that supports win percentage filters
+          classification.function_name = 'get_projects_by_combined_filters';
+          
+          // Remove reference_status and add min_win filter
+          delete classification.arguments.reference_status;
+          classification.arguments.min_win = 75;
+          
+          // Preserve time reference if present
+          if (classification.arguments.time_reference) {
+            // Keep it for preprocessing
+          }
+          
+          console.log(`[QueryEngine]   Corrected: Changed to get_projects_by_combined_filters with min_win=75`);
+        }
+      }
+
       // Step 1.5: Smart merge of previous context with new arguments
       if (previousContext) {
         classification.arguments = this.smartMergeArguments(
