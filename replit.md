@@ -22,17 +22,35 @@ Key design decisions include embeddable-first functionality, tab-based data view
 ### Backend
 The backend uses Express.js with TypeScript, providing a RESTful API with a primary endpoint (`POST /api/query`). The query processing pipeline involves Zod for validation, Azure OpenAI for query intent classification and parameter extraction, TypeScript for date/number calculations, SQL generation from 98 predefined templates, external PostgreSQL execution, and formatted response packaging. The core `QueryEngine` orchestrates this process. Azure OpenAI is exclusively used for understanding user intent, not for calculations.
 
-#### Multi-Channel Messaging
-The application now supports unified messaging across Email, SMS, and WhatsApp using Twilio Conversations API:
+#### Email-Based Conversational Interface
+The application features a direct email-based query system using SendGrid Inbound Parse:
+- **Email Address**: `aiagent@em1008.vyaasai.com` - Users send natural language queries directly via email
+- **SendGrid Inbound Parse Configuration**:
+  - Subdomain: `em1008` (authenticated domain)
+  - Domain: `vyaasai.com`
+  - Webhook URL: `https://chat-chart-bot-productmanthana.replit.app/webhook/sendgrid/inbound`
+  - Spam Check: **DISABLED** (must be disabled for proper email delivery)
+  - POST raw MIME: **DISABLED** (must be disabled for parsing to work)
+- **Webhook Endpoint**: `POST /webhook/sendgrid/inbound` receives incoming emails via SendGrid's Inbound Parse
+- **Email Response Format**: Professional HTML emails with:
+  - Summary statistics cards (total records, total value, average fee, win rate)
+  - Full data tables with all query results
+  - AI-generated insights and analysis
+  - SQL query details for transparency
+  - Purple-themed responsive design
+- **Response Sender**: Emails are sent FROM `aiagent@vyaasai.com` (verified sender in SendGrid)
+- **Deployment**: Production app at `https://chat-chart-bot-productmanthana.replit.app`
+
+#### Multi-Channel Messaging (Twilio Conversations)
+The application also supports unified messaging across SMS and WhatsApp using Twilio Conversations API:
 - **Twilio Conversations Service** (`server/services/twilio-conversations.ts`): Manages conversation creation, participant management, and message sending across all channels
 - **Webhook Endpoints**: 
-  - `POST /webhook/twilio/conversations`: Receives incoming messages from all channels (SMS, WhatsApp, Email)
+  - `POST /webhook/twilio/conversations`: Receives incoming messages from SMS and WhatsApp
   - `POST /webhook/twilio/status`: Tracks message delivery status
   - `GET /api/twilio/status`: Checks Twilio configuration status
 - **Channel-Specific Formatting**: Responses are automatically formatted based on the channel:
   - **SMS**: Concise text with top 3 results and summary stats (160-character friendly)
   - **WhatsApp**: Rich formatting with Markdown (bold, italics), up to 5 results with emojis
-  - **Email**: Full HTML tables with all data, charts, and SQL query details
 - **Database Tracking**: All conversations and messages are stored in `twilio_conversations` and `twilio_messages` tables
 - **Unified QueryEngine**: Uses the same natural language processing pipeline for all channels
 
