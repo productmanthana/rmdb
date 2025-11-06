@@ -6,7 +6,8 @@ import { QueryRequestSchema } from "@shared/schema";
 import { twilioService } from "./services/twilio-conversations";
 import { nanoid } from "nanoid";
 import { db } from "./db";
-import { twilioConversations, twilioMessages } from "@shared/schema";
+import { twilioConversations, twilioMessages, emailConversations, emailMessages } from "@shared/schema";
+import { eq, desc } from "drizzle-orm";
 import multer from "multer";
 import sgMail from "@sendgrid/mail";
 
@@ -727,9 +728,84 @@ Keep it brief and conversational (2-3 sentences max for ${channel} channel).`,
         return res.status(200).send('OK');
       }
 
-      // Process the query using existing QueryEngine
+      // Track email conversation and get context
+      let previousContext: { question: string; function_name: string; arguments: Record<string, any> } | undefined = undefined;
+      
+      if (db) {
+        try {
+          // Find or create conversation
+          const existingConversation = await db.select()
+            .from(emailConversations)
+            .where(eq(emailConversations.email_address, senderEmail))
+            .limit(1);
+
+          let conversationId: string;
+
+          if (existingConversation.length > 0) {
+            conversationId = existingConversation[0].id;
+            
+            // Update last_message_at
+            await db.update(emailConversations)
+              .set({ last_message_at: new Date() })
+              .where(eq(emailConversations.id, conversationId));
+
+            // Get the last message to extract context
+            const lastMessages = await db.select()
+              .from(emailMessages)
+              .where(eq(emailMessages.conversation_id, conversationId))
+              .orderBy(desc(emailMessages.timestamp))
+              .limit(1);
+
+            if (lastMessages.length > 0 && lastMessages[0].query_response) {
+              const lastResponse = lastMessages[0].query_response as any;
+              if (lastResponse.success && lastResponse.function_name && lastResponse.arguments) {
+                previousContext = {
+                  question: lastMessages[0].body,
+                  function_name: lastResponse.function_name,
+                  arguments: lastResponse.arguments
+                };
+                console.log(`📧 Found previous context for ${senderEmail}:`, previousContext);
+              }
+            }
+          } else {
+            // Create new conversation
+            conversationId = nanoid();
+            const extractName = (email: string) => {
+              const parts = from.match(/(.+?)\s*</);
+              return parts ? parts[1].trim() : email.split('@')[0];
+            };
+
+            await db.insert(emailConversations).values({
+              id: conversationId,
+              email_address: senderEmail,
+              friendly_name: extractName(senderEmail),
+              created_at: new Date(),
+              updated_at: new Date(),
+              last_message_at: new Date()
+            });
+            console.log(`📧 Created new email conversation for ${senderEmail}`);
+          }
+
+          // Save incoming message
+          await db.insert(emailMessages).values({
+            id: nanoid(),
+            conversation_id: conversationId,
+            sender_email: senderEmail,
+            subject: subject || '(no subject)',
+            body: queryText,
+            direction: 'inbound',
+            timestamp: new Date(),
+            query_response: null
+          });
+        } catch (dbError) {
+          console.error('❌ Error tracking email conversation:', dbError);
+          // Continue even if DB tracking fails
+        }
+      }
+
+      // Process the query using existing QueryEngine with context
       const engine = getQueryEngine();
-      const queryResponse = await engine.processQuery(queryText, queryExternalDb);
+      const queryResponse = await engine.processQuery(queryText, queryExternalDb, previousContext);
 
       // Generate AI insights automatically if query was successful
       if (queryResponse.success && queryResponse.data && queryResponse.data.length > 0) {
@@ -883,6 +959,33 @@ Keep it brief and conversational (2-3 sentences max for ${channel} channel).`,
 
       await sgMail.send(msg);
       console.log(`✅ Sent email response to ${senderEmail}`);
+
+      // Save outbound message to database
+      if (db) {
+        try {
+          const conversation = await db.select()
+            .from(emailConversations)
+            .where(eq(emailConversations.email_address, senderEmail))
+            .limit(1);
+
+          if (conversation.length > 0) {
+            await db.insert(emailMessages).values({
+              id: nanoid(),
+              conversation_id: conversation[0].id,
+              sender_email: 'aiagent@vyaasai.com',
+              subject: `Re: ${subject}`,
+              body: queryText, // The query that was answered
+              direction: 'outbound',
+              timestamp: new Date(),
+              query_response: queryResponse
+            });
+            console.log(`📧 Saved outbound message for conversation ${conversation[0].id}`);
+          }
+        } catch (dbError) {
+          console.error('❌ Error saving outbound message:', dbError);
+          // Continue even if DB tracking fails
+        }
+      }
 
       res.status(200).send('OK');
     } catch (error) {
