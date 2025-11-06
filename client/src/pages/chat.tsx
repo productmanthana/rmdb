@@ -491,51 +491,70 @@ export default function ChatPage() {
       return data;
     },
     onSuccess: (data, question) => {
-      const botMessage: Message = {
-        id: Date.now().toString(),
-        type: "bot",
-        content: data.message || "Query executed successfully",
-        timestamp: new Date(),
-        response: data,
-      };
-
-      setMessages((prev) => [...prev, botMessage]);
-
-      // Save chat and messages to localStorage
-      let chatId = currentChatId;
-      
-      if (!chatId) {
-        // Create new chat
-        const newChat = chatStorage.createChat(
-          question.slice(0, 50) + (question.length > 50 ? "..." : "")
-        );
-        chatId = newChat.id;
-        setCurrentChatId(chatId);
-        setChatHistory(chatStorage.getAllChats());
-      }
-
-      // Save user message and bot response to localStorage
-      if (chatId) {
-        const userMsgId = (Date.now() - 1).toString();
-        chatStorage.addMessage(chatId, {
-          id: userMsgId,
-          type: "user",
-          content: question,
-        });
-
-        chatStorage.addMessage(chatId, {
-          id: botMessage.id,
+      try {
+        const botMessage: Message = {
+          id: Date.now().toString(),
           type: "bot",
-          content: botMessage.content,
+          content: data.message || "Query executed successfully",
+          timestamp: new Date(),
           response: data,
-        });
-      }
+        };
 
-      if (!data.success) {
+        setMessages((prev) => [...prev, botMessage]);
+
+        // Save chat and messages to localStorage
+        let chatId = currentChatId;
+        
+        if (!chatId) {
+          // Create new chat
+          try {
+            const newChat = chatStorage.createChat(
+              question.slice(0, 50) + (question.length > 50 ? "..." : "")
+            );
+            chatId = newChat.id;
+            setCurrentChatId(chatId);
+            setChatHistory(chatStorage.getAllChats());
+          } catch (storageError) {
+            console.error("Failed to create chat in localStorage:", storageError);
+            // Continue without localStorage - UI should still work
+          }
+        }
+
+        // Save user message and bot response to localStorage
+        if (chatId) {
+          try {
+            const userMsgId = (Date.now() - 1).toString();
+            chatStorage.addMessage(chatId, {
+              id: userMsgId,
+              type: "user",
+              content: question,
+            });
+
+            chatStorage.addMessage(chatId, {
+              id: botMessage.id,
+              type: "bot",
+              content: botMessage.content,
+              response: data,
+            });
+          } catch (storageError) {
+            console.error("Failed to save messages to localStorage:", storageError);
+            // Continue without localStorage - UI should still work
+          }
+        }
+
+        if (!data.success) {
+          toast({
+            variant: "destructive",
+            title: "Query Failed",
+            description: data.message || "An error occurred",
+          });
+        }
+      } catch (error) {
+        console.error("Error in onSuccess callback:", error);
         toast({
           variant: "destructive",
-          title: "Query Failed",
-          description: data.message || "An error occurred",
+          title: "Error",
+          description: "Failed to process response",
         });
       }
     },
