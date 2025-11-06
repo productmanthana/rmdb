@@ -23,6 +23,29 @@ export const messages = pgTable("messages", {
   response: jsonb("response"),
 });
 
+export const twilioConversations = pgTable("twilio_conversations", {
+  id: varchar("id").primaryKey(),
+  conversation_sid: varchar("conversation_sid").notNull().unique(),
+  friendly_name: text("friendly_name").notNull(),
+  channel: varchar("channel").notNull(),
+  participant_address: text("participant_address").notNull(),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at").notNull().defaultNow(),
+  metadata: jsonb("metadata"),
+});
+
+export const twilioMessages = pgTable("twilio_messages", {
+  id: varchar("id").primaryKey(),
+  conversation_id: varchar("conversation_id").notNull(),
+  message_sid: varchar("message_sid").notNull().unique(),
+  author: text("author").notNull(),
+  body: text("body").notNull(),
+  direction: varchar("direction").notNull(),
+  channel: varchar("channel").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  query_response: jsonb("query_response"),
+});
+
 export const insertChatSchema = createInsertSchema(chats).omit({ 
   created_at: true, 
   updated_at: true 
@@ -32,10 +55,23 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
   timestamp: true 
 });
 
+export const insertTwilioConversationSchema = createInsertSchema(twilioConversations).omit({
+  created_at: true,
+  updated_at: true
+});
+
+export const insertTwilioMessageSchema = createInsertSchema(twilioMessages).omit({
+  timestamp: true
+});
+
 export type Chat = typeof chats.$inferSelect;
 export type InsertChat = z.infer<typeof insertChatSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+export type TwilioConversation = typeof twilioConversations.$inferSelect;
+export type InsertTwilioConversation = z.infer<typeof insertTwilioConversationSchema>;
+export type TwilioMessage = typeof twilioMessages.$inferSelect;
+export type InsertTwilioMessage = z.infer<typeof insertTwilioMessageSchema>;
 
 // ═══════════════════════════════════════════════════════════════
 // QUERY TYPES
