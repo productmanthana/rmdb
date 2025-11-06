@@ -3,6 +3,10 @@ import { queryExternalDb } from "./external-db";
 import { QueryEngine } from "./utils/query-engine";
 import { AzureOpenAIClient } from "./utils/azure-openai";
 import { QueryRequestSchema } from "@shared/schema";
+import { twilioService } from "./services/twilio-conversations";
+import { nanoid } from "nanoid";
+import { db } from "./db";
+import { twilioConversations, twilioMessages } from "@shared/schema";
 
 let queryEngine: QueryEngine | null = null;
 
@@ -460,6 +464,243 @@ Please provide a helpful analysis for the follow-up question.`,
         theme: "Auto-detects light/dark mode",
       },
     });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // TWILIO CONVERSATIONS WEBHOOKS
+  // ═══════════════════════════════════════════════════════════════
+
+  // Webhook for incoming messages from all channels (SMS, WhatsApp, Email)
+  app.post("/webhook/twilio/conversations", async (req, res) => {
+    try {
+      console.log('📩 Twilio webhook received:', JSON.stringify(req.body, null, 2));
+
+      // Validate Twilio webhook signature for security
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
+      if (!authToken) {
+        console.error('❌ TWILIO_AUTH_TOKEN not configured');
+        return res.status(500).send('Server configuration error');
+      }
+
+      const twilioSignature = req.headers['x-twilio-signature'] as string;
+      if (!twilioSignature) {
+        console.error('❌ Missing X-Twilio-Signature header');
+        return res.status(401).send('Unauthorized');
+      }
+
+      // Verify the request came from Twilio
+      const url = `${req.protocol}://${req.get('host')}${req.originalUrl}`;
+      const isValid = require('twilio').validateRequest(
+        authToken,
+        twilioSignature,
+        url,
+        req.body
+      );
+
+      if (!isValid) {
+        console.error('❌ Invalid Twilio signature');
+        return res.status(403).send('Forbidden');
+      }
+
+      const {
+        ConversationSid,
+        MessageSid,
+        Author,
+        Body,
+        EventType,
+        ParticipantSid,
+        Attributes
+      } = req.body;
+
+      // Only process message added events
+      if (EventType !== 'onMessageAdded') {
+        return res.status(200).send('OK');
+      }
+
+      // Ignore messages from system/bot
+      if (Author === 'system' || !Body) {
+        return res.status(200).send('OK');
+      }
+
+      // Parse attributes once and reuse
+      let parsedAttributes: any = {};
+      let channel = 'sms';
+      let participantAddress = Author;
+      
+      if (Attributes) {
+        try {
+          parsedAttributes = JSON.parse(Attributes);
+          channel = parsedAttributes.channel || 'sms';
+          participantAddress = parsedAttributes.participantAddress || Author;
+        } catch (e) {
+          console.error('⚠️  Error parsing attributes, using defaults:', e);
+          parsedAttributes = {};
+        }
+      }
+
+      // Create or update conversation record in database and get the DB primary key
+      let conversationDbId: string | null = null;
+      
+      if (db) {
+        const { eq } = await import('drizzle-orm');
+        
+        // Check if conversation already exists
+        const existingConv = await db
+          .select()
+          .from(twilioConversations)
+          .where(eq(twilioConversations.conversation_sid, ConversationSid))
+          .limit(1);
+
+        if (existingConv.length === 0) {
+          // Create new conversation record
+          conversationDbId = nanoid();
+          await db.insert(twilioConversations).values({
+            id: conversationDbId,
+            conversation_sid: ConversationSid,
+            friendly_name: `${channel.toUpperCase()} - ${participantAddress}`,
+            channel,
+            participant_address: participantAddress,
+            metadata: parsedAttributes
+          });
+        } else {
+          // Update existing conversation
+          conversationDbId = existingConv[0].id;
+          await db
+            .update(twilioConversations)
+            .set({ 
+              updated_at: new Date(),
+              metadata: parsedAttributes
+            })
+            .where(eq(twilioConversations.conversation_sid, ConversationSid));
+        }
+
+        // Save incoming message to database using the DB primary key
+        const incomingMessageId = nanoid();
+        await db.insert(twilioMessages).values({
+          id: incomingMessageId,
+          conversation_id: conversationDbId,
+          message_sid: MessageSid,
+          author: Author,
+          body: Body,
+          direction: 'inbound',
+          channel
+        });
+      }
+
+      // Process the query using existing QueryEngine
+      const engine = getQueryEngine();
+      const queryResponse = await engine.processQuery(Body, queryExternalDb);
+
+      // Generate AI insights if successful
+      if (queryResponse.success && queryResponse.data && queryResponse.data.length > 0) {
+        try {
+          const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+          const apiKey = process.env.AZURE_OPENAI_KEY;
+
+          if (endpoint && apiKey) {
+            const openaiClient = new AzureOpenAIClient({
+              endpoint,
+              apiKey,
+              apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
+              deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
+            });
+
+            const dataContext = `
+Question: ${Body}
+Number of Results: ${queryResponse.row_count || queryResponse.data.length}
+Summary Statistics: ${JSON.stringify(queryResponse.summary, null, 2)}
+Sample Data (first 3 rows): ${JSON.stringify(queryResponse.data.slice(0, 3), null, 2)}
+            `.trim();
+
+            const insights = await openaiClient.chat([
+              {
+                role: "system",
+                content: `You are a data analyst providing concise insights about project data.
+Provide 2-3 key insights in plain language. Focus on:
+- Most important findings
+- Notable patterns or trends
+- Actionable recommendations
+
+Keep it brief and conversational (2-3 sentences max for ${channel} channel).`,
+              },
+              {
+                role: "user",
+                content: `Based on this query result:\n${dataContext}\n\nProvide key insights.`,
+              },
+            ]);
+
+            queryResponse.ai_insights = insights;
+          }
+        } catch (aiError) {
+          console.error("Error generating AI insights:", aiError);
+        }
+      }
+
+      // Format response for the specific channel
+      const formattedResponse = twilioService.formatResponseForChannel(
+        queryResponse,
+        channel as 'sms' | 'whatsapp' | 'email'
+      );
+
+      // Send response back through Twilio Conversations
+      // For email, use HTML content type
+      const contentType = channel === 'email' ? 'text/html' : undefined;
+      const responseSid = await twilioService.sendMessage(
+        ConversationSid,
+        formattedResponse,
+        'system',
+        contentType
+      );
+
+      // Save outgoing message to database using the DB primary key
+      if (db && conversationDbId) {
+        const outgoingMessageId = nanoid();
+        await db.insert(twilioMessages).values({
+          id: outgoingMessageId,
+          conversation_id: conversationDbId,
+          message_sid: responseSid,
+          author: 'system',
+          body: formattedResponse,
+          direction: 'outbound',
+          channel,
+          query_response: queryResponse
+        });
+      }
+
+      console.log(`✅ Processed ${channel} message and sent response`);
+      res.status(200).send('OK');
+    } catch (error) {
+      console.error('❌ Error processing Twilio webhook:', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
+  // Status callback webhook for message delivery tracking
+  app.post("/webhook/twilio/status", async (req, res) => {
+    console.log('📊 Message status update:', req.body);
+    res.status(200).send('OK');
+  });
+
+  // Test endpoint to verify Twilio configuration
+  app.get("/api/twilio/status", async (req, res) => {
+    try {
+      const configured = twilioService.isConfigured();
+      
+      res.json({
+        configured,
+        accountSid: process.env.TWILIO_ACCOUNT_SID ? '✓ Set' : '✗ Missing',
+        authToken: process.env.TWILIO_AUTH_TOKEN ? '✓ Set' : '✗ Missing',
+        sendgridApiKey: process.env.SENDGRID_API_KEY ? '✓ Set' : '✗ Missing',
+        message: configured 
+          ? 'Twilio Conversations API is configured and ready!'
+          : 'Twilio credentials not configured. Please add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and SENDGRID_API_KEY to Replit Secrets.'
+      });
+    } catch (error) {
+      res.status(500).json({
+        configured: false,
+        error: String(error)
+      });
+    }
   });
 
   return app;

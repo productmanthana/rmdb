@@ -14,6 +14,7 @@ The frontend is built with React and TypeScript using Vite, featuring Shadcn/UI 
 #### Key Pages
 - **Chat Interface** (`/`): Main conversational query interface with follow-up questions, multiple view tabs (Response, Chart, Logs), and chat history management
 - **Dashboard** (`/dashboard`): Power BI-style analytics dashboard with comprehensive visualizations of the entire database, including summary cards, distribution charts, timeline trends, and geographic analysis
+- **Conversations** (`/conversations`): Multi-channel messaging management page for Email, SMS, and WhatsApp integration via Twilio Conversations API
 - **Embed View** (`/embed`): Embeddable version of the chat interface for integration into other applications
 
 Key design decisions include embeddable-first functionality, tab-based data views (Table, Chart, Raw JSON), and a responsive layout. Virtual scrolling is implemented for large datasets (20,000+ rows). The UI includes interactive chart customization such as real-time chart type switching, four color schemes, legend control, and flexible tooltip formatting. Charts can also be exported as PNG images. A `ChartComparison` component allows viewing the same data in multiple chart types simultaneously.
@@ -21,10 +22,27 @@ Key design decisions include embeddable-first functionality, tab-based data view
 ### Backend
 The backend uses Express.js with TypeScript, providing a RESTful API with a primary endpoint (`POST /api/query`). The query processing pipeline involves Zod for validation, Azure OpenAI for query intent classification and parameter extraction, TypeScript for date/number calculations, SQL generation from 98 predefined templates, external PostgreSQL execution, and formatted response packaging. The core `QueryEngine` orchestrates this process. Azure OpenAI is exclusively used for understanding user intent, not for calculations.
 
+#### Multi-Channel Messaging
+The application now supports unified messaging across Email, SMS, and WhatsApp using Twilio Conversations API:
+- **Twilio Conversations Service** (`server/services/twilio-conversations.ts`): Manages conversation creation, participant management, and message sending across all channels
+- **Webhook Endpoints**: 
+  - `POST /webhook/twilio/conversations`: Receives incoming messages from all channels (SMS, WhatsApp, Email)
+  - `POST /webhook/twilio/status`: Tracks message delivery status
+  - `GET /api/twilio/status`: Checks Twilio configuration status
+- **Channel-Specific Formatting**: Responses are automatically formatted based on the channel:
+  - **SMS**: Concise text with top 3 results and summary stats (160-character friendly)
+  - **WhatsApp**: Rich formatting with Markdown (bold, italics), up to 5 results with emojis
+  - **Email**: Full HTML tables with all data, charts, and SQL query details
+- **Database Tracking**: All conversations and messages are stored in `twilio_conversations` and `twilio_messages` tables
+- **Unified QueryEngine**: Uses the same natural language processing pipeline for all channels
+
 ### Data Storage
-The application uses a dual-database approach:
+The application uses a multi-database approach:
 - **Browser localStorage**: Chat history is persisted client-side, storing chat metadata, messages, and follow-up questions.
 - **Supabase PostgreSQL**: Serves as the external data source for analytical queries.
+- **Neon PostgreSQL**: Stores Twilio conversation history and message tracking:
+  - `twilio_conversations`: Conversation metadata, channel type, and participant information
+  - `twilio_messages`: Complete message history with query responses for all channels
 
 ### No Authentication Required
 The application requires no authentication or database setup. Chat history is localStorage-based, meaning no server-side sessions or user accounts are needed, making it anonymous and friction-free. Chats persist until browser data is cleared.
@@ -51,6 +69,8 @@ The application requires no authentication or database setup. Chat history is lo
 
 ### Third-Party Services
 - **Azure OpenAI (GPT-4o)**: Used for natural language understanding, intent classification, and structured query parameter extraction.
+- **Twilio Conversations API**: Unified messaging platform enabling Email, SMS, and WhatsApp channels with a single API.
+- **SendGrid**: Email delivery service (owned by Twilio) for email-based queries and responses.
 
 ### External Databases
 - **Supabase PostgreSQL**: Provides external data for analytical queries.
