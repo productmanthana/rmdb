@@ -7,6 +7,8 @@ import { twilioService } from "./services/twilio-conversations";
 import { nanoid } from "nanoid";
 import { db } from "./db";
 import { twilioConversations, twilioMessages } from "@shared/schema";
+import multer from "multer";
+import sgMail from "@sendgrid/mail";
 
 let queryEngine: QueryEngine | null = null;
 
@@ -680,6 +682,218 @@ Keep it brief and conversational (2-3 sentences max for ${channel} channel).`,
     console.log('📊 Message status update:', req.body);
     res.status(200).send('OK');
   });
+
+  // ═══════════════════════════════════════════════════════════════
+  // SENDGRID INBOUND PARSE WEBHOOK (EMAIL)
+  // ═══════════════════════════════════════════════════════════════
+
+  // Configure multer for SendGrid's multipart/form-data
+  const upload = multer();
+
+  app.post("/webhook/sendgrid/inbound", upload.none(), async (req, res) => {
+    try {
+      console.log('📧 SendGrid email webhook received');
+
+      // Extract email data from SendGrid's Inbound Parse
+      const {
+        from,          // Sender email (e.g., "User <user@example.com>")
+        to,            // Recipient email (should be aiagent@vyaasai.com)
+        subject,       // Email subject
+        text,          // Plain text body
+        html,          // HTML body
+      } = req.body;
+
+      if (!text && !html) {
+        console.log('⚠️  Empty email body, ignoring');
+        return res.status(200).send('OK');
+      }
+
+      // Extract plain email address from "Name <email>" format
+      const extractEmail = (emailString: string): string => {
+        const match = emailString.match(/<(.+?)>/);
+        return match ? match[1] : emailString.trim();
+      };
+
+      const senderEmail = extractEmail(from);
+      const recipientEmail = extractEmail(to);
+
+      console.log(`📧 Email from: ${senderEmail}, subject: "${subject}"`);
+
+      // Use plain text body (preferred) or strip HTML
+      const queryText = text || html?.replace(/<[^>]*>/g, '').trim();
+
+      if (!queryText) {
+        console.log('⚠️  No readable content in email');
+        return res.status(200).send('OK');
+      }
+
+      // Process the query using existing QueryEngine
+      const engine = getQueryEngine();
+      const queryResponse = await engine.processQuery(queryText, queryExternalDb);
+
+      // Generate AI insights automatically if query was successful
+      if (queryResponse.success && queryResponse.data && queryResponse.data.length > 0) {
+        try {
+          const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+          const apiKey = process.env.AZURE_OPENAI_KEY;
+
+          if (endpoint && apiKey) {
+            const openaiClient = new AzureOpenAIClient({
+              endpoint,
+              apiKey,
+              apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2024-12-01-preview",
+              deployment: process.env.AZURE_OPENAI_DEPLOYMENT || "gpt-4o-mini",
+            });
+
+            const dataContext = `Query: ${queryText}\n\nResults:\n${JSON.stringify(queryResponse.data.slice(0, 10), null, 2)}`;
+
+            const completion = await openaiClient.classifyQuery(
+              `Analyze these query results and provide 2-3 sentence insights: ${dataContext}`,
+              []
+            );
+            const insights = typeof completion === 'string' ? completion : JSON.stringify(completion);
+            queryResponse.ai_insights = insights;
+          }
+        } catch (aiError) {
+          console.error("Error generating AI insights:", aiError);
+        }
+      }
+
+      // Format response as HTML email with data table
+      const formatEmailResponse = (response: any): string => {
+        let html = `
+          <html>
+            <head>
+              <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                .header { background: #4F46E5; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+                .content { padding: 20px; background: #f9fafb; }
+                .summary { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+                .summary-card { display: inline-block; margin: 10px; padding: 10px 20px; background: #EEF2FF; border-radius: 6px; }
+                table { width: 100%; border-collapse: collapse; background: white; margin: 15px 0; }
+                th { background: #4F46E5; color: white; padding: 12px; text-align: left; }
+                td { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+                tr:hover { background: #f3f4f6; }
+                .analysis { background: white; padding: 15px; border-left: 4px solid #4F46E5; margin: 15px 0; }
+                .footer { text-align: center; padding: 15px; color: #6b7280; font-size: 12px; }
+                .sql-query { background: #1f2937; color: #10b981; padding: 15px; border-radius: 6px; font-family: monospace; overflow-x: auto; }
+              </style>
+            </head>
+            <body>
+              <div class="header">
+                <h2>🤖 Query Results - Natural Language Database Chatbot</h2>
+              </div>
+              <div class="content">
+                <p><strong>Your query:</strong> "${queryText}"</p>
+        `;
+
+        if (response.success && response.data && response.data.length > 0) {
+          // Summary statistics
+          const totalRecords = response.data.length;
+          const totalValue = response.data.reduce((sum: number, item: any) => sum + (parseFloat(item.total_project_value) || 0), 0);
+          const avgFee = response.data.reduce((sum: number, item: any) => sum + (parseFloat(item.fee_amount) || 0), 0) / totalRecords;
+          const wonProjects = response.data.filter((item: any) => item.status === 'Won').length;
+          const winRate = ((wonProjects / totalRecords) * 100).toFixed(1);
+
+          html += `
+            <div class="summary">
+              <h3>📊 Summary Statistics</h3>
+              <div class="summary-card"><strong>${totalRecords}</strong><br/>Total Projects</div>
+              <div class="summary-card"><strong>$${totalValue.toLocaleString()}</strong><br/>Total Value</div>
+              <div class="summary-card"><strong>$${avgFee.toLocaleString()}</strong><br/>Avg Fee</div>
+              <div class="summary-card"><strong>${winRate}%</strong><br/>Win Rate</div>
+            </div>
+          `;
+
+          // Data table
+          html += `<h3>📋 Results (${totalRecords} records)</h3><table>`;
+
+          // Headers
+          const headers = Object.keys(response.data[0]);
+          html += '<tr>';
+          headers.forEach(header => {
+            html += `<th>${header.replace(/_/g, ' ').toUpperCase()}</th>`;
+          });
+          html += '</tr>';
+
+          // Rows
+          response.data.forEach((row: any) => {
+            html += '<tr>';
+            headers.forEach(header => {
+              const value = row[header];
+              html += `<td>${value !== null && value !== undefined ? value : '-'}</td>`;
+            });
+            html += '</tr>';
+          });
+
+          html += '</table>';
+
+          // AI Analysis
+          if (response.ai_insights) {
+            html += `
+              <div class="analysis">
+                <h3>🧠 AI Analysis</h3>
+                <p>${response.ai_insights}</p>
+              </div>
+            `;
+          }
+
+          // SQL Query
+          if (response.sqlQuery) {
+            html += `
+              <h3>🔍 SQL Query Used</h3>
+              <div class="sql-query">${response.sqlQuery.replace(/\n/g, '<br/>')}</div>
+            `;
+          }
+        } else {
+          html += `<p style="color: #ef4444;"><strong>❌ ${response.message || 'No results found'}</strong></p>`;
+        }
+
+        html += `
+              </div>
+              <div class="footer">
+                <p>Powered by Natural Language Database Chatbot</p>
+                <p>Reply to this email to ask follow-up questions!</p>
+              </div>
+            </body>
+          </html>
+        `;
+
+        return html;
+      };
+
+      // Send response email using SendGrid
+      const sendgridApiKey = process.env.SENDGRID_API_KEY;
+      if (!sendgridApiKey) {
+        console.error('❌ SENDGRID_API_KEY not configured');
+        return res.status(500).send('SendGrid not configured');
+      }
+
+      sgMail.setApiKey(sendgridApiKey);
+
+      const msg = {
+        to: senderEmail,
+        from: recipientEmail, // Must be verified in SendGrid!
+        subject: `Re: ${subject}`,
+        text: queryResponse.success 
+          ? `Found ${queryResponse.data?.length || 0} results. Please view in HTML email client for best experience.`
+          : queryResponse.message || 'Query failed',
+        html: formatEmailResponse(queryResponse),
+      };
+
+      await sgMail.send(msg);
+      console.log(`✅ Sent email response to ${senderEmail}`);
+
+      res.status(200).send('OK');
+    } catch (error) {
+      console.error('❌ Error processing SendGrid webhook:', error);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // TWILIO / SENDGRID STATUS ENDPOINTS
+  // ═══════════════════════════════════════════════════════════════
 
   // Test endpoint to verify Twilio configuration
   app.get("/api/twilio/status", async (req, res) => {
