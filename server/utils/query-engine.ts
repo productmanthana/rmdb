@@ -3850,6 +3850,18 @@ Extract ONLY the parameters mentioned in: "${userQuestion}"`
           // "Finished" could mean either won or lost, but won is more common interpretation
           console.log(`[QueryEngine] ⚠️ STATUS MAPPING: "${statusLower}" → "Won"`);
           classification.arguments.status = 'Won';
+        } else if (statusLower === 'likely' || statusLower === 'probable' || statusLower === 'probable to win') {
+          // "Likely" means high win percentage, NOT a status
+          console.log(`[QueryEngine] ⚠️ "LIKELY" DETECTION: Converting to high win percentage filter`);
+          console.log(`[QueryEngine]   Original: status="${classification.arguments.status}"`);
+          
+          // Remove the invalid status filter
+          delete classification.arguments.status;
+          
+          // Add high win percentage filter (75%+)
+          classification.arguments.min_win = 75;
+          
+          console.log(`[QueryEngine]   Corrected: Removed status, added min_win=75`);
         }
       }
 
