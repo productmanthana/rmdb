@@ -46,6 +46,26 @@ export const twilioMessages = pgTable("twilio_messages", {
   query_response: jsonb("query_response"),
 });
 
+export const emailConversations = pgTable("email_conversations", {
+  id: varchar("id").primaryKey(),
+  email_address: text("email_address").notNull().unique(),
+  friendly_name: text("friendly_name").notNull(),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+  updated_at: timestamp("updated_at").notNull().defaultNow(),
+  last_message_at: timestamp("last_message_at").notNull().defaultNow(),
+});
+
+export const emailMessages = pgTable("email_messages", {
+  id: varchar("id").primaryKey(),
+  conversation_id: varchar("conversation_id").notNull(),
+  sender_email: text("sender_email").notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  direction: varchar("direction").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  query_response: jsonb("query_response"),
+});
+
 export const insertChatSchema = createInsertSchema(chats).omit({ 
   created_at: true, 
   updated_at: true 
@@ -64,6 +84,16 @@ export const insertTwilioMessageSchema = createInsertSchema(twilioMessages).omit
   timestamp: true
 });
 
+export const insertEmailConversationSchema = createInsertSchema(emailConversations).omit({
+  created_at: true,
+  updated_at: true,
+  last_message_at: true
+});
+
+export const insertEmailMessageSchema = createInsertSchema(emailMessages).omit({
+  timestamp: true
+});
+
 export type Chat = typeof chats.$inferSelect;
 export type InsertChat = z.infer<typeof insertChatSchema>;
 export type Message = typeof messages.$inferSelect;
@@ -72,6 +102,10 @@ export type TwilioConversation = typeof twilioConversations.$inferSelect;
 export type InsertTwilioConversation = z.infer<typeof insertTwilioConversationSchema>;
 export type TwilioMessage = typeof twilioMessages.$inferSelect;
 export type InsertTwilioMessage = z.infer<typeof insertTwilioMessageSchema>;
+export type EmailConversation = typeof emailConversations.$inferSelect;
+export type InsertEmailConversation = z.infer<typeof insertEmailConversationSchema>;
+export type EmailMessage = typeof emailMessages.$inferSelect;
+export type InsertEmailMessage = z.infer<typeof insertEmailMessageSchema>;
 
 // ═══════════════════════════════════════════════════════════════
 // QUERY TYPES
