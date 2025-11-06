@@ -61,94 +61,120 @@ User: "Projects with Rail and Transit tags"
 
 Return ONLY valid JSON with "function_name" and "arguments" fields.`;
 
-    try {
-      const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;
+    const maxRetries = 3;
+    let lastError: any;
 
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": this.apiKey,
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: `Question: "${userQuestion}"\n\nAvailable functions: ${JSON.stringify(functions, null, 2)}\n\nSelect the best function and extract parameters.`,
-            },
-          ],
-          temperature: 0.1,
-          max_tokens: 500,
-        }),
-      });
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const url = `${this.endpoint}/openai/deployments/${this.deployment}/chat/completions?api-version=${this.apiVersion}`;
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Azure OpenAI API Error:", errorText);
-        
-        // Check if it's a rate limit error
-        try {
-          const errorData = JSON.parse(errorText);
-          if (errorData.error?.code === "RateLimitReached") {
-            // Extract retry-after time from the message if available
-            const message = errorData.error?.message || "";
-            const retryMatch = message.match(/retry after (\d+) second/i);
-            const retrySeconds = retryMatch ? parseInt(retryMatch[1]) : 10;
-            
-            return {
-              function_name: "none",
-              arguments: {},
-              error: "rate_limit",
-              retryAfter: retrySeconds,
-            };
+        const response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": this.apiKey,
+          },
+          body: JSON.stringify({
+            messages: [
+              { role: "system", content: systemPrompt },
+              {
+                role: "user",
+                content: `Question: "${userQuestion}"\n\nAvailable functions: ${JSON.stringify(functions, null, 2)}\n\nSelect the best function and extract parameters.`,
+              },
+            ],
+            temperature: 0.1,
+            max_tokens: 500,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Azure OpenAI API Error:", errorText);
+          
+          // Check if it's a rate limit error
+          try {
+            const errorData = JSON.parse(errorText);
+            if (errorData.error?.code === "RateLimitReached") {
+              // Extract retry-after time from the message if available
+              const message = errorData.error?.message || "";
+              const retryMatch = message.match(/retry after (\d+) second/i);
+              const retrySeconds = retryMatch ? parseInt(retryMatch[1]) : 10;
+              
+              return {
+                function_name: "none",
+                arguments: {},
+                error: "rate_limit",
+                retryAfter: retrySeconds,
+              };
+            }
+          } catch (e) {
+            // If parsing fails, continue with generic error
           }
-        } catch (e) {
-          // If parsing fails, continue with generic error
+          
+          throw new Error(`API Error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        let responseText = data.choices?.[0]?.message?.content || "";
+
+        // Clean up response (remove markdown code blocks)
+        if (responseText.includes("```json")) {
+          const jsonStart = responseText.indexOf("```json") + 7;
+          const jsonEnd = responseText.indexOf("```", jsonStart);
+          responseText = responseText.substring(jsonStart, jsonEnd).trim();
+        } else if (responseText.includes("```")) {
+          const jsonStart = responseText.indexOf("```") + 3;
+          const jsonEnd = responseText.indexOf("```", jsonStart);
+          responseText = responseText.substring(jsonStart, jsonEnd).trim();
+        }
+
+        // Extract JSON object
+        if (responseText.includes("{") && responseText.includes("}")) {
+          const jsonStart = responseText.indexOf("{");
+          const jsonEnd = responseText.lastIndexOf("}") + 1;
+          responseText = responseText.substring(jsonStart, jsonEnd);
+        }
+
+        const result = JSON.parse(responseText);
+
+        return {
+          function_name: result.function_name || "none",
+          arguments: result.arguments || {},
+        };
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's a transient error worth retrying
+        const isTransientError = 
+          error.name === 'AggregateError' ||
+          error.name === 'TypeError' && error.message?.includes('fetch') ||
+          error.message?.includes('timeout') ||
+          error.message?.includes('ECONNRESET') ||
+          error.message?.includes('ETIMEDOUT') ||
+          error.message?.includes('network');
+        
+        // If it's the last attempt or not a transient error, bail out
+        if (attempt === maxRetries - 1 || !isTransientError) {
+          console.error(`Azure OpenAI classification failed after ${attempt + 1} attempt(s):`, error);
+          return {
+            function_name: "none",
+            arguments: {},
+            error: String(error),
+          };
         }
         
-        return {
-          function_name: "none",
-          arguments: {},
-          error: `API Error: ${response.status}`,
-        };
+        // Log retry and wait before next attempt
+        console.warn(`Azure OpenAI attempt ${attempt + 1} failed, retrying...`, error.message);
+        await new Promise(resolve => setTimeout(resolve, Math.min(1000 * (attempt + 1), 3000)));
       }
-
-      const data = await response.json();
-      let responseText = data.choices?.[0]?.message?.content || "";
-
-      // Clean up response (remove markdown code blocks)
-      if (responseText.includes("```json")) {
-        const jsonStart = responseText.indexOf("```json") + 7;
-        const jsonEnd = responseText.indexOf("```", jsonStart);
-        responseText = responseText.substring(jsonStart, jsonEnd).trim();
-      } else if (responseText.includes("```")) {
-        const jsonStart = responseText.indexOf("```") + 3;
-        const jsonEnd = responseText.indexOf("```", jsonStart);
-        responseText = responseText.substring(jsonStart, jsonEnd).trim();
-      }
-
-      // Extract JSON object
-      if (responseText.includes("{") && responseText.includes("}")) {
-        const jsonStart = responseText.indexOf("{");
-        const jsonEnd = responseText.lastIndexOf("}") + 1;
-        responseText = responseText.substring(jsonStart, jsonEnd);
-      }
-
-      const result = JSON.parse(responseText);
-
-      return {
-        function_name: result.function_name || "none",
-        arguments: result.arguments || {},
-      };
-    } catch (error) {
-      console.error("Error classifying query:", error);
-      return {
-        function_name: "none",
-        arguments: {},
-        error: String(error),
-      };
     }
+
+    // Fallback (should never reach here)
+    return {
+      function_name: "none",
+      arguments: {},
+      error: String(lastError),
+    };
   }
 
   async chat(messages: Array<{ role: string; content: string }>): Promise<string> {

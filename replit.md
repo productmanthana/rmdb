@@ -22,6 +22,15 @@ Key design decisions include embeddable-first functionality, tab-based data view
 ### Backend
 The backend uses Express.js with TypeScript, providing a RESTful API with a primary endpoint (`POST /api/query`). The query processing pipeline involves Zod for validation, Azure OpenAI for query intent classification and parameter extraction, TypeScript for date/number calculations, SQL generation from 98 predefined templates, external PostgreSQL execution, and formatted response packaging. The core `QueryEngine` orchestrates this process. Azure OpenAI is exclusively used for understanding user intent, not for calculations.
 
+#### Reliability & Error Handling
+The system implements comprehensive retry logic for transient network failures:
+- **Azure OpenAI Retries**: Up to 3 automatic retry attempts for classification failures, with exponential backoff (1s, 2s, 3s delays)
+- **Database Connection Retries**: Up to 3 automatic retry attempts for Supabase PostgreSQL connection failures
+- **Transient Error Detection**: Automatically detects and retries AggregateError, connection timeouts, and network errors
+- **Increased Timeouts**: Database connection timeout increased from 10s to 30s, with 60s query timeout
+- **Connection Pool**: Configured with max 20 connections, 30s idle timeout for optimal resource usage
+This ensures queries succeed even when Azure OpenAI or Supabase experience intermittent connectivity issues.
+
 #### Email-Based Conversational Interface
 The application features a direct email-based query system using SendGrid Inbound Parse:
 - **Email Address**: `aiagent@em1008.vyaasai.com` - Users send natural language queries directly via email
