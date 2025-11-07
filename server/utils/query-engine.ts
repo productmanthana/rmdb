@@ -3557,7 +3557,7 @@ export class QueryEngine {
 
     // Step 0: Detect if newArgs is essentially empty (only has optional params)
     // Optional params that can be changed without affecting core query logic
-    const OPTIONAL_ONLY_PARAMS = new Set(['limit']);
+    const OPTIONAL_ONLY_PARAMS = new Set(['limit', 'offset']);
     const newArgKeys = Object.keys(newArgs);
     const hasOnlyOptionalParams = newArgKeys.length === 0 || 
                                    newArgKeys.every(key => OPTIONAL_ONLY_PARAMS.has(key));
@@ -3567,14 +3567,41 @@ export class QueryEngine {
       console.log(`[SmartMerge]    This might lose required parameters! Preserving ALL previous args.`);
     }
 
+    // Step 0.5: Detect PIVOT vs REFINEMENT for replaceable params
+    // PIVOT = User explicitly mentions a replaceable param that was previously set with a DIFFERENT value
+    // REFINEMENT = User adds new filters without mentioning previous replaceable params
+    const explicitPivotParams = new Set<string>();
+    
+    for (const key of Array.from(REPLACEABLE_PARAMS)) {
+      if (key in newArgs && key in previousArgs) {
+        // User mentioned this param again - check if value changed
+        const prevValue = JSON.stringify(previousArgs[key]);
+        const newValue = JSON.stringify(newArgs[key]);
+        
+        if (prevValue !== newValue) {
+          // Value changed - this is an EXPLICIT PIVOT for this specific param
+          explicitPivotParams.add(key);
+          console.log(`[SmartMerge] 🔄 PIVOT detected for ${key}: ${prevValue} → ${newValue}`);
+        }
+      }
+    }
+    
+    // Detect refinement: User is adding filters without pivoting
+    const isRefinement = !hasOnlyOptionalParams && explicitPivotParams.size === 0;
+    
+    if (isRefinement) {
+      console.log(`[SmartMerge] 🎯 REFINEMENT detected: User is adding filters, keeping all previous replaceable params`);
+    }
+
     // Step 1: Add all previous cumulative parameters (unless new ones override them)
     for (const [key, value] of Object.entries(previousArgs)) {
       if (CUMULATIVE_PARAMS.has(key) && !(key in newArgs)) {
         console.log(`[SmartMerge] Keeping cumulative param: ${key} = ${JSON.stringify(value)}`);
         result[key] = value;
       } else if (REPLACEABLE_PARAMS.has(key) && !(key in newArgs)) {
-        // CRITICAL FIX: Tags and categories should only be dropped when NEW tags/categories are provided
-        // For other replaceable params (company, client, status), drop when any new args provided
+        // NEW LOGIC: Smart pivot detection
+        // Keep replaceable params UNLESS we're in an explicit pivot for that specific param
+        
         if (key === 'tags' || key === 'categories') {
           // Special handling: Only drop tags if new tags provided, only drop categories if new categories provided
           const shouldDropTags = key === 'tags' && newArgs.tags;
@@ -3586,13 +3613,18 @@ export class QueryEngine {
             console.log(`[SmartMerge] Keeping ${key} (no new ${key} in follow-up): ${JSON.stringify(value)}`);
             result[key] = value;
           }
-        } else if (hasOnlyOptionalParams) {
-          // For other replaceable params: keep if only optional params
-          console.log(`[SmartMerge] Keeping replaceable param (avoiding data loss): ${key} = ${JSON.stringify(value)}`);
+        } else if (isRefinement || hasOnlyOptionalParams) {
+          // REFINEMENT or OPTIONAL-ONLY: Keep all replaceable params
+          // User is adding filters, not pivoting
+          console.log(`[SmartMerge] ✅ Keeping ${key} = ${JSON.stringify(value)} (refinement mode)`);
           result[key] = value;
+        } else if (explicitPivotParams.has(key)) {
+          // Explicit pivot for THIS specific param - drop it
+          console.log(`[SmartMerge] 🔄 Dropping ${key} (explicit pivot detected)`);
         } else {
-          // User is providing meaningful new params, so we can drop old replaceables
-          console.log(`[SmartMerge] Dropping replaceable param: ${key} (new args provided)`);
+          // Keep other replaceable params even during pivot (only drop the pivoted one)
+          console.log(`[SmartMerge] Keeping ${key} = ${JSON.stringify(value)} (not part of pivot)`);
+          result[key] = value;
         }
       } else if (!CUMULATIVE_PARAMS.has(key) && !REPLACEABLE_PARAMS.has(key)) {
         // Unknown parameter - keep it for safety
