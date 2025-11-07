@@ -83,6 +83,25 @@ The application uses a multi-database approach:
 ### No Authentication Required
 The application requires no authentication or database setup. Chat history is localStorage-based, meaning no server-side sessions or user accounts are needed, making it anonymous and friction-free. Chats persist until browser data is cleared.
 
+### Smart Context Retention System
+The query engine implements intelligent **pivot vs refinement detection** to handle follow-up questions naturally:
+
+**Refinement Mode (Default)** - User is adding filters, keep all previous filters:
+- "Show mega projects" → "Add education filter" → Result: **Mega + Education** ✅
+- "Education projects" → "Which company has most?" → Result: **Education companies ranked** ✅
+- Detection: User adds new constraints without mentioning previous filters
+
+**Pivot Mode** - User explicitly changes a filter value:
+- "Show Company A" → "Show Company B" → Result: **Only Company B** ✅ (Company A dropped)
+- "Mega projects" → "Show small projects" → Result: **Only Small** ✅ (Mega dropped)
+- Detection: User mentions same parameter with different value
+
+**Key Benefits**:
+- **Business-aligned**: 90% of analytics queries are drill-downs (refinement), not pivots
+- **Lossless**: Filters accumulate naturally during exploration without explicit "keep previous filters" instructions
+- **Intelligent**: Detects explicit replacements ("Company B instead") vs additions ("add education")
+- **Category/Tag Smart**: Special handling for tags ↔ categories pivots (e.g., "Rail tags" → "Healthcare categories" clears tags)
+
 ### Feature Specifications
 - **Follow-Up Questions**: Follow-up questions are **fully functional and identical** across all tabs (Response, Chart, Logs). Each follow-up response includes:
   - **Complete tabs structure**: Response (data table + AI analysis), Chart (visualization), and Logs (SQL query details)
