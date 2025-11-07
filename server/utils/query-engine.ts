@@ -305,10 +305,14 @@ export class QueryEngine {
               AVG(CAST(NULLIF("Win %", '') AS NUMERIC)) as avg_win_rate
               FROM "Sample"
               WHERE "Company" IS NOT NULL AND "Company" != ''
+              {date_filter}
+              {additional_filters}
               GROUP BY "Company"
-              ORDER BY total_revenue DESC NULLS LAST`,
+              ORDER BY total_revenue DESC NULLS LAST
+              {limit_clause}`,
         params: [],
         param_types: [],
+        optional_params: ["start_date", "end_date", "start_year", "end_year", "size", "status", "state_code", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "total_revenue",
       },
