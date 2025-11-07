@@ -398,10 +398,13 @@ export class QueryEngine {
               SUM(CAST(NULLIF("Fee", '') AS NUMERIC)) as total_value
               FROM "Sample"
               WHERE "Status" IS NOT NULL AND "Status" != ''
+              {date_filter}
+              {additional_filters}
               GROUP BY "Status"
               ORDER BY total_value DESC NULLS LAST`,
         params: [],
         param_types: [],
+        optional_params: ["start_date", "end_date", "start_year", "end_year", "size", "status", "state_code", "company", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win"],
         chart_type: "pie",
         chart_field: "project_count",
       },
@@ -1151,6 +1154,7 @@ export class QueryEngine {
                          NULLIF(COUNT(CASE WHEN "Status" IN ('Won', 'Lost') THEN 1 END), 0) * 100)::numeric, 2) as actual_win_rate
                 FROM "Sample"
                 WHERE "Point Of Contact" IS NOT NULL AND "Point Of Contact" != ''
+                {date_filter}
                 {additional_filters}
                 GROUP BY "Point Of Contact"
               )
@@ -1169,7 +1173,7 @@ export class QueryEngine {
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_date", "end_date", "company", "state_code", "limit"],
+        optional_params: ["start_date", "end_date", "start_year", "end_year", "company", "state_code", "size", "status", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "total_value",
       },
@@ -1185,6 +1189,7 @@ export class QueryEngine {
                   COUNT(CASE WHEN "Status" = 'Won' THEN 1 END) as won_count
                 FROM "Sample"
                 WHERE "State Lookup" IS NOT NULL AND "State Lookup" != ''
+                {date_filter}
                 {additional_filters}
                 GROUP BY "State Lookup"
               )
@@ -1201,7 +1206,7 @@ export class QueryEngine {
               {limit_clause}`,
         params: [],
         param_types: [],
-        optional_params: ["start_date", "end_date", "company", "status", "limit"],
+        optional_params: ["start_date", "end_date", "start_year", "end_year", "company", "status", "size", "client", "categories", "tags", "min_fee", "max_fee", "min_win", "max_win", "limit"],
         chart_type: "bar",
         chart_field: "total_value",
       },
