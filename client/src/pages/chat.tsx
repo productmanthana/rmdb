@@ -514,8 +514,18 @@ export default function ChatPage() {
             chatId = newChat.id;
             setCurrentChatId(chatId);
             setChatHistory(chatStorage.getAllChats());
-          } catch (storageError) {
+          } catch (storageError: any) {
             console.error("Failed to create chat in localStorage:", storageError);
+            
+            // Show specific message for quota errors
+            if (storageError?.name === "QuotaExceededError") {
+              toast({
+                variant: "destructive",
+                title: "Storage Full",
+                description: "Your browser storage is full. Please delete some old chats from the sidebar to continue saving new conversations.",
+                duration: 8000,
+              });
+            }
             // Continue without localStorage - UI should still work
           }
         }
@@ -591,6 +601,30 @@ export default function ChatPage() {
       description: `Successfully deleted ${selectedChats.size} chats`,
     });
     if (currentChatId && selectedChats.has(currentChatId)) {
+      handleNewChat();
+    }
+  };
+
+  // Clear oldest chats to free up storage
+  const handleClearOldChats = () => {
+    const allChats = chatStorage.getAllChats();
+    if (allChats.length === 0) return;
+
+    // Delete oldest 50% of chats or minimum 10 chats, whichever is greater
+    const chatsToDelete = Math.max(10, Math.floor(allChats.length * 0.5));
+    const oldestChats = allChats
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .slice(0, chatsToDelete)
+      .map(chat => chat.id);
+
+    chatStorage.deleteChats(oldestChats);
+    setChatHistory(chatStorage.getAllChats());
+    toast({
+      title: "Storage Cleared",
+      description: `Deleted ${oldestChats.length} oldest chats to free up space`,
+    });
+
+    if (currentChatId && oldestChats.includes(currentChatId)) {
       handleNewChat();
     }
   };
@@ -854,7 +888,7 @@ export default function ChatPage() {
         {isSidebarOpen && (
           <aside className="w-80 glass-dark border-r border-white/10 flex flex-col shrink-0 animate-fade-in-up">
           {/* Search */}
-          <div className="p-3 border-b border-white/10">
+          <div className="p-3 border-b border-white/10 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
               <Input
@@ -865,6 +899,18 @@ export default function ChatPage() {
                 data-testid="input-search-chats"
               />
             </div>
+            {chatHistory.length > 10 && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full text-white/70 border-white/20 hover:bg-white/10 hover:text-white"
+                onClick={handleClearOldChats}
+                data-testid="button-clear-old-chats"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear Old Chats (Free Storage)
+              </Button>
+            )}
           </div>
 
           {/* Bulk Actions */}

@@ -97,7 +97,12 @@ The application requires no authentication or database setup. Chat history is lo
 - **Column-Specific Query Support**: Users can request specific columns (e.g., "provide only the projects") while preserving previous filters.
 - **Tag Replacement**: Follow-up queries involving tags now correctly replace previous tags instead of combining them.
 - **Context Preservation**: Filters are maintained when selecting columns in follow-up queries.
-- **Large Dataset Handling**: Error handling for localStorage limits is implemented, displaying a friendly message when storage is truly full for very large datasets.
+- **localStorage Quota Management**: 
+  - **Proper error handling**: When browser storage is full, users receive a clear toast notification explaining the issue
+  - **Smart error detection**: The system properly detects QuotaExceededError and provides actionable guidance
+  - **Quick cleanup button**: "Clear Old Chats" button appears in sidebar when 10+ chats exist, automatically deleting oldest 50% of chats (minimum 10)
+  - **Graceful degradation**: Application continues to work even when storage is full (queries still execute, just not saved)
+  - **Bulk delete support**: Users can select multiple chats and delete them together
 - **Space-Insensitive PID Matching**: PID searches are flexible, matching "pid1204" with "PID 1204" (with or without spaces).
 - **Ordinal Query Support**: The system correctly handles ordinal ranking queries like "second best", "third largest", "5th biggest", etc. by using SQL OFFSET to skip the appropriate number of results. Examples: "best" returns the highest-fee project, "second best" skips the first and returns the second-highest, "third largest" returns the third-highest, and so on.
 

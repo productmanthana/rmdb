@@ -91,7 +91,17 @@ class ChatStorage {
       messages: []
     };
     chats.unshift(newChat); // Add to beginning
-    this.saveChats(chats);
+    const result = this.saveChats(chats);
+    
+    // Throw specific error if quota exceeded
+    if (!result.success && result.isQuotaError) {
+      // Remove the chat we just added since it couldn't be saved
+      chats.shift();
+      const error = new Error("QUOTA_EXCEEDED");
+      error.name = "QuotaExceededError";
+      throw error;
+    }
+    
     return newChat;
   }
 
