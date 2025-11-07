@@ -96,7 +96,7 @@ The application requires no authentication or database setup. Chat history is lo
 - **Multi-Word Tag Handling**: The system correctly parses multi-word tags (e.g., "aviation pavement curbs and gutters") as single entities.
 - **Column-Specific Query Support**: Users can request specific columns (e.g., "provide only the projects") while preserving previous filters.
 - **Tag Replacement**: Follow-up queries involving tags now correctly replace previous tags instead of combining them.
-- **Context Preservation**: Filters are maintained when selecting columns in follow-up queries.
+- **Context Preservation**: Filters are maintained across all follow-up questions, including when transitioning between filtering queries and aggregation queries (e.g., from "show mega projects" to "which company has most projects" will preserve the mega filter).
 - **localStorage Quota Management**: 
   - **Proper error handling**: When browser storage is full, users receive a clear toast notification explaining the issue
   - **Smart error detection**: The system properly detects QuotaExceededError and provides actionable guidance
